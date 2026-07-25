@@ -10,7 +10,9 @@ model: yolo26s.pt  # Options: yolo26n.pt, yolo26s.pt, yolo26m.pt, yolo26l.pt, yo
 
 # Training parameters
 epochs: 200       # Fine-tune senaryosunda uzun eğitim + early stopping daha iyi sonuç verir
-batch: 8          # imgsz 1024 için düşürüldü (VRAM); imgsz 640'a dönerseniz 16 yapın
+batch: 8          # Güvenli varsayılan (16 GB VRAM / T4-V100, imgsz 1024).
+                  # Colab notebook'u GPU'yu algılayıp bunu otomatik günceller:
+                  # A100 40GB → 32, L4 24GB → 16, V100/T4 16GB → 8
 imgsz: 1024       # Erken evre lezyonlar (leaf spot vb.) 640'ta birkaç piksele düşüyor;
                   # 1024 küçük lekelerin tespitini belirgin iyileştirir. VRAM yetmezse 640 + SAHI kullanın.
 device: 0  # GPU device ID (0, 1, 2, ...) or 'cpu'
