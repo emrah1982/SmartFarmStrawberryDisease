@@ -5,7 +5,7 @@ NEDEN GEREKLİ?
     Dataset'te sınıflar dengesiz: Anthracnose Fruit Rot 326 kutu iken
     strawberry_ripe 5.162 kutu (~16 kat fark). ~10 katı aşan dengesizlikte
     model az örnekli sınıfı "görmezden gelmeye" başlar. Tüm dataset'i eşit
-    çoğaltmak (augment_dataset.py --factor 2) dengesizliği AYNEN KORUR;
+    çoğaltmak dengesizliği AYNEN KORUR;
     çözüm, SADECE az örnekli sınıfları içeren görüntüleri çoğaltmaktır.
 
 KURALLAR (script bunları uygular):

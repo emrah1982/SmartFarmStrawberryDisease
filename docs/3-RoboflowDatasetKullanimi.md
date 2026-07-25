@@ -208,16 +208,16 @@ dfl: 1.5
 python scripts/download_dataset.py --api-key YOUR_KEY --workspace strawberry --project ripeness
 ```
 
-### 2. Sınıf Yeniden Etiketleme
+### 2. Kaynakları Birleştirme (sınıf ID çakışması olmadan)
 ```bash
-# Label dosyalarını güncelle
-python scripts/relabel_dataset.py --input datasets/roboflow --output datasets/processed
+# Sınıf İSİMLERİNE göre eşler; farklı kaynakların ID'leri çakışmaz
+python scripts/merge_datasets.py --inputs datasets/kaynak1 datasets/kaynak2 --output datasets/merged
 ```
 
 ### 3. Augmentation Uygulama
 ```bash
-# Ek augmentation (opsiyonel)
-python scripts/augment_dataset.py --input datasets/processed --output datasets/augmented --factor 2
+# Sınıf hedefli: sadece az örnekli sınıfları çoğaltır (dengesizliği azaltır)
+python scripts/augment_by_class.py --update-data-yaml
 ```
 
 ### 4. Eğitim

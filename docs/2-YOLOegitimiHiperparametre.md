@@ -173,7 +173,7 @@ Model aşağıdaki genişletmelere hazır olmalıdır:
 
 Bu prompt doğru uygulandığında:
 
-* Çilek olgunluk tespiti sahada güvenilir çalışmalı
+* 7 sınıflı hastalık tespiti sahada güvenilir çalışmalı
 * Model farklı ortam koşullarında genellenebilir olmalı
 * Uzun vadeli tarım analiz projelerine temel oluşturmalıdır
 

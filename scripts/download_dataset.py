@@ -111,7 +111,8 @@ def main():
     if success:
         logger.info("✅ Dataset başarıyla indirildi!")
         logger.info(f"📁 Konum: {args.output}")
-        logger.info("📝 Sonraki adım: python scripts/relabel_dataset.py")
+        logger.info("📝 Sonraki adım: python scripts/merge_datasets.py (çoklu kaynak) "
+                    "veya doğrudan scripts/split_dataset.py")
     else:
         logger.error("❌ Dataset indirilemedi!")
         return 1

@@ -51,16 +51,19 @@ strawberry_vision/
 └── main.py          # Giriş noktası
 
 configs/
-├── strawberry_data.yaml        # Dataset config
+├── strawberry_data.yaml        # Dataset config (10 sınıf, çoklu kaynak)
 ├── train_config.yaml           # Eğitim parametreleri
-└── augmentation_config.yaml    # Augmentation ayarları
+└── class_aliases.yaml          # Sınıf adı eş anlamlıları
 
 scripts/
-├── download_dataset.py    # Roboflow'dan dataset indir
-├── relabel_dataset.py     # Sınıf etiketlerini güncelle
-├── augment_dataset.py     # Dataset augmentation
-├── train_yolo.py          # YOLOv8 eğitimi
-└── evaluate_model.py      # Model değerlendirme
+├── download_dataset.py         # Roboflow'dan dataset indir
+├── merge_datasets.py           # Çoklu kaynak birleştirme (ID çakışmasız)
+├── split_dataset.py            # Grup bazlı (sızıntısız) split
+├── add_background_images.py    # Sağlıklı görüntüleri background olarak ekle
+├── augment_by_class.py         # Sınıf hedefli augmentation
+├── train_yolo.py               # YOLO26 eğitimi
+├── evaluate_model.py           # Model değerlendirme
+└── sahi_predict.py             # Dilimli inference (küçük lezyonlar)
 
 tests/
 ├── test_domain_entities.py     # Domain testleri
@@ -76,11 +79,11 @@ tests/
 # Roboflow'dan indir
 python scripts/download_dataset.py --api-key YOUR_KEY --workspace strawberry --project ripeness
 
-# Sınıf etiketlerini güncelle
-python scripts/relabel_dataset.py --input datasets/roboflow --output datasets/processed
+# Kaynakları birleştir (sınıf isimlerine göre eşler, ID çakışmasını önler)
+python scripts/merge_datasets.py --inputs datasets/kaynak1 datasets/kaynak2 --output datasets/merged
 
-# Augmentation (opsiyonel)
-python scripts/augment_dataset.py --input datasets/processed --output datasets/augmented --factor 2
+# Sınıf dengesizliğini gider (az örnekli sınıfları hedefli çoğalt)
+python scripts/augment_by_class.py --update-data-yaml
 ```
 
 ### 2. Model Eğitimi

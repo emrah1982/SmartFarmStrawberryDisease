@@ -145,10 +145,8 @@ Not: Colab dışında lokalde çalıştırmak için de aynı dizin yapısı ve `
 # Roboflow'dan dataset indir
 python scripts/download_dataset.py --api-key YOUR_KEY --workspace strawberry --project ripeness
 
-# Sınıf etiketlerini standardize et
-python scripts/relabel_dataset.py --input datasets/roboflow --output datasets/processed
-
 # Farklı kaynaklardan dataset'leri sınıf çakışması OLMADAN birleştir (birden çok kaynak varsa)
+# Sınıf isimlerini standardize etme işini de bu script yapar (configs/class_aliases.yaml ile)
 python scripts/merge_datasets.py --inputs datasets/kaynak1 datasets/kaynak2 --output datasets/merged
 
 # Grup bazlı (veri sızıntısız) train/val/test split — detaylar için aşağıdaki bölüme bakın
@@ -157,11 +155,8 @@ python scripts/split_dataset.py --input datasets/merged --output datasets/split
 # Sağlıklı (background) görüntüleri ekle — yanlış alarmları azaltır
 python scripts/add_background_images.py --dataset datasets/split --source datasets/healthy_images --target-ratio 0.10
 
-# Sınıf dengesizliğini gider: az örnekli sınıfları hedefli çoğalt (önerilen)
+# Sınıf dengesizliğini gider: az örnekli sınıfları hedefli çoğalt
 python scripts/augment_by_class.py --update-data-yaml
-
-# Tüm dataset'i eşit çoğaltma (dengesizliği KORUR — sadece genel veri artırma için)
-python scripts/augment_dataset.py --input datasets/split --output datasets/augmented --factor 2
 ```
 
 #### 🔀 Farklı Kaynaklardan Dataset Birleştirme (`merge_datasets.py`)
@@ -383,17 +378,15 @@ SmartFarmBerry/
 │   └── main.py                  # Giriş noktası
 │
 ├── configs/                     # Konfigürasyon dosyaları
-│   ├── strawberry_data.yaml     # Dataset config
+│   ├── strawberry_data.yaml     # Dataset config (10 sınıf, çoklu kaynak)
 │   ├── train_config.yaml        # Eğitim parametreleri
-│   └── augmentation_config.yaml # Augmentation ayarları
+│   └── class_aliases.yaml       # Sınıf adı eş anlamlıları (birleştirme için)
 │
 ├── scripts/                     # Yardımcı scriptler
 │   ├── download_dataset.py      # Dataset indirme
-│   ├── relabel_dataset.py       # Etiket güncelleme
 │   ├── merge_datasets.py        # Çoklu kaynak birleştirme (sınıf ID çakışmasız)
 │   ├── split_dataset.py         # Grup bazlı (veri sızıntısız) train/val/test split
 │   ├── add_background_images.py # Sağlıklı (background) görüntü ekleme
-│   ├── augment_dataset.py       # Augmentation (tüm dataset, eşit)
 │   ├── augment_by_class.py      # Sınıf hedefli augmentation (dengesizlik giderici)
 │   ├── train_yolo.py            # Model eğitimi
 │   ├── evaluate_model.py        # Model değerlendirme
@@ -417,7 +410,7 @@ SmartFarmBerry/
 │   └── 3-RoboflowDatasetKullanimi.md
 │
 ├── requirements.txt             # Python bağımlılıkları
-├── Colab_Starter.ipynb          # Colab notebook
+├── StrawberryVision_Colab_Production.ipynb  # Colab eğitim notebook'u
 └── README.md                    # Bu dosya
 ```
 
