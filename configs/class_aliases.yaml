@@ -1,0 +1,57 @@
+# Sınıf adı eş anlamlıları (alias → kanonik ad)
+# merge_datasets.py bu dosyayı kullanarak farklı kaynaklardaki farklı yazımları
+# tek sınıfa eşler. Karşılaştırma normalize edilerek yapılır: büyük/küçük harf,
+# boşluk, tire (-) ve alt çizgi (_) farkları zaten otomatik tolere edilir —
+# yani "gray_mold", "Gray-Mold", "GRAY MOLD" için alias YAZMANIZA GEREK YOK.
+# Buraya sadece gerçekten FARKLI adlandırmaları ekleyin.
+#
+# Format:  "kaynaktaki ad": "master listedeki ad"
+
+# --- Gray Mold (kurşuni küf) ---
+"botrytis": "Gray Mold"
+"botrytis cinerea": "Gray Mold"
+"gri kuf": "Gray Mold"
+"kursuni kuf": "Gray Mold"
+
+# --- Powdery Mildew (külleme) ---
+"powdery mildew": "Powdery Mildew Leaf"   # kaynak yaprak/meyve ayrımı yapmıyorsa yaprağa eşle
+"kulleme": "Powdery Mildew Leaf"
+"kulleme yaprak": "Powdery Mildew Leaf"
+"kulleme meyve": "Powdery Mildew Fruit"
+
+# --- Anthracnose (antraknoz) ---
+"anthracnose": "Anthracnose Fruit Rot"
+"antraknoz": "Anthracnose Fruit Rot"
+
+# --- Leaf Spot / Angular Leafspot ---
+"angular leaf spot": "Angular Leafspot"
+"yaprak lekesi": "Leaf Spot"
+
+# --- Blossom Blight (çiçek yanıklığı) ---
+"cicek yanikligi": "Blossom Blight"
+"flower blight": "Blossom Blight"
+
+# --- Olgunluk sınıfları (meyve) ---
+"ripe": "strawberry_ripe"
+"ripened": "strawberry_ripe"
+"olgun": "strawberry_ripe"
+"semi ripe": "strawberry_semi_ripe"
+"semi ripened": "strawberry_semi_ripe"
+"yari olgun": "strawberry_semi_ripe"
+"unripe": "strawberry_unripe"
+"unripened": "strawberry_unripe"
+"green": "strawberry_unripe"
+"olgun degil": "strawberry_unripe"
+
+# --- Sağlıklı sınıflar ---
+# Farklı kaynaklardaki tüm "sağlıklı" varyantlarını tek ada topla; sonra
+# merge_datasets.py'de --drop-classes "healthy" ile kutularını atıp bu
+# görüntüleri background (yanlış alarm azaltıcı) örneklere dönüştürebilir,
+# veya --on-unknown add ile ayrı bir sınıf olarak tutabilirsiniz.
+"healthy leaf": "healthy"
+"strawberry healthy": "healthy"
+"healthy plant": "healthy"
+"healthy strawberry": "healthy"
+"saglikli": "healthy"
+"saglikli yaprak": "healthy"
+"normal": "healthy"

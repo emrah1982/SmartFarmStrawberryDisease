@@ -2,7 +2,7 @@
 
 ## Proje Özeti
 
-Strawberry Vision, Google Colab uyumlu, katmanlı mimariye sahip profesyonel bir çilek görüntü analiz sistemidir. Sistem, YOLO tabanlı nesne tespiti ile çileklerin olgunluk durumunu (olgun, yarı olgun, olgun değil) tespit eder, takip eder ve sayım yapar.
+Strawberry Vision, Google Colab uyumlu, katmanlı mimariye sahip profesyonel bir çilek görüntü analiz sistemidir. Sistem, YOLO tabanlı nesne tespiti ile çileklerde hastalık belirtilerini tespit eder (7 sınıf), takip eder ve sayım/istatistik üretir.
 
 ## Hızlı Başlangıç
 
@@ -34,8 +34,8 @@ Bu proje 4 katmana ayrılmıştır:
 - **Geliştirme Kuralları**: `docs/development-rules.md` - SOLID, kod stili, test kuralları
 
 ### Model Eğitimi ve Dataset
-- **Görüntü Analizi**: `docs/1-gorunuAnalizi.md` - Dataset stratejisi, etiketleme kuralları
-- **YOLO Eğitimi**: `docs/2-YOLOegitimiHiperparametre.md` - Hiperparametre optimizasyonu
+- **Görüntü Analizi**: `docs/1-gorunuAnalizi.md` - Hastalık odaklı dataset stratejisi, etiketleme kuralları
+- **YOLO Eğitimi**: `docs/2-YOLOegitimiHiperparametre.md` - Hiperparametre optimizasyonu (7 sınıf)
 - **Roboflow Etiketleme**: `docs/2.1-roboflowEtiketlemeTalimati.md` - Etiketleme talimatları
 - **Hata Analizi**: `docs/2.2-ModelHataAnaliziIyilestirmePromptu.md` - Model iyileştirme
 - **Roboflow Dataset Kullanımı**: `docs/3-RoboflowDatasetKullanimi.md` - Dataset linkleri, augmentation, eğitim

@@ -7,7 +7,7 @@
 ## 🎯 Rol Tanımı
 
 Sen deneyimli bir **Computer Vision & Deep Learning Engineer**’sın.
-Görevin, çilek görüntüleri için hazırlanmış etiketli dataset kullanarak **YOLO tabanlı bir nesne tespit modeli** eğitmek, değerlendirmek ve optimize etmektir.
+Görevin, çilek görüntülerinde 7 sınıflı hastalık tespiti için hazırlanmış dataset kullanarak **YOLO tabanlı bir nesne tespit modeli** eğitmek, değerlendirmek ve optimize etmektir.
 
 ---
 
@@ -15,12 +15,7 @@ Görevin, çilek görüntüleri için hazırlanmış etiketli dataset kullanarak
 
 Eğitilecek model aşağıdaki görevleri yerine getirmelidir:
 
-* Çilek **nesne tespiti**
-* Çilek **olgunluk sınıflandırması**
-
-  * Olgun
-  * Yarı olgun
-  * Olgun değil
+* Çilek yaprak/mevye üzerinde 7 sınıflı **hastalık tespiti**
 * Gerçek zamanlı çalışmaya uygun performans
 * Tarla, sera ve hidroponik ortamlarında kararlı sonuç
 
@@ -42,11 +37,15 @@ Aşağıdaki model prensipleri izlenmelidir:
 Model eğitimi şu dataset yapısına dayanmalıdır:
 
 * Bounding box etiketli görüntüler
-* Üç sınıf:
+* Yedi sınıf:
 
-  * `strawberry_ripe`
-  * `strawberry_semi_ripe`
-  * `strawberry_unripe`
+  * Angular Leafspot
+  * Anthracnose Fruit Rot
+  * Blossom Blight
+  * Gray Mold
+  * Leaf Spot
+  * Powdery Mildew Fruit
+  * Powdery Mildew Leaf
 * Train / Validation / Test ayrımı yapılmış olmalı
 * Sınıf dağılımı dengeli olmalı
 
@@ -97,7 +96,7 @@ Aşağıdaki augmentation’lar **bilinçli ve kontrollü** kullanılmalıdır:
 * Motion blur (sınırlı)
 * Mosaic / MixUp (abartılmadan)
 
-> NOT: Renk tabanlı olgunluk sınıflandırmasını bozacak aşırı augmentation’dan kaçınılmalıdır.
+> NOT: Hastalık lezyonlarının doku/renk izlerini bozacak aşırı augmentation’dan kaçınılmalıdır.
 
 ---
 
@@ -174,7 +173,7 @@ Model aşağıdaki genişletmelere hazır olmalıdır:
 
 Bu prompt doğru uygulandığında:
 
-* Çilek olgunluk tespiti sahada güvenilir çalışmalı
+* 7 sınıflı hastalık tespiti sahada güvenilir çalışmalı
 * Model farklı ortam koşullarında genellenebilir olmalı
 * Uzun vadeli tarım analiz projelerine temel oluşturmalıdır
 

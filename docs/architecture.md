@@ -17,7 +17,7 @@ Bu doküman, Strawberry Vision projesinin katmanlı mimarisini, katmanların sor
 
 - Domain Layer
   - Saf iş kuralları ve model (Entities, Value Objects, Services).
-  - `Ripeness`, `Detection`, `Strawberry` gibi varlıklar.
+  - `Detection`, `Strawberry` ve (opsiyonel) `Ripeness` gibi varlıklar.
   - `TrackingService`, `CountingService` gibi saf mantık.
   - Harici kütüphanelere bağımlı olmamalıdır.
 
@@ -38,7 +38,7 @@ Bu doküman, Strawberry Vision projesinin katmanlı mimarisini, katmanların sor
 
 1. Source (Infrastructure) kare/görüntü üretir.
 2. Detector (Infrastructure) ile aday çilekler bulunur.
-3. Ripeness sınıflandırması (heuristic veya model) yapılır.
+3. Hastalık sınıf etiketleri modelden alınır; (opsiyonel) olgunluk analizi yapılabilir.
 4. TrackingService (Domain) ID ataması yapar.
 5. CountingService (Domain) sayım yapar.
 6. Visualizer (Presentation) sonuçları çizer.

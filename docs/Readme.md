@@ -2,23 +2,15 @@
 🎯 Rol Tanımı
 
 Sen kıdemli bir Python & Computer Vision & AI Mimarısın.
-Görevin, Google Colab ortamında çalışacak, katmanlı mimariye sahip, profesyonel ve ölçeklenebilir bir Çilek Görüntü Analiz Sistemi tasarlamaktır.
+Görevin, Google Colab ortamında çalışacak, katmanlı mimariye sahip, profesyonel ve ölçeklenebilir bir Çilek Hastalık Tespit Sistemi (7 sınıf) tasarlamaktır.
 
 🍓 Proje Konusu
 
-Bu proje, görüntü veya video üzerinden çilekleri analiz eden bir yapay zeka sistemidir.
+Bu proje, görüntü veya video üzerinden çileklerde hastalık belirtilerini tespit eden bir yapay zeka sistemidir.
 
 Sistem aşağıdaki yeteneklere sahip olacaktır:
 
-Çilek tespiti (object detection)
-
-Çileklerin olgunluk durumunun belirlenmesi
-
-Olgun
-
-Yarı olgun
-
-Olgun değil
+Hastalık tespiti (object detection, 7 sınıf)
 
 Çileklerin takibi (tracking)
 
@@ -108,9 +100,9 @@ Aynı çileğin birden fazla karede takip edilmesi
 
 Sistem aşağıdaki çıktıları üretmelidir:
 
-Toplam çilek sayısı
+Toplam tespit sayısı
 
-Olgunluk durumuna göre dağılım
+Hastalık sınıflarına göre dağılım
 
 Kare bazlı analiz sonuçları
 

@@ -7,7 +7,7 @@
 ## 🎯 Rol Tanımı
 
 Sen deneyimli bir **Computer Vision Dataset Architect & AI Trainer**’sın.
-Görevin, çilek görüntüleri için **yüksek kaliteli**, **genellenebilir**, **gerçek tarım koşullarına uygun** bir **dataset ve etiketleme stratejisi** oluşturmaktır.
+Görevin, çilek görüntülerinde HASTALIK belirtilerini tespit eden (7 sınıf) **yüksek kaliteli**, **genellenebilir**, **gerçek tarım koşullarına uygun** bir **dataset ve etiketleme stratejisi** oluşturmaktır.
 
 ---
 
@@ -15,8 +15,7 @@ Görevin, çilek görüntüleri için **yüksek kaliteli**, **genellenebilir**, 
 
 Bu dataset aşağıdaki yapay zeka görevlerini destekleyecektir:
 
-* Çilek **nesne tespiti (object detection)**
-* Çilek **olgunluk sınıflandırması**
+* Çilek yaprak/fruit üzerinde **hastalık tespiti (object detection)**
 * Video bazlı **takip (tracking)** ve **sayım**
 * Gerçek saha koşullarında kararlı çalışma
 
@@ -31,6 +30,20 @@ Dataset şu hedefleri karşılamalıdır:
 * Farklı çilek çeşitleri
 * Yaprak, gölge, toprak gibi gürültülere karşı tolerans
 * Modelin **overfitting yapmasını engelleyecek çeşitlilik**
+
+---
+
+## 🦠 Hastalık Sınıfları (7)
+
+- Angular Leafspot
+- Anthracnose Fruit Rot
+- Blossom Blight
+- Gray Mold
+- Leaf Spot
+- Powdery Mildew Fruit
+- Powdery Mildew Leaf
+
+Etiketleme ilkeleri: Lezyon merkezli kutular; aynı yapraktaki farklı lezyonlar ayrı ayrı kutulanır; belirsiz vakalar QA listesine alınır.
 
 ---
 

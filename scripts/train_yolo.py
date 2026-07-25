@@ -44,10 +44,18 @@ def train_yolo(data_yaml: str, config: Dict[str, Any]) -> bool:
         return False
     
     try:
-        model_name = config.get('model', 'yolov8n.pt')
+        model_name = config.get('model', 'yolo26s.pt')
         logger.info(f"Model yükleniyor: {model_name}")
         model = YOLO(model_name)
         
+        # MUTLAK YOL ZORUNLU: Ultralytics, dataset kökünü data.yaml'ın bulunduğu
+        # dizinden türetir. Göreli bir yol verilirse (örn. "configs/strawberry_data.yaml")
+        # kökü kendi DATASETS_DIR'i altında arar ve "images not found" hatası verir.
+        # Mutlak yol verildiğinde yaml içindeki "../dataset/..." girdileri repo köküne göre
+        # doğru çözülür.
+        data_yaml = str(Path(data_yaml).resolve())
+        logger.info(f"Dataset config (mutlak): {data_yaml}")
+
         train_args = {
             'data': data_yaml,
             'epochs': config.get('epochs', 100),
@@ -55,8 +63,8 @@ def train_yolo(data_yaml: str, config: Dict[str, Any]) -> bool:
             'imgsz': config.get('imgsz', 640),
             'device': config.get('device', 0),
             'workers': config.get('workers', 8),
-            'optimizer': config.get('optimizer', 'AdamW'),
-            'lr0': config.get('lr0', 0.01),
+            'optimizer': config.get('optimizer', 'auto'),
+            'lr0': config.get('lr0', 0.002),
             'lrf': config.get('lrf', 0.01),
             'momentum': config.get('momentum', 0.937),
             'weight_decay': config.get('weight_decay', 0.0005),
@@ -198,11 +206,11 @@ def resolve_default_data_yaml() -> Optional[str]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="YOLOv8 model eğitimi")
+    parser = argparse.ArgumentParser(description="Ultralytics YOLO model eğitimi (YOLO26/YOLOv8)")
     parser.add_argument("--data", type=str, required=False, help="Dataset YAML dosyası")
     parser.add_argument("--config", type=str, default=None, help="Eğitim config YAML dosyası")
     
-    parser.add_argument("--model", type=str, default=None, help="Model adı (yolov8n.pt, yolov8s.pt, ...)")
+    parser.add_argument("--model", type=str, default=None, help="Model adı (yolo26n.pt, yolo26s.pt, yolov8n.pt, ...)")
     parser.add_argument("--epochs", type=int, default=None, help="Epoch sayısı")
     parser.add_argument("--batch", type=int, default=None, help="Batch size")
     parser.add_argument("--imgsz", type=int, default=None, help="Görüntü boyutu")

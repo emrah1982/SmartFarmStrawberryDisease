@@ -1,30 +1,40 @@
-# Strawberry Vision - YOLOv8 Training Configuration
+# Strawberry Vision - YOLO26 Training Configuration
+# YOLO26: NMS-free, DFL-free, edge-dostu güncel Ultralytics mimarisi.
+# Dataset formatı YOLOv8 ile birebir aynıdır — veri tarafında değişiklik gerekmez.
 
 # Model selection
-model: yolov8n.pt  # Options: yolov8n.pt, yolov8s.pt, yolov8m.pt, yolov8l.pt, yolov8x.pt
+model: yolo26s.pt  # Options: yolo26n.pt, yolo26s.pt, yolo26m.pt, yolo26l.pt, yolo26x.pt
+                   # 's' seçildi: küçük hastalık lezyonlarında 'n'den belirgin daha iyi doğruluk,
+                   # Colab T4 GPU'da hala rahat eğitilir. Telefon/edge dağıtımında 'n' deneyin;
+                   # bulut API'de 'm' ile doğruluk kazanabilirsiniz.
 
 # Training parameters
-epochs: 100
-batch: 16
-imgsz: 640
+epochs: 200       # Fine-tune senaryosunda uzun eğitim + early stopping daha iyi sonuç verir
+batch: 8          # imgsz 1024 için düşürüldü (VRAM); imgsz 640'a dönerseniz 16 yapın
+imgsz: 1024       # Erken evre lezyonlar (leaf spot vb.) 640'ta birkaç piksele düşüyor;
+                  # 1024 küçük lekelerin tespitini belirgin iyileştirir. VRAM yetmezse 640 + SAHI kullanın.
 device: 0  # GPU device ID (0, 1, 2, ...) or 'cpu'
 workers: 8  # Number of dataloader workers
 
 # Optimizer settings
-optimizer: AdamW  # Options: SGD, Adam, AdamW, RMSProp
-lr0: 0.01         # Initial learning rate
+optimizer: auto   # YOLO26 için önerilen: Ultralytics, mimariye uygun optimizer'ı (MuSGD) ve
+                  # lr0/momentum değerlerini otomatik seçer. Manuel kontrol isterseniz
+                  # AdamW + lr0: 0.002 kullanın (0.01 SGD içindir, AdamW ile eğitimi bozar).
+lr0: 0.002        # optimizer: auto iken YOK SAYILIR; manuel AdamW'a geçerseniz geçerli olur
 lrf: 0.01         # Final learning rate (lr0 * lrf)
-momentum: 0.937   # SGD momentum/Adam beta1
+momentum: 0.937   # optimizer: auto iken yok sayılır
 weight_decay: 0.0005  # Optimizer weight decay
 
 # Loss weights
 box: 7.5   # Box loss gain
 cls: 0.5   # Class loss gain
-dfl: 1.5   # DFL loss gain
+dfl: 1.5   # DFL loss gain — YOLO26 DFL-free mimaridir, bu ağırlık YOLO26'da yok sayılır (YOLOv8'e dönerseniz geçerli)
 
 # Data augmentation
-hsv_h: 0.02       # HSV-Hue augmentation (fraction)
-hsv_s: 0.8        # HSV-Saturation augmentation (fraction)
+# NOT: Hastalık teşhisinde RENK ayırt edici özelliktir (kahverengi leke, gri küf,
+# beyaz külleme). Hue/saturation'ı agresif oynatmak sınıflar arası renk ipuçlarını bozar.
+hsv_h: 0.02       # HSV-Hue augmentation (fraction) — düşük tutuldu, renk tonu hastalık sinyalidir
+hsv_s: 0.5        # HSV-Saturation augmentation (0.8'den düşürüldü; agresif doygunluk kaydırması renk ipuçlarını bozuyordu)
 hsv_v: 0.5        # HSV-Value augmentation (fraction)
 degrees: 10.0     # Image rotation (+/- deg)
 translate: 0.1    # Image translation (+/- fraction)
@@ -43,7 +53,7 @@ save: true        # Save checkpoints
 save_period: 10   # Save checkpoint every x epochs
 plots: true       # Save plots and images
 conf: 0.25        # Confidence threshold for predictions
-iou: 0.7          # IoU threshold for NMS
+iou: 0.7          # IoU threshold for NMS — YOLO26 NMS-free çalışır, inference'ta bu eşik etkisizdir (val eşleştirmesinde kullanılır)
 
 # Advanced settings
 patience: 50      # Early stopping patience (epochs)
@@ -64,5 +74,5 @@ seed: 0              # Random seed for reproducibility
 deterministic: true  # Deterministic mode
 single_cls: false    # Train as single-class dataset
 rect: false          # Rectangular training
-cos_lr: false        # Cosine learning rate scheduler
+cos_lr: true         # Cosine LR: uzun eğitimde (200 epoch) sona doğru yumuşak azalma daha iyi yakınsama sağlar
 close_mosaic: 20     # Disable mosaic augmentation for final epochs

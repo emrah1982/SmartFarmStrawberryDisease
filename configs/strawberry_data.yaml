@@ -1,16 +1,39 @@
-# Strawberry Vision - YOLOv8 Dataset Configuration
-# Updated for Strawberry Disease detection classes (Roboflow v4)
+# Strawberry Vision - Birleşik Dataset Configuration
+# 4 kaynak tek sınıf düzeninde birleştirildi (etiket ID'leri kaynaklarda yeniden yazıldı):
+#   - Hastalık (7 sınıf, ID 0-6)  : strawberry-disease/strawberry-disease-detection-dataset v4
+#   - Olgunluk ripe/unripe        : aliazz/strawberry-fowax v1        (0→7, 1→9 olarak dönüştürüldü)
+#   - Olgunluk 3 seviye           : ibsp-u8x8i/maturity-hehap v7      (0→7, 1→8, 2→9 olarak dönüştürüldü)
+#   - Sağlıklı bitki (background) : test-ydoer/strawberry-healthy-r0op7 (etiketler boşaltıldı — sınıf DEĞİL)
+#
+# Ultralytics çoklu dizin desteği: train/val/test birden çok kaynağın dizinlerini
+# liste olarak alır — görüntü kopyalamaya gerek yoktur, dosya çakışması olmaz.
 
-train: ../dataset/train/images
-val: ../dataset/valid/images
-test: ../dataset/test/images
+train:
+  - "../dataset/Strawberry Disease Detection Dataset.v4i.yolo26/train/images"
+  - "../dataset/Strawberry -ripe - unripe.yolo26/train/images"
+  - "../dataset/Strawberry -ripe - unripe-r1.yolo26/train/images"
+  - "../dataset/Strawberry - Healthy.yolo26/train/images"
 
-nc: 7
-names: ['Angular Leafspot', 'Anthracnose Fruit Rot', 'Blossom Blight', 'Gray Mold', 'Leaf Spot', 'Powdery Mildew Fruit', 'Powdery Mildew Leaf']
+  - "../dataset/augmented_train/images"
+val:
+  - "../dataset/Strawberry Disease Detection Dataset.v4i.yolo26/valid/images"
+  - "../dataset/Strawberry -ripe - unripe.yolo26/valid/images"
+  - "../dataset/Strawberry -ripe - unripe-r1.yolo26/valid/images"
 
-roboflow:
-  workspace: strawberry-disease
-  project: strawberry-disease-detection-dataset
-  version: 4
-  license: CC BY 4.0
-  url: https://universe.roboflow.com/strawberry-disease/strawberry-disease-detection-dataset/dataset/4
+test:
+  - "../dataset/Strawberry Disease Detection Dataset.v4i.yolo26/test/images"
+  - "../dataset/Strawberry -ripe - unripe.yolo26/test/images"
+  - "../dataset/Strawberry -ripe - unripe-r1.yolo26/test/images"
+
+nc: 10
+names:
+  0: Angular Leafspot
+  1: Anthracnose Fruit Rot
+  2: Blossom Blight
+  3: Gray Mold
+  4: Leaf Spot
+  5: Powdery Mildew Fruit
+  6: Powdery Mildew Leaf
+  7: strawberry_ripe
+  8: strawberry_semi_ripe
+  9: strawberry_unripe

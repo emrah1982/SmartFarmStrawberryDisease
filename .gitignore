@@ -40,6 +40,10 @@ checkpoints/
 datasets/
 !datasets/README.md
 
+# Birleşik dataset — 640 MB, GitHub'a KONMAZ.
+# Colab'a Drive üzerinden dataset_colab.zip olarak taşınır (bkz. README).
+dataset/
+
 # Roboflow indirilenler
 roboflow/
 
