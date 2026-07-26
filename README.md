@@ -1,11 +1,19 @@
 # 🍓 Strawberry Vision - Çilek Görüntü Analiz Sistemi
 
-Google Colab uyumlu, katmanlı mimariye sahip profesyonel çilek tespit ve olgunluk sınıflandırma sistemi.
+Google Colab uyumlu, katmanlı mimariye sahip profesyonel çilek hastalık tespit ve olgunluk sınıflandırma sistemi.
+
+## ▶️ Colab'de Tek Tıkla Eğitim
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/emrah1982/SmartFarmStrawberryDisease/blob/main/StrawberryVision_Colab_Production.ipynb)
+
+Yukarıdaki butona tıklayın → Runtime ayarlarını yapın → **Run all**. Ayrıntılar için
+[Colab Akışı (Adım Adım)](#-colab-akışı-adım-adım) bölümüne bakın.
 
 ## 🎯 Özellikler
 
 - ✅ YOLO26 tabanlı çilek tespiti (Ultralytics — NMS-free, edge-dostu güncel mimari; YOLOv8 ile geriye uyumlu)
-- ✅ Çilek hastalık tespiti (7 sınıf)
+- ✅ Çilek hastalık tespiti (7 sınıf) + olgunluk (3 sınıf) — birleşik 10 sınıflı model
+- ✅ Sağlıklı bitki background örnekleri (yanlış alarm azaltma)
 - ✅ Nesne takibi (tracking)
 - ✅ Otomatik sayım ve istatistik
 - ✅ Görselleştirme ve sonuç kaydetme
@@ -39,103 +47,64 @@ python -m strawberry_vision.main --video video.mp4 --model path/to/best.pt --max
 python tests/smoke_test.py
 ```
 
-### Google Colab – Hızlı Başlangıç
+### 🚀 Colab Akışı (Adım Adım)
 
-Aşağıdaki adımlarla Google Colab üzerinde hızlıca eğitim ve inference çalıştırabilirsiniz.
+Eğitim tamamen Colab'de yapılır; bilgisayarınızda kurulum gerekmez.
 
-#### Yöntem 1: Notebook ile Manuel Çalıştırma
+#### 1) Notebook'u aç — üç yol var
 
-- **1) Colab'i aç ve GPU seç**
-  - Runtime > Change runtime type > Hardware accelerator: GPU
+**a) GitHub'dan doğrudan (en kolay, önerilen)**
 
-- **2) Depoyu Colab'e klonla**
-  ```bash
-  !git clone https://github.com/emrah1982/SmartFarmStrawberry.git
-  %cd SmartFarmStrawberry
-  ```
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/emrah1982/SmartFarmStrawberryDisease/blob/main/StrawberryVision_Colab_Production.ipynb)
 
-- **3) Bağımlılıkları kur**
-  ```bash
-  !pip install -q -r requirements.txt
-  ```
-
-- **4) Google Drive'ı bağla (checkpoint ve sonuçlar için)**
-  ```python
-  from google.colab import drive
-  drive.mount('/content/drive')
-  ```
-
-- **5) Roboflow API Key'i güvenli şekilde ayarla (ÖNEMLİ)**
-  
-  **Önerilen: Colab Secrets kullanın**
-  ```python
-  from google.colab import userdata
-  import os
-  
-  # Sol panelde 🔑 (Secrets) ikonuna tıklayın
-  # Name: ROBOFLOW_API_KEY, Value: rf_... (API key'iniz)
-  os.environ['ROBOFLOW_API_KEY'] = userdata.get('ROBOFLOW_API_KEY')
-  ```
-  
-  **Alternatif: Manuel giriş (geçici)**
-  ```python
-  from getpass import getpass
-  import os
-  
-  API_KEY = getpass("Roboflow API Key: ")  # Girdiğiniz görünmez
-  os.environ['ROBOFLOW_API_KEY'] = API_KEY
-  ```
-  
-  🔑 API Key alma: https://app.roboflow.com/settings/api
-
-- **6) Production notebook'u aç**
-  - Dosya: `StrawberryVision_Colab_Production.ipynb`
-  - İçerikte şunlar hazırdır:
-    - Roboflow API ile dataset indirme (4 doğrulanmış dataset seçeneği)
-    - Sınıf etiketlerini otomatik standardize etme
-    - Eğitim konfigürasyonu (`configs/train_config.yaml`) ve augmentasyon ayarları
-    - Her 10 epoch'ta checkpoint kaydetme (Google Drive)
-
-- **7) Tüm hücreleri sırayla çalıştır**
-  - Eğitim sonunda en iyi model ve tüm checkpoint'ler Drive'a kopyalanır.
-  - Sonuç görselleri ve metrikler `runs/train/...` altında da kaydedilir.
-
-#### Yöntem 2: Headless Çalıştırma (nbconvert)
-
-Notebook'u dosya menüsünü açmadan komut satırından çalıştırabilirsiniz:
-
-```python
-# 1) Kurulum
-!git clone https://github.com/emrah1982/SmartFarmStrawberry.git
-%cd SmartFarmStrawberry
-!pip install -q -r requirements.txt nbconvert jupyter roboflow
-
-# 2) API Key'i ayarla (Colab Secrets'tan)
-from google.colab import userdata, drive
-import os
-
-os.environ['ROBOFLOW_API_KEY'] = userdata.get('ROBOFLOW_API_KEY')
-drive.mount('/content/drive')
-
-# 3) Notebook'u çalıştır
-!jupyter nbconvert --to notebook --execute StrawberryVision_Colab_Production.ipynb \
-  --output executed.ipynb --ExecutePreprocessor.timeout=-1
+Link her zaman `main` dalındaki güncel sürümü açar:
+```
+https://colab.research.google.com/github/emrah1982/SmartFarmStrawberryDisease/blob/main/StrawberryVision_Colab_Production.ipynb
 ```
 
-#### Dataset Versiyonları
+**b) Colab menüsünden:** File → Open notebook → **GitHub** sekmesi → `emrah1982/SmartFarmStrawberryDisease` → notebook'u seç
 
-Roboflow datasetlerinin çoğu **version 2** veya üstünü kullanır. Eğer version hatası alırsanız:
+**c) Dosyayı yükleyerek:** File → Upload notebook → `StrawberryVision_Colab_Production.ipynb`
 
-```python
-# Hücre 0'da VERSION parametresini değiştirin
-VERSION = 2  # veya 3, 4, vb.
+> 💡 GitHub'dan açılan notebook salt-okunurdur; `OVERRIDES` gibi değişiklikleri
+> saklamak isterseniz **File → Save a copy in Drive** yapın.
+
+#### 2) Runtime ayarı (Colab Pro+)
+
+Runtime → Change runtime type:
+- Hardware accelerator: **A100 GPU** (yoksa L4)
+- Runtime shape: **High-RAM** → A100'de `cache='ram'` açılır, epoch süresi düşer
+- Runtime menüsü → **Background execution** açık olsun: tarayıcıyı kapatsanız bile eğitim sürer
+
+#### 3) Dataset'i Drive'a yükle (yalnızca bir kez)
+
+Dataset GitHub deposunda **yoktur** (418 MB). Bilgisayarınızda `dataset_colab.zip`
+oluşturup Drive'da şu konuma yükleyin:
+
+```
+MyDrive/StrawberryDisease/dataset_colab.zip
 ```
 
-Mevcut versiyonları kontrol etmek için: `https://universe.roboflow.com/{workspace}/{project}`
+Zip'i yeniden üretmek gerekirse (repo kökünde):
+```bash
+python -c "import zipfile;from pathlib import Path;out=Path.home()/'Downloads/dataset_colab.zip';zf=zipfile.ZipFile(out,'w',zipfile.ZIP_STORED,allowZip64=True);[zf.write(p,p.as_posix()) for p in Path('dataset').rglob('*') if p.is_file() and 'zip dosyalar' not in p.parts];zf.close();print(out)"
+```
 
-**⚠️ Güvenlik Notu**: API key'inizi asla kod hücresine yazmayın. Colab Secrets veya `getpass()` kullanın.
+#### 4) Runtime → Run all
 
-Not: Colab dışında lokalde çalıştırmak için de aynı dizin yapısı ve `scripts/` altındaki yardımcı komutlar kullanılabilir.
+Notebook sırayla: paketleri kurar ve uyumluluğu doğrular → Drive'ı bağlar →
+GitHub'dan projeyi çeker → zip'i yerel diske açar → dizin ve label eşleşmesini
+kontrol eder → GPU'ya göre `batch`/`workers`/`cache` ayarlar → eğitir →
+sınıf bazlı metrikleri tablolar.
+
+Tek elle müdahale: Drive bağlama hücresi bir kez yetki onayı ister.
+
+Sonuçlar doğrudan Drive'a yazılır:
+```
+MyDrive/StrawberryDisease/
+├── results/strawberry_exp/     # grafikler, confusion matrix, weights/
+└── best_models/best_strawberry_exp.pt
+```
 
 ## 📦 Model Eğitimi
 
