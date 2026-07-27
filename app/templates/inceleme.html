@@ -53,10 +53,16 @@ python scripts/split_dataset.py --input dataset_v2 --output dataset_v2_split</co
   </p>
 
   <details style="margin-top:.5rem">
-    <summary>Ham ön-etiketleri dışa aktar (Roboflow'da düzeltmek için)</summary>
+    <summary>Ham ön-etiketleri dış araca aktar (Roboflow vb.)</summary>
     <form action="/inceleme/disa-aktar" method="post" style="margin-top:.5rem">
       <button class="btn" type="submit">⬇️ Bekleyen kayıtları ön-etiketleriyle aktar</button>
     </form>
+    <p class="ipucu" style="margin-top:.4rem">
+      <code>{{ paket_yolu }}</code><br>
+      Bu klasör her aktarımda <strong>silinip yeniden yazılır</strong> — içeriği
+      veritabanıyla her zaman tutarlıdır, eskimiş etiket kalmaz.
+      Adlandırma eğitim havuzuyla aynıdır: <code>&lt;sera&gt;_&lt;içerik-hash&gt;</code>.
+    </p>
   </details>
 </section>
 

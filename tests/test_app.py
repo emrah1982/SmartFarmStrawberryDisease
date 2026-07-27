@@ -135,9 +135,10 @@ def test_inceleme_kuyrugu_ve_disa_aktarim(client):
 
     r = client.post('/inceleme/disa-aktar', follow_redirects=True)
     assert r.status_code == 200
-    disa = list(Path(config.EXPORT_DIR).glob('inceleme_*'))
-    assert disa, 'dışa aktarım klasörü oluşmadı'
-    etiketler = list((disa[0] / 'labels').glob('*.txt'))
+    paket = Path(config.INCELEME_DIR)
+    assert paket.exists(), 'inceleme paketi oluşmadı'
+    assert (paket / 'data.yaml').exists()
+    etiketler = list((paket / 'labels').glob('*.txt'))
     assert etiketler, 'ön-etiket dosyası yok'
     satir = etiketler[0].read_text(encoding='utf-8').strip().split('\n')[0]
     assert satir.split()[0] == '3'       # sinif_id korunmuş olmalı
@@ -419,7 +420,7 @@ def test_egitim_formatinda_disa_aktarim(client):
     # Tek birikimli klasör: her aktarımda yeni klasör AÇILMAMALI
     d = Path(config.EGITIM_DIR)
     assert d.exists(), 'egitim_verisi klasörü oluşmadı'
-    assert not list(Path(config.EXPORT_DIR).glob('egitim_*')),         'tarihli egitim_* klasörü açılmamalı — tek havuz kullanılıyor'
+    assert not list(Path(config.STORAGE_DIR).glob('exports/egitim_*')),         'tarihli egitim_* klasörü açılmamalı — tek havuz kullanılıyor'
     assert (d / 'data.yaml').exists(), 'merge_datasets.py data.yaml şart koşar'
     cfg = _y.safe_load((d / 'data.yaml').read_text(encoding='utf-8'))
     assert cfg['nc'] == 10 and cfg['names'][3] == 'Gray Mold'
@@ -489,3 +490,36 @@ def test_tekrar_yukleme_kullaniciya_bildirilir(client):
     r = client.post('/analiz/dosya', files={'dosyalar': ('b.jpg', icerik, 'image/jpeg')},
                     follow_redirects=True)
     assert 'daha önce de analiz edilmiş' in r.text
+
+
+def test_paket_eskimis_kalmaz(client):
+    """Ham paket her aktarımda yeniden üretilmeli — eski etiket kalmamalı.
+
+    Kullanıcının yaşadığı durum: kayıt aktarıldıktan SONRA etiketlenince
+    klasördeki etiket dosyası veritabanıyla çelişiyordu (1 kutu vs 17 kutu).
+    """
+    from app.database import Analiz, SessionLocal
+    client.post('/analiz/dosya', files={'dosyalar': ('p.jpg', b'PAKET-TESTI', 'image/jpeg')},
+                follow_redirects=True)
+    with SessionLocal() as db:
+        a = db.query(Analiz).filter(Analiz.kaynak_ad == 'p.jpg').first()
+        aid, h = a.id, a.dosya_hash
+
+    client.post('/inceleme/disa-aktar', follow_redirects=True)
+    etiket = Path(config.INCELEME_DIR) / 'labels' / f'atanmamis_{h}.txt'
+    assert etiket.exists(), 'dosya adı <sera>_<hash> olmalı'
+    ilk = len([x for x in etiket.read_text(encoding='utf-8').splitlines() if x])
+
+    # Kayıt etiketlenip kuyruktan çıkınca paket yeniden üretilmeli
+    client.post(f'/api/kayit/{aid}/etiketler', json={'kutular': [
+        {'sinif_id': 0, 'x': .3, 'y': .3, 'w': .1, 'h': .1},
+        {'sinif_id': 0, 'x': .6, 'y': .6, 'w': .1, 'h': .1},
+        {'sinif_id': 4, 'x': .8, 'y': .2, 'w': .1, 'h': .1},
+    ]})
+    client.post('/analiz/dosya', files={'dosyalar': ('q.jpg', b'IKINCI', 'image/jpeg')},
+                follow_redirects=True)
+    client.post('/inceleme/disa-aktar', follow_redirects=True)
+
+    # Etiketlenen kayıt kuyruktan çıktığı için paketten de kalkmalı (eskimiş kalmaz)
+    assert not etiket.exists(), 'etiketlenmiş kayıt pakette eskimiş halde kalmamalı'
+    assert ilk >= 0

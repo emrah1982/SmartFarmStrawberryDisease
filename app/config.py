@@ -36,7 +36,10 @@ NMS_IOU = float(os.environ.get('NMS_IOU', '0.5'))             # örtüşen kutul
 STORAGE_DIR = Path(os.environ.get('STORAGE_DIR', str(BASE_DIR / 'storage')))
 UPLOAD_DIR = STORAGE_DIR / 'uploads'      # yüklenen orijinaller
 RESULT_DIR = STORAGE_DIR / 'results'      # kutulanmış çıktılar
-EXPORT_DIR = STORAGE_DIR / 'exports'      # dış araçlara (Roboflow) gönderilecek partiler
+# Dış araçlara (Roboflow vb.) gönderilecek paket. Tarihli anlık görüntü
+# BİRİKTİRİLMEZ: her aktarımda temizlenip güncel veritabanından yeniden
+# yazılır, böylece içerik veritabanıyla her zaman tutarlı kalır.
+INCELEME_DIR = STORAGE_DIR / 'inceleme_paketi'
 
 # Elle etiketlenen kayıtların BİRİKTİĞİ tek klasör.
 # Her dışa aktarımda yeni klasör açmak yerine buraya eklenir: eğitim öncesinde
@@ -57,5 +60,5 @@ VIDEO_MAX_FRAMES = int(os.environ.get('VIDEO_MAX_FRAMES', '40'))
 HOST = os.environ.get('HOST', '0.0.0.0')   # 0.0.0.0 = yerel ağdaki telefonlar erişebilir
 PORT = int(os.environ.get('PORT', '8000'))
 
-for d in (UPLOAD_DIR, RESULT_DIR, EXPORT_DIR, EGITIM_DIR):
+for d in (UPLOAD_DIR, RESULT_DIR, INCELEME_DIR, EGITIM_DIR):
     d.mkdir(parents=True, exist_ok=True)

@@ -534,8 +534,15 @@ Aynı görüntü daha önce analiz edilmişse kayıt sayfasında bilgi notu gös
 `disa_aktarildi` işareti sayesinde aktarım yalnızca yeni/değişmiş kayıtları işler;
 `yeniden=1` ile havuz baştan yazılabilir (eskimiş dosyalar temizlenir).
 
-> `storage/exports/` klasörü ayrı bir amaç içindir: Roboflow gibi dış araçlara
-> gönderilecek **ham ön-etiket partileri** oraya tarihli olarak yazılır.
+**Dış araca gönderim** (Roboflow vb.) ayrı bir klasör kullanır:
+`storage/inceleme_paketi/`. Bu klasör de **her aktarımda silinip yeniden yazılır** —
+tarihli anlık görüntü biriktirilmez.
+
+> Neden: Anlık görüntü klasörleri **eskir**. Bir kayıt aktarıldıktan sonra
+> etiketlenirse, klasördeki etiket dosyası veritabanıyla çelişir (eski tahmin vs
+> düzeltilmiş etiket) ve hangi sürümün doğru olduğu belirsizleşir. Her iki klasör de
+> (`egitim_verisi/`, `inceleme_paketi/`) **veritabanının o anki hâlinden** üretilir;
+> adlandırma ikisinde de aynıdır: `<sera>_<içerik-hash>`.
 
 #### 🔍 Ayrıntılı analiz — ölçek kaynaklı hatalı sınıflandırma
 

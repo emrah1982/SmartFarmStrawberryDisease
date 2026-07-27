@@ -353,6 +353,7 @@ def inceleme(request: Request, db: Session = Depends(get_db)):
         'esik': config.REVIEW_THRESHOLD,
         'etiketli': etiketli, 'bekleyen_aktarim': bekleyen_aktarim,
         'havuz_yolu': str(config.EGITIM_DIR),
+        'paket_yolu': str(config.INCELEME_DIR),
         'havuz_adet': len(list((config.EGITIM_DIR / 'images').glob('*')))
                       if (config.EGITIM_DIR / 'images').exists() else 0,
     })
@@ -369,20 +370,21 @@ def inceleme_tamam(analiz_id: int, db: Session = Depends(get_db)):
 
 @app.post('/inceleme/disa-aktar')
 def inceleme_disa_aktar(db: Session = Depends(get_db)):
-    """Bekleyen kayıtları ön-etiketleriyle dışa aktarır.
+    """Bekleyen kayıtları ön-etiketleriyle DIŞ ARAÇ paketine yazar.
 
-    Çıktı doğrudan Roboflow'a yüklenebilir: uzman sıfırdan çizmez, modelin
-    tahminlerini düzeltir. Düzeltilmiş veri merge_datasets.py ile ana
-    dataset'e katılır (bkz. README — Sürekli İyileştirme).
+    Tek klasör kullanılır ve her aktarımda TEMİZLENİP yeniden yazılır. Tarihli
+    anlık görüntü biriktirilseydi, kayıt sonradan etiketlendiğinde klasördeki
+    etiket dosyası veritabanıyla çelişirdi (eski tahmin vs düzeltilmiş etiket).
     """
-    kayitlar = (db.query(Analiz)
+    kayitlar = (yetki.analiz_sorgusu(db, yetki.aktif_kullanici(db))
                 .filter(Analiz.inceleme_gerekli == True, Analiz.incelendi == False)  # noqa: E712
                 .all())
     if not kayitlar:
-        raise HTTPException(400, 'Dışa aktarılacak kayıt yok.')
+        raise HTTPException(400, 'Dışa aktarılacak bekleyen kayıt yok.')
 
-    damga = datetime.now().strftime('%Y%m%d_%H%M')
-    hedef = config.EXPORT_DIR / f'inceleme_{damga}'
+    hedef = config.INCELEME_DIR
+    if hedef.exists():
+        shutil.rmtree(hedef)            # eskimiş içerik kalmasın
     (hedef / 'images').mkdir(parents=True, exist_ok=True)
     (hedef / 'labels').mkdir(parents=True, exist_ok=True)
 
@@ -391,14 +393,24 @@ def inceleme_disa_aktar(db: Session = Depends(get_db)):
         kaynak = config.STORAGE_DIR / a.dosya_yolu
         if not kaynak.exists():
             continue
-        ad = f'{a.id}_{kaynak.name}'
+        # Adlandırma eğitim havuzuyla aynı: <sera>_<icerik-hash>
+        sera = (a.sera.ad if a.sera else 'atanmamis').replace(' ', '_')
+        damga = a.dosya_hash or f'id{a.id}'
+        ad = f'{sera}_{damga}{kaynak.suffix.lower()}'
         shutil.copy2(kaynak, hedef / 'images' / ad)
-        with open(hedef / 'labels' / f'{Path(ad).stem}.txt', 'w', encoding='utf-8') as f:
-            for t in a.tespitler:
-                f.write(f'{t.sinif_id} {t.x:.6f} {t.y:.6f} {t.w:.6f} {t.h:.6f}\n')
+        satirlar = [f'{t.sinif_id} {t.x:.6f} {t.y:.6f} {t.w:.6f} {t.h:.6f}'
+                    for t in a.tespitler]
+        (hedef / 'labels' / f'{Path(ad).stem}.txt').write_text(
+            chr(10).join(satirlar) + (chr(10) if satirlar else ''), encoding='utf-8')
         n += 1
 
-    logger.info(f'{n} kayıt dışa aktarıldı: {hedef}')
+    with open(hedef / 'data.yaml', 'w', encoding='utf-8') as f:
+        yaml.dump({'train': 'images', 'val': 'images',
+                   'nc': len(SINIFLAR),
+                   'names': {int(k): v for k, v in SINIFLAR.items()}},
+                  f, allow_unicode=True, sort_keys=False)
+
+    logger.info(f'{n} kayıt inceleme paketine yazıldı (yeniden üretildi): {hedef}')
     return RedirectResponse(f'/inceleme?aktarildi={n}', status_code=303)
 
 
