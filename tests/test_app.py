@@ -154,7 +154,7 @@ def test_gecmis_ve_panel(client):
 
     p = client.get('/panel')
     assert p.status_code == 200
-    assert 'toplam analiz' in p.text
+    assert 'benzersiz görüntü' in p.text
 
 
 def test_gecmis_sinif_filtresi(client):
@@ -575,3 +575,63 @@ def test_etiket_onizlemesi_dinamik(client):
     sonra = client.get(f'/kayit/{aid}/etiket-onizleme.jpg')
     assert sonra.status_code == 200
     assert sonra.content != ilk.content, 'önizleme güncel veritabanından üretilmeli'
+
+
+# ───────────────────────────────────────────── panel istatistik doğruluğu
+def test_panel_ayni_goruntuyu_iki_kez_saymaz(client):
+    """Aynı fotoğraf iki kez yüklenirse istatistikte BİR görüntü sayılmalı.
+
+    Kullanıcının fark ettiği durum: tek bir resmin kutuları, resim tekrar
+    yüklendiği için grafikte iki kez görünüyordu.
+    """
+    from app.database import Analiz, SessionLocal
+    icerik = b'PANEL-TEKRAR-TESTI'
+    client.post('/analiz/dosya', files={'dosyalar': ('p1.jpg', icerik, 'image/jpeg')},
+                follow_redirects=True)
+    client.post('/analiz/dosya', files={'dosyalar': ('p2.jpg', icerik, 'image/jpeg')},
+                follow_redirects=True)
+
+    with SessionLocal() as db:
+        kayitlar = db.query(Analiz).filter(Analiz.kaynak_ad.in_(['p1.jpg', 'p2.jpg'])).all()
+        assert len(kayitlar) == 2
+        idler = sorted(a.id for a in kayitlar)
+
+    # İkisini de etiketle: ilkine 1, ikincisine 3 kutu
+    client.post(f'/api/kayit/{idler[0]}/etiketler',
+                json={'kutular': [{'sinif_id': 2, 'x': .5, 'y': .5, 'w': .1, 'h': .1}]})
+    client.post(f'/api/kayit/{idler[1]}/etiketler', json={'kutular': [
+        {'sinif_id': 2, 'x': .2, 'y': .2, 'w': .1, 'h': .1},
+        {'sinif_id': 2, 'x': .4, 'y': .4, 'w': .1, 'h': .1},
+        {'sinif_id': 2, 'x': .6, 'y': .6, 'w': .1, 'h': .1},
+    ]})
+
+    r = client.get('/panel')
+    assert r.status_code == 200
+    # Tekrar uyarısı görünmeli
+    assert 'daha önce yüklenmiş bir görüntüye' in r.text
+    # Blossom Blight yalnızca SON kayıttan (3 kutu) sayılmalı, 1+3=4 değil
+    import re
+    satir = re.search(r'Blossom Blight.*?class="sayi">(\d+)<', r.text, re.S)
+    assert satir, 'sınıf satırı bulunamadı'
+    assert satir.group(1) == '3', f'beklenen 3, bulunan {satir.group(1)}'
+
+
+def test_panel_model_ve_elle_ayrimi(client):
+    """Model tespitleri ile elle etiketler ayrı raporlanmalı."""
+    from app.database import Analiz, SessionLocal
+    client.post('/analiz/dosya', files={'dosyalar': ('m.jpg', b'MODEL-KAYDI', 'image/jpeg')},
+                follow_redirects=True)   # SahteDetector: Gray Mold + Leaf Spot
+    client.post('/analiz/dosya', files={'dosyalar': ('e.jpg', b'ELLE-KAYDI', 'image/jpeg')},
+                follow_redirects=True)
+    with SessionLocal() as db:
+        eid = db.query(Analiz).filter(Analiz.kaynak_ad == 'e.jpg').first().id
+    client.post(f'/api/kayit/{eid}/etiketler',
+                json={'kutular': [{'sinif_id': 1, 'x': .5, 'y': .5, 'w': .2, 'h': .2}]})
+
+    r = client.get('/panel')
+    assert 'Model Tespitleri' in r.text and 'Elle Etiketlenenler' in r.text
+    model_bolum = r.text.split('Model Tespitleri')[1].split('Elle Etiketlenenler')[0]
+    elle_bolum = r.text.split('Elle Etiketlenenler')[1]
+    assert 'Gray Mold' in model_bolum          # model tahmini
+    assert 'Anthracnose' in elle_bolum         # elle etiket
+    assert 'Anthracnose' not in model_bolum, 'elle etiket model bölümünde görünmemeli'

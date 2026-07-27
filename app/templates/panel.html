@@ -5,18 +5,76 @@
 <section class="kart">
   <h2>Genel Durum</h2>
   <div class="kutucuklar">
-    <div class="kutucuk"><strong>{{ toplam }}</strong><span>toplam analiz</span></div>
-    <div class="kutucuk"><strong>{{ sinif_dagilim|sum(attribute=1) }}</strong><span>toplam tespit</span></div>
+    <div class="kutucuk"><strong>{{ benzersiz_goruntu }}</strong><span>benzersiz görüntü</span></div>
+    <div class="kutucuk"><strong>{{ toplam_analiz }}</strong><span>toplam analiz</span></div>
+    <div class="kutucuk"><strong>{{ etiketli }}</strong><span>elle etiketlenmiş</span></div>
     <div class="kutucuk {% if bekleyen %}vurgu{% endif %}">
       <strong>{{ bekleyen }}</strong><span>inceleme bekliyor</span>
     </div>
   </div>
+
+  {% if tekrar %}
+  <p class="ipucu" style="margin-top:.6rem">
+    ℹ️ {{ tekrar }} analiz <strong>daha önce yüklenmiş bir görüntüye</strong> ait.
+    İstatistiklerde her görüntü <strong>bir kez</strong> sayılır (en son kaydı geçerlidir),
+    böylece tekrar yükleme grafiği şişirmez.
+  </p>
+  {% endif %}
+
   {% if bekleyen %}
   <p class="ipucu">
     ⚠️ {{ bekleyen }} kayıt uzman incelemesi bekliyor —
-    <a href="/inceleme">kuyruğu aç</a>. Bu kayıtlar etiketlenip eğitime katıldığında
-    model en çok bunlardan öğrenir.
+    <a href="/inceleme">kuyruğu aç</a>. Model en çok bu kayıtlardan öğrenir.
   </p>
+  {% endif %}
+</section>
+
+<section class="kart">
+  <h2>🤖 Model Tespitleri</h2>
+  <p class="ipucu">
+    Modelin kendi bulduğu kutular ({{ model_toplam }} adet).
+    Elle düzeltilmiş kayıtlar buraya dahil <strong>değildir</strong>.
+  </p>
+  {% if model_dag %}
+  {% set enbuyuk = model_dag[0][1] %}
+  <table class="cubuk">
+    {% for ad, adet in model_dag %}
+    <tr>
+      <td class="ad">{{ ad }}</td>
+      <td class="cizgi"><span style="width: {{ (adet / enbuyuk * 100)|round|int }}%"></span></td>
+      <td class="sayi">{{ adet }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="ipucu">Henüz model tespiti yok.</p>
+  {% endif %}
+</section>
+
+<section class="kart">
+  <h2>✏️ Elle Etiketlenenler</h2>
+  <p class="ipucu">
+    Uzmanın düzelttiği kutular ({{ elle_toplam }} adet) — <strong>gerçek durum</strong>
+    budur ve eğitim verisi olarak kullanılır.
+    {% if elle_dag %}<a href="/etiketlenenler">Kayıtları gör</a>{% endif %}
+  </p>
+  {% if elle_dag %}
+  {% set enbuyuk2 = elle_dag[0][1] %}
+  <table class="cubuk">
+    {% for ad, adet in elle_dag %}
+    <tr>
+      <td class="ad">{{ ad }}</td>
+      <td class="cizgi"><span style="width: {{ (adet / enbuyuk2 * 100)|round|int }}%"></span></td>
+      <td class="sayi">{{ adet }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="ipucu">
+    ⚠️ Bu sayılar <strong>kaç kutu çizildiğini</strong> gösterir, hastalığın yaygınlığını değil:
+    tek bir yaprakta 16 leke varsa 16 kutu sayılır.
+  </p>
+  {% else %}
+  <p class="ipucu">Henüz elle etiketlenmiş kayıt yok.</p>
   {% endif %}
 </section>
 
@@ -24,7 +82,7 @@
   <h2>Sera Bazlı Özet</h2>
   {% if sera_ozet %}
   <table>
-    <tr><th>Üretici / Sera</th><th>Analiz</th><th>Tespit</th><th>En sık</th><th>Bekleyen</th></tr>
+    <tr><th>Üretici / Sera</th><th>Görüntü</th><th>Kutu</th><th>En sık</th><th>Bekleyen</th></tr>
     {% for r in sera_ozet %}
     <tr>
       <td>{{ r.sera.tam_ad }}</td>
@@ -41,24 +99,6 @@
 </section>
 
 <section class="kart">
-  <h2>Sınıf Dağılımı</h2>
-  {% if sinif_dagilim %}
-  {% set enbuyuk = sinif_dagilim[0][1] %}
-  <table class="cubuk">
-    {% for ad, adet in sinif_dagilim %}
-    <tr>
-      <td class="ad">{{ ad }}</td>
-      <td class="cizgi"><span style="width: {{ (adet / enbuyuk * 100)|round|int }}%"></span></td>
-      <td class="sayi">{{ adet }}</td>
-    </tr>
-    {% endfor %}
-  </table>
-  {% else %}
-  <p class="ipucu">Henüz tespit yok.</p>
-  {% endif %}
-</section>
-
-<section class="kart">
   <h2>Son 30 Gün</h2>
   {% if gunluk %}
   <div class="trend">
@@ -68,7 +108,10 @@
     </div>
     {% endfor %}
   </div>
-  <p class="ipucu">{{ gunluk|length }} günde toplam {{ gunluk|sum(attribute=1) }} analiz.</p>
+  <p class="ipucu">
+    {{ gunluk|length }} günde toplam {{ gunluk|sum(attribute=1) }} analiz
+    <em>(tekrar yüklemeler dahil — bu grafik kullanım yoğunluğunu gösterir)</em>.
+  </p>
   {% else %}
   <p class="ipucu">Son 30 günde kayıt yok.</p>
   {% endif %}

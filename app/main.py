@@ -293,47 +293,67 @@ def gecmis(request: Request, sinif: str = '', tip: str = '', gun: int = 0,
 
 @app.get('/panel', response_class=HTMLResponse)
 def panel(request: Request, db: Session = Depends(get_db)):
-    kullanici = yetki.aktif_kullanici(db)
-    toplam = yetki.analiz_sorgusu(db, kullanici).count()
-    bekleyen = yetki.analiz_sorgusu(db, kullanici).filter(
-        Analiz.inceleme_gerekli == True, Analiz.incelendi == False).count()  # noqa: E712
+    """Genel durum.
 
-    sinif_dagilim = (db.query(Tespit.sinif_adi, func.count(Tespit.id))
-                     .group_by(Tespit.sinif_adi)
-                     .order_by(func.count(Tespit.id).desc()).all())
+    ÖNEMLİ İKİ KURAL:
+    - Aynı görüntünün birden çok kaydı varsa yalnızca EN SON kayıt sayılır.
+      Aksi halde tek bir fotoğraf, tekrar yüklendiği için istatistiği şişirir.
+    - Model tespitleri ile elle düzeltilmiş etiketler AYRI raporlanır: biri
+      modelin ne bulduğunu, diğeri gerçekte ne olduğunu gösterir.
+    """
+    kullanici = yetki.aktif_kullanici(db)
+    kayitlar = yetki.analiz_sorgusu(db, kullanici).order_by(Analiz.id.asc()).all()
+
+    # Aynı görüntünün son kaydı geçerli (etiket düzeltilmişse o sayılsın)
+    benzersiz = {}
+    for a in kayitlar:
+        benzersiz[a.dosya_hash or f'id{a.id}'] = a
+    sayilan = list(benzersiz.values())
+
+    model_dag, elle_dag = {}, {}
+    for a in sayilan:
+        hedef = elle_dag if a.elle_etiketlendi else model_dag
+        for t in a.tespitler:
+            hedef[t.sinif_adi] = hedef.get(t.sinif_adi, 0) + 1
+
+    bekleyen = sum(1 for a in sayilan if a.inceleme_gerekli and not a.incelendi)
+    etiketli = sum(1 for a in sayilan if a.elle_etiketlendi)
 
     sinir = datetime.now(timezone.utc) - timedelta(days=30)
-    gunluk = (db.query(func.date(Analiz.zaman), func.count(Analiz.id))
+    gunluk = (yetki.analiz_sorgusu(db, kullanici)
               .filter(Analiz.zaman >= sinir)
+              .with_entities(func.date(Analiz.zaman), func.count(Analiz.id))
               .group_by(func.date(Analiz.zaman))
               .order_by(func.date(Analiz.zaman)).all())
 
-    # Sera bazlı özet: hangi serada kaç analiz, kaç tespit, kaç bekleyen
+    # Sera bazlı özet — aynı tekilleştirme kuralıyla
     sera_ozet = []
     for sera in yetki.gorunur_seralar(db, kullanici):
-        analizler = db.query(Analiz).filter(Analiz.sera_id == sera.id)
-        n = analizler.count()
-        if not n:
-            sera_ozet.append({'sera': sera, 'analiz': 0, 'tespit': 0,
-                              'bekleyen': 0, 'en_sik': '—'})
-            continue
-        tespitler = (db.query(Tespit.sinif_adi, func.count(Tespit.id))
-                     .join(Analiz).filter(Analiz.sera_id == sera.id)
-                     .group_by(Tespit.sinif_adi)
-                     .order_by(func.count(Tespit.id).desc()).all())
+        ait = [a for a in sayilan if a.sera_id == sera.id]
+        sayac = {}
+        for a in ait:
+            for t in a.tespitler:
+                sayac[t.sinif_adi] = sayac.get(t.sinif_adi, 0) + 1
         sera_ozet.append({
-            'sera': sera, 'analiz': n,
-            'tespit': sum(a for _, a in tespitler),
-            'bekleyen': analizler.filter(Analiz.inceleme_gerekli == True,  # noqa: E712
-                                         Analiz.incelendi == False).count(),  # noqa: E712
-            'en_sik': tespitler[0][0] if tespitler else '—',
+            'sera': sera, 'analiz': len(ait),
+            'tespit': sum(sayac.values()),
+            'bekleyen': sum(1 for a in ait if a.inceleme_gerekli and not a.incelendi),
+            'en_sik': max(sayac, key=sayac.get) if sayac else '—',
         })
 
     return templates.TemplateResponse(request, 'panel.html', {
-        'request': request, 'toplam': toplam, 'bekleyen': bekleyen,
-        'sinif_dagilim': sinif_dagilim, 'gunluk': gunluk,
+        'request': request,
+        'toplam_analiz': len(kayitlar),
+        'benzersiz_goruntu': len(sayilan),
+        'tekrar': len(kayitlar) - len(sayilan),
+        'bekleyen': bekleyen, 'etiketli': etiketli,
+        'model_dag': sorted(model_dag.items(), key=lambda x: -x[1]),
+        'elle_dag': sorted(elle_dag.items(), key=lambda x: -x[1]),
+        'model_toplam': sum(model_dag.values()),
+        'elle_toplam': sum(elle_dag.values()),
+        'gunluk': gunluk,
         'sera_ozet': sorted(sera_ozet, key=lambda x: -x['analiz']),
-        'en_yuksek': max((s for _, s in gunluk), default=1),
+        'en_yuksek': max((n for _, n in gunluk), default=1),
     })
 
 
