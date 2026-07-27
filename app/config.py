@@ -23,6 +23,15 @@ REVIEW_THRESHOLD = float(os.environ.get('REVIEW_THRESHOLD', '0.55'))
 # modele vermek yanlış/eksik tespit üretir.
 BULANIKLIK_ESIGI = float(os.environ.get('BULANIKLIK_ESIGI', '60'))
 
+# --- Ayrıntılı analiz (büyük saha fotoğrafları) ------------------------------
+# Tek ölçekli tahmin, çekim ölçeği eğitim verisinden farklıysa kararsızdır.
+# Bu ölçeklerde tahmin yapılıp sonuçlar birleştirilir.
+DETAYLI_OLCEKLER = [int(x) for x in os.environ.get('DETAYLI_OLCEKLER', '640,1024').split(',')]
+DILIM_ESIGI = int(os.environ.get('DILIM_ESIGI', '1600'))      # bu boyutu aşan görüntü dilimlenir
+DILIM_BOYUTU = int(os.environ.get('DILIM_BOYUTU', '1024'))
+DILIM_ORTUSME = float(os.environ.get('DILIM_ORTUSME', '0.2'))
+NMS_IOU = float(os.environ.get('NMS_IOU', '0.5'))             # örtüşen kutuları birleştirme eşiği
+
 # --- Depolama --------------------------------------------------------------
 STORAGE_DIR = Path(os.environ.get('STORAGE_DIR', str(BASE_DIR / 'storage')))
 UPLOAD_DIR = STORAGE_DIR / 'uploads'      # yüklenen orijinaller

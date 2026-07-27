@@ -131,6 +131,7 @@ def anasayfa(request: Request, db: Session = Depends(get_db)):
 @app.post('/analiz/dosya')
 async def analiz_dosya(request: Request, dosyalar: List[UploadFile] = File(...),
                        sera_id: Optional[int] = Form(None),
+                       detayli: Optional[str] = Form(None),
                        db: Session = Depends(get_db)):
     """Telefondan/bilgisayardan yüklenen fotoğraf ve videoları işler."""
     if not detector.hazir:
@@ -152,7 +153,9 @@ async def analiz_dosya(request: Request, dosyalar: List[UploadFile] = File(...),
                 sonuc = detector.video(str(hedef), str(cikti))
                 tip = 'video'
             elif uzanti in GORUNTU_UZANTI:
-                sonuc = detector.goruntu(str(hedef), str(cikti))
+                # Ayrıntılı mod: çok ölçekli + dilimli tarama (yavaş ama kararlı)
+                sonuc = (detector.goruntu_detayli(str(hedef), str(cikti)) if detayli
+                         else detector.goruntu(str(hedef), str(cikti)))
                 tip = 'foto'
             else:
                 logger.warning(f'Desteklenmeyen dosya atlandı: {up.filename}')

@@ -486,6 +486,33 @@ Açılan adresler:
 - **Telefondan** (aynı Wi-Fi): `http://<bilgisayarın-IP-adresi>:8000`
   (IP'yi öğrenmek için Windows'ta `ipconfig`)
 
+#### 🔍 Ayrıntılı analiz — ölçek kaynaklı hatalı sınıflandırma
+
+Gerçek bir saha fotoğrafında (2712×2496, yaprak güneşe karşı) yapılan ölçüm,
+tek ölçekli tahminin **kararsız** olduğunu gösterdi:
+
+| Yöntem | Sonuç |
+|---|---|
+| Tam görüntü, imgsz=640 | ✅ Angular Leafspot %68 |
+| Tam görüntü, imgsz=1024 (varsayılan) | ❌ strawberry_unripe %42 (yanlış sınıf) |
+| Tam görüntü, imgsz=1536 | ❌ yalnızca olgunluk sınıfları |
+| Tam görüntü, imgsz=2048 | ❌ hiç tespit yok |
+| **Ayrıntılı (çok ölçek + dilimli)** | ✅ **Angular Leafspot %68** + diğerleri |
+
+**Sebep — domain (alan) farkı:** Hastalık dataset'indeki görüntüler **280×280**
+yakın çekim kırpmalarıdır. Saha fotoğrafı 6,8 MP'lik geniş bir sahnedir; tek
+ölçeğe indirildiğinde lezyonların göründüğü ölçek eğitimdekinden çok farklı olur.
+Sonuç, seçilen `imgsz` değerine göre savrulur — bu savrulmanın kendisi modelin
+bu tür fotoğraflarda henüz güvenilir olmadığının göstergesidir.
+
+**Ayrıntılı analiz** (arayüzdeki onay kutusu) görüntüyü birden çok ölçekte ve
+büyükse örtüşen dilimler halinde tarar, sonuçları NMS ile birleştirir. Yaklaşık
+**5-8 kat yavaştır** ama ölçek kaynaklı kaybı belirgin azaltır.
+
+> ⚠️ Bu bir **yama**dır, kalıcı çözüm değildir. Kalıcı çözüm: bu tür gerçek saha
+> fotoğraflarını [inceleme kuyruğundan](#-sahadan-gelen-veriyle-sürekli-iyileştirme)
+> etiketleyip eğitime katmaktır. Model ancak gördüğü türden görüntülerde güvenilirdir.
+
 #### Görüntü kaynakları ve kalite denetimi
 
 | Cihaz | "Fotoğraf Çek" / "Video Çek" | Not |

@@ -35,6 +35,15 @@
       her analiz hangi seraya ait olduğuyla birlikte kaydedilir.</p>
     {% endif %}
 
+    <label style="display:flex;gap:.5rem;align-items:flex-start;margin:.4rem 0">
+      <input type="checkbox" name="detayli" value="1" id="detayliKutu" style="width:auto;margin-top:.35rem">
+      <span>🔍 <strong>Ayrıntılı analiz</strong>
+        <small class="ipucu">Büyük fotoğraflarda önerilir: görüntü birkaç ölçekte ve
+        örtüşen dilimler halinde taranır, sonuçlar birleştirilir. Daha yavaştır
+        (birkaç kat) ama ölçek kaynaklı hatalı sınıflandırmayı azaltır.</small>
+      </span>
+    </label>
+
     <div class="butonlar">
       <button type="button" class="btn btn-birincil" id="webcamAc" hidden>
         💻 Bilgisayar Kamerasını Aç
@@ -79,6 +88,12 @@
   <ul class="ipucu" style="margin-top:.2rem">
     <li><strong>Mesafe:</strong> Yaprak/meyveye 30-60 cm — çok uzaktan çekimde lezyonlar birkaç piksele düşer ve model göremez.</li>
     <li><strong>Işık:</strong> Gündüz, dengeli ışıkta. Doğrudan güneş ve sert gölge renk ipuçlarını bozar; kahverengi leke / gri küf / beyaz külleme ayrımı renge dayanır.</li>
+    <li><strong>Arkadan ışık almayın:</strong> Yaprağı güneşe/gökyüzüne karşı tutmayın.
+      Işık yapraktan geçince lekeler saydamlaşır, renk ve kontrast tamamen değişir —
+      model bu görünümü eğitimde görmedi. Güneş <em>arkanızda</em> olacak şekilde,
+      yaprağın üstüne bakarak çekin.</li>
+    <li><strong>Sade arka plan:</strong> Yaprağı elinizde tutuyorsanız arkada gökyüzü/ağaç
+      yerine toprak veya düz bir zemin olsun; karmaşık arka plan hatalı tespit üretir.</li>
     <li><strong>Sabitlik:</strong> Çekim anında bir saniye durun. Hareket bulanıklığı en sık doğruluk kaybı sebebidir.</li>
     <li><strong>Odak:</strong> Telefonda hedefe dokunup odaklandığından emin olun.</li>
   </ul>
@@ -210,6 +225,8 @@ async function yukle(blob, adi) {
   fd.append('dosyalar', blob, adi);
   const sera = document.getElementById('seraSecim');
   if (sera && sera.value) fd.append('sera_id', sera.value);
+  const det = document.getElementById('detayliKutu');
+  if (det && det.checked) fd.append('detayli', '1');
   wDurum.textContent = 'İşleniyor, lütfen bekleyin...';
   const yanit = await fetch('/analiz/dosya', { method: 'POST', body: fd });
   if (yanit.redirected) window.location = yanit.url;

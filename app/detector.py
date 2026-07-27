@@ -71,6 +71,29 @@ def keskinlik_olc(frame) -> float:
     return float(cv2.Laplacian(gri, cv2.CV_64F).var())
 
 
+def _nms(kutular, iou_esigi: float):
+    """Örtüşen kutuları teke indirir (sınıf bazında, güvene göre).
+
+    Çok ölçekli ve dilimli tarama aynı lezyonu birden çok kez bulur; bunlar
+    birleştirilmezse tek hastalık 5-6 tespit gibi görünür.
+    """
+    def iou(a, b):
+        x1, y1 = max(a[0], b[0]), max(a[1], b[1])
+        x2, y2 = min(a[2], b[2]), min(a[3], b[3])
+        kesisim = max(0.0, x2 - x1) * max(0.0, y2 - y1)
+        if kesisim <= 0:
+            return 0.0
+        alan_a = (a[2] - a[0]) * (a[3] - a[1])
+        alan_b = (b[2] - b[0]) * (b[3] - b[1])
+        return kesisim / (alan_a + alan_b - kesisim)
+
+    secili = []
+    for k in sorted(kutular, key=lambda x: -x[4]):
+        if all(iou(k, s) <= iou_esigi for s in secili if s[5] == k[5]):
+            secili.append(k)
+    return secili
+
+
 class Detector:
     """Ultralytics modelini sarmalar. İlk kullanımda yüklenir (lazy)."""
 
@@ -194,6 +217,78 @@ class Detector:
         return Sonuc(kutular=kutular, sonuc_yolu=cikti_yol if en_iyi_kare is not None else '',
                      islenen_kare=islenen, sure_ms=int((time.time() - t0) * 1000),
                      keskinlik=ort_keskinlik, bulanik_kare=bulanik, kalite_notu=not_)
+
+    # ------------------------------------------------------- ayrıntılı analiz
+    def goruntu_detayli(self, kaynak_yol: str, cikti_yol: str) -> Sonuc:
+        """Çok ölçekli + dilimli analiz (büyük saha fotoğrafları için).
+
+        NEDEN: Tek ölçekli tahmin, çekim ölçeği eğitim verisinden farklı olduğunda
+        kararsız davranır — aynı fotoğraf bir çözünürlükte doğru sınıfı bulurken
+        diğerinde başka sınıfa kayabilir. Burada görüntü hem birkaç ölçekte hem de
+        (büyükse) örtüşen dilimler halinde işlenir; sonuçlar NMS ile birleştirilir.
+        Bedeli: birkaç kat daha uzun sürer.
+        """
+        model = self.yukle()
+        t0 = time.time()
+        img = cv2.imread(kaynak_yol)
+        if img is None:
+            raise RuntimeError(f'Görüntü okunamadı: {kaynak_yol}')
+        h, w = img.shape[:2]
+
+        ham: List[tuple] = []   # (x1,y1,x2,y2,conf,cls)
+
+        def topla(r, ofs_x=0, ofs_y=0):
+            for b in r.boxes:
+                x1, y1, x2, y2 = b.xyxy[0].tolist()
+                ham.append((x1 + ofs_x, y1 + ofs_y, x2 + ofs_x, y2 + ofs_y,
+                            float(b.conf[0]), int(b.cls[0])))
+
+        # 1) Tam görüntü, birkaç ölçekte
+        for boyut in config.DETAYLI_OLCEKLER:
+            topla(model(img, imgsz=boyut, conf=config.CONF_THRESHOLD, verbose=False)[0])
+
+        # 2) Büyük görüntüde örtüşen dilimler — lezyon kendi çözünürlüğünde görünür
+        if max(h, w) > config.DILIM_ESIGI:
+            d = config.DILIM_BOYUTU
+            adim = int(d * (1 - config.DILIM_ORTUSME))
+            for y in range(0, h, adim):
+                for x in range(0, w, adim):
+                    parca = img[y:min(y + d, h), x:min(x + d, w)]
+                    if parca.shape[0] < 200 or parca.shape[1] < 200:
+                        continue
+                    topla(model(parca, imgsz=d, conf=config.CONF_THRESHOLD,
+                                verbose=False)[0], x, y)
+
+        secili = _nms(ham, config.NMS_IOU)
+
+        # Kutuları kendimiz çiziyoruz (birleştirilmiş sonuç Ultralytics nesnesi değil)
+        cizim = img.copy()
+        isimler = self._names or model.names
+        for x1, y1, x2, y2, guven, cid in secili:
+            renk = (0, 200, 0) if guven >= 0.5 else (0, 165, 255)
+            kalinlik = max(2, int(min(h, w) / 400))
+            cv2.rectangle(cizim, (int(x1), int(y1)), (int(x2), int(y2)), renk, kalinlik)
+            etiket = f'{isimler[cid]} {guven:.2f}'
+            cv2.putText(cizim, etiket, (int(x1), max(20, int(y1) - 8)),
+                        cv2.FONT_HERSHEY_SIMPLEX, max(0.6, min(h, w) / 1400),
+                        renk, kalinlik)
+        cv2.imwrite(cikti_yol, cizim)
+
+        kutular = [Kutu(sinif_id=cid, sinif_adi=isimler[cid], guven=guven,
+                        x=((x1 + x2) / 2) / w, y=((y1 + y2) / 2) / h,
+                        w=(x2 - x1) / w, h=(y2 - y1) / h)
+                   for x1, y1, x2, y2, guven, cid in secili]
+
+        keskinlik = keskinlik_olc(img)
+        notlar = [f'Ayrıntılı analiz: {len(config.DETAYLI_OLCEKLER)} ölçek'
+                  + (' + dilimli tarama' if max(h, w) > config.DILIM_ESIGI else '')
+                  + f' ({len(ham)} aday → {len(secili)} tespit).']
+        if keskinlik < config.BULANIKLIK_ESIGI:
+            notlar.append('Görüntü bulanık; sabit tutarak tekrar çekin.')
+
+        return Sonuc(kutular=kutular, sonuc_yolu=cikti_yol, islenen_kare=1,
+                     sure_ms=int((time.time() - t0) * 1000),
+                     keskinlik=keskinlik, kalite_notu=' '.join(notlar))
 
     # ----------------------------------------------------------------- kamera
     def kamera(self, url: str, cikti_yol: str, kaynak_kaydet: Optional[str] = None) -> Sonuc:
