@@ -125,6 +125,11 @@ class Analiz(Base):
     islenen_kare = Column(Integer, default=1)     # video için örneklenen kare sayısı
     sure_ms = Column(Integer, default=0)
 
+    # Görüntü kalitesi: bulanık kare modele verilirse yanlış tespit üretir
+    keskinlik = Column(Float, default=0.0)
+    bulanik_kare = Column(Integer, default=0)
+    kalite_notu = Column(Text, default='')
+
     # Düşük güvenli veya tespitsiz kayıtlar uzman incelemesine düşer
     inceleme_gerekli = Column(Boolean, default=False, index=True)
     incelendi = Column(Boolean, default=False, index=True)
@@ -188,7 +193,8 @@ def _eksik_sutunlari_ekle():
         return
     yeni = {
         'kameralar': {'sera_id': 'INTEGER'},
-        'analizler': {'sera_id': 'INTEGER'},
+        'analizler': {'sera_id': 'INTEGER', 'keskinlik': 'FLOAT',
+                      'bulanik_kare': 'INTEGER', 'kalite_notu': 'TEXT'},
     }
     with engine.begin() as baglanti:
         for tablo, sutunlar in yeni.items():

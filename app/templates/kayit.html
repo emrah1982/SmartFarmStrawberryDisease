@@ -13,6 +13,12 @@
   </p>
   <p><span class="rozet">📍 {{ a.yer }}</span></p>
 
+  {% if a.kalite_notu %}
+  <div class="uyari" style="margin:.6rem 0">
+    <strong>📷 Görüntü kalitesi:</strong> {{ a.kalite_notu }}
+  </div>
+  {% endif %}
+
   {% if a.sonuc_yolu %}
   <img class="buyuk" src="/media/{{ a.sonuc_yolu }}" alt="Tespit sonucu">
   {% else %}

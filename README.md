@@ -484,6 +484,32 @@ Açılan adresler:
 - **Telefondan** (aynı Wi-Fi): `http://<bilgisayarın-IP-adresi>:8000`
   (IP'yi öğrenmek için Windows'ta `ipconfig`)
 
+#### Görüntü kaynakları ve kalite denetimi
+
+| Cihaz | "Fotoğraf Çek" / "Video Çek" | Not |
+|---|---|---|
+| 📱 Telefon | Cihazın **kamera uygulamasını** açar | HTTP üzerinden de çalışır |
+| 💻 Bilgisayar | **Dosya seçici** açar | Bilgisayar kamerası için sayfadaki "kamerayı açın" bağlantısı kullanılır |
+
+`capture="environment"` özniteliği yalnızca mobil tarayıcılarda kamerayı açar;
+masaüstünde yok sayılır. Masaüstünde gerçek kamera için `getUserMedia` gerekir ve
+bu API **yalnızca güvenli bağlamda** (`https` veya `localhost`) çalışır — telefondan
+`http://192.168.x.x` ile bağlanıldığında tarayıcı engeller. Bu yüzden telefonda
+dosya girdisi (cihazın kamera uygulaması), masaüstünde tarayıcı içi kamera kullanılır.
+
+**Bulanıklık denetimi.** Yürürken video çekimi pratiktir ama hareket bulanıklığı
+üretir; bulanık kareyi modele vermek yanlış veya eksik tespit doğurur. Her örneklenen
+karenin keskinliği **Laplacian varyansı** ile ölçülür (`BULANIKLIK_ESIGI`, varsayılan 60):
+
+- Eşiğin altındaki kareler modele **verilmez**, atlanır.
+- Kaç karenin atlandığı sonuç sayfasında kullanıcıya bildirilir.
+- Tüm kareler bulanıksa yine de en keskin kare işlenir — kullanıcı boş sonuç almaz.
+- Tek fotoğraf bulanıksa "sabit tutarak tekrar çekin" uyarısı gösterilir.
+
+Arayüzde çekim rehberi yer alır: mesafe (30-60 cm), ışık (sert gölge renk ipuçlarını
+bozar), sabitlik ve odak. Yürüyerek çekim için "2-3 adımda bir yarım saniye durun"
+önerisi verilir; duraklama anındaki kareler keskin olduğu için doğruluk belirgin artar.
+
 #### İşletme yapısı: Üretici → Sera → Kamera
 
 Birden çok sera ve müşteriyle çalışırken "hangi hastalık, kimin serasında, hangi

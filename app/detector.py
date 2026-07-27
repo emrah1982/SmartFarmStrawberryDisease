@@ -36,6 +36,9 @@ class Sonuc:
     sonuc_yolu: str = ''
     islenen_kare: int = 1
     sure_ms: int = 0
+    keskinlik: float = 0.0        # Laplacian varyansı — düşükse bulanık
+    bulanik_kare: int = 0         # videoda atlanan bulanık kare sayısı
+    kalite_notu: str = ''         # kullanıcıya gösterilecek uyarı
 
     @property
     def min_guven(self) -> float:
@@ -55,6 +58,17 @@ class Sonuc:
         if not self.kutular:
             return True
         return self.min_guven < config.REVIEW_THRESHOLD
+
+
+def keskinlik_olc(frame) -> float:
+    """Laplacian varyansı: yüksek = keskin, düşük = bulanık.
+
+    Odak/hareket bulanıklığının standart ölçüsüdür. Bulanık kareyi modele
+    vermek yanlış veya eksik tespit üretir; özellikle yürürken çekilen
+    videolarda karelerin bir kısmı kullanılamaz durumda olur.
+    """
+    gri = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    return float(cv2.Laplacian(gri, cv2.CV_64F).var())
 
 
 class Detector:
@@ -99,8 +113,18 @@ class Detector:
 
         kutular = self._kutulari_al(r)
         cv2.imwrite(cikti_yol, r.plot())
-        return Sonuc(kutular=kutular, sonuc_yolu=cikti_yol,
-                     islenen_kare=1, sure_ms=int((time.time() - t0) * 1000))
+
+        kare = cv2.imread(kaynak_yol)
+        keskinlik = keskinlik_olc(kare) if kare is not None else 0.0
+        not_ = ''
+        if keskinlik and keskinlik < config.BULANIKLIK_ESIGI:
+            not_ = (f'Görüntü bulanık (keskinlik {keskinlik:.0f}, '
+                    f'eşik {config.BULANIKLIK_ESIGI}). Tespitler eksik olabilir; '
+                    'sabit tutarak ve iyi ışıkta tekrar çekin.')
+
+        return Sonuc(kutular=kutular, sonuc_yolu=cikti_yol, islenen_kare=1,
+                     sure_ms=int((time.time() - t0) * 1000),
+                     keskinlik=keskinlik, kalite_notu=not_)
 
     # ------------------------------------------------------------------ video
     def video(self, kaynak_yol: str, cikti_yol: str) -> Sonuc:
@@ -117,13 +141,26 @@ class Detector:
         t0 = time.time()
         kutular: List[Kutu] = []
         en_iyi_kare, en_iyi_sayi = None, -1
-        idx = islenen = 0
+        idx = islenen = bulanik = 0
+        keskinlikler = []
+        en_keskin_frame, en_keskin_deger = None, -1.0
 
         while islenen < config.VIDEO_MAX_FRAMES:
             ok, frame = cap.read()
             if not ok:
                 break
             if idx % config.VIDEO_FRAME_STEP == 0:
+                # Bulanık kareyi modele vermek yanlış tespit üretir — atla.
+                # Yürürken çekimde karelerin bir kısmı hareket bulanıklığı taşır.
+                k = keskinlik_olc(frame)
+                keskinlikler.append(k)
+                if k > en_keskin_deger:
+                    en_keskin_deger, en_keskin_frame = k, frame.copy()
+                if k < config.BULANIKLIK_ESIGI:
+                    bulanik += 1
+                    idx += 1
+                    continue
+
                 r = model(frame, conf=config.CONF_THRESHOLD, imgsz=config.IMGSZ, verbose=False)[0]
                 kare_kutulari = self._kutulari_al(r, kare=idx)
                 kutular.extend(kare_kutulari)
@@ -133,10 +170,30 @@ class Detector:
             idx += 1
 
         cap.release()
+
+        # Tüm kareler bulanıksa yine de en keskin olanı işle — kullanıcı boş dönmesin
+        if islenen == 0 and en_keskin_frame is not None:
+            r = model(en_keskin_frame, conf=config.CONF_THRESHOLD,
+                      imgsz=config.IMGSZ, verbose=False)[0]
+            kutular.extend(self._kutulari_al(r, kare=0))
+            en_iyi_kare = r.plot()
+            islenen = 1
         if en_iyi_kare is not None:
             cv2.imwrite(cikti_yol, en_iyi_kare)
+
+        ort_keskinlik = sum(keskinlikler) / len(keskinlikler) if keskinlikler else 0.0
+        toplam = bulanik + islenen
+        not_ = ''
+        if toplam and bulanik / toplam > 0.4:
+            not_ = (f'{toplam} karenin {bulanik} tanesi bulanık olduğu için atlandı. '
+                    'Yürürken çekimde hareket bulanıklığı olağandır; daha yavaş '
+                    'yürüyüp kısa duraklamalarla çekerseniz tespit doğruluğu artar.')
+        elif bulanik:
+            not_ = f'{bulanik} bulanık kare atlandı; kalan {islenen} kare işlendi.'
+
         return Sonuc(kutular=kutular, sonuc_yolu=cikti_yol if en_iyi_kare is not None else '',
-                     islenen_kare=islenen, sure_ms=int((time.time() - t0) * 1000))
+                     islenen_kare=islenen, sure_ms=int((time.time() - t0) * 1000),
+                     keskinlik=ort_keskinlik, bulanik_kare=bulanik, kalite_notu=not_)
 
     # ----------------------------------------------------------------- kamera
     def kamera(self, url: str, cikti_yol: str, kaynak_kaydet: Optional[str] = None) -> Sonuc:

@@ -18,6 +18,11 @@ IMGSZ = int(os.environ.get('IMGSZ', '1024'))
 # Sürekli iyileştirme döngüsünü besler (bkz. README).
 REVIEW_THRESHOLD = float(os.environ.get('REVIEW_THRESHOLD', '0.55'))
 
+# Laplacian varyansı bu değerin altındaki kareler bulanık sayılır ve videoda
+# atlanır. Yürürken çekimde hareket bulanıklığı yaygındır; bulanık kareyi
+# modele vermek yanlış/eksik tespit üretir.
+BULANIKLIK_ESIGI = float(os.environ.get('BULANIKLIK_ESIGI', '60'))
+
 # --- Depolama --------------------------------------------------------------
 STORAGE_DIR = Path(os.environ.get('STORAGE_DIR', str(BASE_DIR / 'storage')))
 UPLOAD_DIR = STORAGE_DIR / 'uploads'      # yüklenen orijinaller

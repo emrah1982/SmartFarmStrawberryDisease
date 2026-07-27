@@ -63,7 +63,8 @@ def client(monkeypatch):
 def test_anasayfa_acilir(client):
     r = client.get('/')
     assert r.status_code == 200
-    assert 'Fotoğraf / Video Yükle' in r.text
+    assert 'Görüntü Analizi' in r.text
+    assert 'Fotoğraf Çek' in r.text and 'Video Çek' in r.text
 
 
 def test_foto_analizi_kayit_olusturur(client):
@@ -279,3 +280,58 @@ def test_panel_sera_bazli_ozet(client):
     p = client.get('/panel')
     assert 'Sera Bazlı Özet' in p.text
     assert 'Panel Üretici — Panel Sera' in p.text
+
+
+# ─────────────────────────────────────────────── görüntü kalitesi (bulanıklık)
+def test_bulaniklik_olcumu():
+    """Laplacian varyansı keskin ve bulanık görüntüyü ayırt etmeli."""
+    import numpy as np, cv2
+    from app.detector import keskinlik_olc
+    rng = np.random.default_rng(0)
+    keskin = (rng.random((300, 300, 3)) * 255).astype('uint8')
+    bulanik = cv2.GaussianBlur(keskin, (31, 31), 0)
+    assert keskinlik_olc(keskin) > keskinlik_olc(bulanik) * 100
+
+
+def test_kalite_notu_kullaniciya_gosterilir(client, monkeypatch):
+    """Bulanık video uyarısı sonuç sayfasında görünmeli."""
+    class BulanikDetector(SahteDetector):
+        def video(self, kaynak, cikti):
+            s = self._sonuc(cikti, kare=3)
+            s.bulanik_kare = 7
+            s.kalite_notu = ('10 karenin 7 tanesi bulanık olduğu için atlandı. '
+                             'Yürürken çekimde hareket bulanıklığı olağandır.')
+            return s
+    monkeypatch.setattr(main, 'detector', BulanikDetector())
+    r = client.post('/analiz/dosya',
+                    files={'dosyalar': ('yururken.mp4', b'x', 'video/mp4')},
+                    follow_redirects=True)
+    assert 'Görüntü kalitesi' in r.text
+    assert 'bulanık olduğu için atlandı' in r.text
+
+
+def test_kalite_bilgisi_veritabanina_yazilir(client, monkeypatch):
+    class BulanikDetector(SahteDetector):
+        def goruntu(self, kaynak, cikti):
+            s = self._sonuc(cikti)
+            s.keskinlik = 12.5
+            s.kalite_notu = 'Görüntü bulanık'
+            return s
+    monkeypatch.setattr(main, 'detector', BulanikDetector())
+    client.post('/analiz/dosya', files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')},
+                follow_redirects=True)
+    from app.database import Analiz, SessionLocal
+    with SessionLocal() as db:
+        a = db.query(Analiz).order_by(Analiz.id.desc()).first()
+        assert a.keskinlik == 12.5
+        assert 'bulanık' in a.kalite_notu
+
+
+def test_cekim_rehberi_gosteriliyor(client):
+    """Kullanıcı görüntü kalitesi konusunda bilgilendirilmeli."""
+    r = client.get('/')
+    assert 'İyi görüntü için' in r.text
+    assert 'Yürürken video' in r.text
+    assert 'Bulanık kareler otomatik atlanır' in r.text
+    # Cihaz farkı açıklaması (dizüstünde galeri açılması kafa karıştırmasın)
+    assert 'kamera uygulamasını açar' in r.text

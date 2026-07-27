@@ -51,6 +51,10 @@ def tedavi_yukle() -> dict:
 
 TEDAVI = tedavi_yukle()
 
+# Docker içinde MODEL_PATH konteyner yoludur (/app/models/best.pt); kullanıcı
+# dosyayı kendi bilgisayarındaki proje klasörüne koyar. Karışmasın diye ayırt edilir.
+DOCKER_ICINDE = Path('/.dockerenv').exists()
+
 
 @app.on_event('startup')
 def baslangic():
@@ -92,6 +96,9 @@ def _kaydet(sonuc, db: Session, kaynak_tip: str, kaynak_ad: str,
         ort_guven=sonuc.ort_guven,
         islenen_kare=sonuc.islenen_kare,
         sure_ms=sonuc.sure_ms,
+        keskinlik=getattr(sonuc, 'keskinlik', 0.0),
+        bulanik_kare=getattr(sonuc, 'bulanik_kare', 0),
+        kalite_notu=getattr(sonuc, 'kalite_notu', ''),
         inceleme_gerekli=sonuc.inceleme_gerekli,
     )
     db.add(a)
@@ -113,6 +120,7 @@ def anasayfa(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(request, 'index.html', {
         'request': request, 'kameralar': kameralar, 'seralar': seralar, 'son': son,
         'model_hazir': detector.hazir, 'model_yolu': config.MODEL_PATH,
+        'docker_icinde': DOCKER_ICINDE,
     })
 
 

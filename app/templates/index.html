@@ -4,20 +4,26 @@
 {% if not model_hazir %}
 <div class="uyari">
   <strong>⚠️ Model bulunamadı.</strong>
-  Eğitilmiş <code>best.pt</code> dosyasını şu konuma koyun:<br>
-  <code>{{ model_yolu }}</code><br>
-  Model olmadan analiz yapılamaz.
+  Eğitilmiş <code>best.pt</code> dosyasını
+  {% if docker_icinde %}
+  proje klasörünüzdeki <code>models/</code> dizinine koyun:<br>
+  <code>SmartFarmStrawberryDisease/models/best.pt</code><br>
+  <small class="ipucu">Bu klasör konteynerde <code>{{ model_yolu }}</code> olarak görünür —
+  aynı klasördür, ayrıca bir şey yapmanıza gerek yok. Kopyaladıktan sonra:
+  <code>docker compose restart</code></small>
+  {% else %}
+  şu konuma koyun:<br><code>{{ model_yolu }}</code>
+  {% endif %}
 </div>
 {% endif %}
 
 <section class="kart">
-  <h2>📱 Fotoğraf / Video Yükle</h2>
-  <p class="ipucu">Telefondan çekim yapabilir veya galeriden seçebilirsiniz. Birden fazla dosya seçilebilir.</p>
+  <h2>📱 Görüntü Analizi</h2>
 
   <form action="/analiz/dosya" method="post" enctype="multipart/form-data" id="yuklemeForm">
     {% if seralar %}
     <label>Hangi sera? <small class="ipucu">(kaydın kime/nereye ait olduğu için)</small>
-      <select name="sera_id">
+      <select name="sera_id" id="seraSecim">
         <option value="">— seçilmedi —</option>
         {% for s in seralar %}
         <option value="{{ s.id }}">{{ s.tam_ad }}</option>
@@ -28,18 +34,65 @@
     <p class="ipucu">💡 <a href="/isletmeler">Üretici ve sera tanımlarsanız</a>
       her analiz hangi seraya ait olduğuyla birlikte kaydedilir.</p>
     {% endif %}
+
     <div class="butonlar">
       <label class="btn btn-birincil">
-        📷 Kamerayla Çek
-        <input type="file" name="dosyalar" accept="image/*" capture="environment" hidden onchange="gonder(this)">
+        📷 Fotoğraf Çek
+        <input type="file" name="dosyalar" accept="image/*" capture="environment" hidden
+               onchange="gonder(this)">
       </label>
       <label class="btn">
-        🖼️ Galeriden Seç
-        <input type="file" name="dosyalar" accept="image/*,video/*" multiple hidden onchange="gonder(this)">
+        🎥 Video Çek
+        <input type="file" name="dosyalar" accept="video/*" capture="environment" hidden
+               onchange="gonder(this)">
+      </label>
+      <label class="btn">
+        🖼️ Dosya Seç
+        <input type="file" name="dosyalar" accept="image/*,video/*" multiple hidden
+               onchange="gonder(this)">
       </label>
     </div>
     <p class="durum" id="durum"></p>
   </form>
+
+  <p class="ipucu" id="cihazNotu"></p>
+
+  <!-- Masaüstü/dizüstünde tarayıcı içi kamera (getUserMedia) -->
+  <div id="webcamPanel" hidden style="margin-top:.8rem">
+    <video id="onizleme" autoplay playsinline muted
+           style="width:100%;max-width:520px;border-radius:10px;background:#000"></video>
+    <div class="butonlar" style="margin-top:.6rem">
+      <button type="button" class="btn btn-birincil" id="cekBtn">📸 Kareyi Yakala</button>
+      <button type="button" class="btn" id="kayitBtn">⏺️ Video Kaydet</button>
+      <button type="button" class="btn" id="kapatBtn">✕ Kapat</button>
+    </div>
+    <p class="ipucu" id="webcamDurum"></p>
+  </div>
+</section>
+
+<section class="kart">
+  <h3>📋 İyi görüntü için</h3>
+  <p class="ipucu">Model, gördüğü kadarını doğru tespit eder. Aşağıdakiler doğruluğu belirgin artırır:</p>
+  <ul class="ipucu" style="margin-top:.2rem">
+    <li><strong>Mesafe:</strong> Yaprak/meyveye 30-60 cm — çok uzaktan çekimde lezyonlar birkaç piksele düşer ve model göremez.</li>
+    <li><strong>Işık:</strong> Gündüz, dengeli ışıkta. Doğrudan güneş ve sert gölge renk ipuçlarını bozar; kahverengi leke / gri küf / beyaz külleme ayrımı renge dayanır.</li>
+    <li><strong>Sabitlik:</strong> Çekim anında bir saniye durun. Hareket bulanıklığı en sık doğruluk kaybı sebebidir.</li>
+    <li><strong>Odak:</strong> Telefonda hedefe dokunup odaklandığından emin olun.</li>
+  </ul>
+
+  <details style="margin-top:.5rem">
+    <summary>🎥 Yürürken video çekecekseniz — okuyun</summary>
+    <ul class="ipucu" style="margin-top:.4rem">
+      <li>Video işlenirken her kare değil, belirli aralıklarla <strong>örnekleme</strong> yapılır. 15-20 saniyelik kayıt yeterlidir; uzun video işlemeyi yavaşlatır.</li>
+      <li><strong>Bulanık kareler otomatik atlanır.</strong> Her örneklenen karenin keskinliği ölçülür; eşiğin altındakiler modele verilmez ve kaç karenin atlandığı sonuç sayfasında bildirilir.</li>
+      <li>Yavaş yürüyün ve <strong>2-3 adımda bir yarım saniye durun</strong> — duraklama anındaki kareler keskin olur, doğruluk belirgin artar.</li>
+      <li>Telefonu göğüs hizasında, bitkiye dönük ve sabit tutun.</li>
+      <li>Kararsız kalınan tespitler <a href="/inceleme">inceleme kuyruğuna</a> düşer; oradan düzeltip modeli geliştirebilirsiniz.</li>
+    </ul>
+    <p class="ipucu">⚠️ Yürürken çekim pratiktir ama <strong>fotoğrafa göre daha düşük doğruluk</strong> verir:
+      hareket bulanıklığı, değişken mesafe ve odak kayması tespit oranını düşürür.
+      Şüpheli bir bölge görürseniz durup ayrıca fotoğraf çekin.</p>
+  </details>
 </section>
 
 <section class="kart">
@@ -82,16 +135,95 @@
 {% endif %}
 
 <script>
+const form = document.getElementById('yuklemeForm');
+const durum = document.getElementById('durum');
+
 function gonder(input) {
   if (!input.files.length) return;
-  document.getElementById('durum').textContent =
-    input.files.length + ' dosya işleniyor, lütfen bekleyin...';
-  // Seçilen input'u forma taşı ve gönder
-  const form = document.getElementById('yuklemeForm');
-  Array.from(form.querySelectorAll('input[type=file]')).forEach(i => {
-    if (i !== input) i.disabled = true;
-  });
+  durum.textContent = input.files.length + ' dosya işleniyor, lütfen bekleyin...';
+  form.querySelectorAll('input[type=file]').forEach(i => { if (i !== input) i.disabled = true; });
   form.submit();
 }
+
+// --- Cihaza göre davranış -------------------------------------------------
+// capture="environment" TELEFONDA cihazın kamera uygulamasını açar; masaüstünde
+// tarayıcı bunu yok sayar ve dosya seçici görünür. Masaüstünde gerçek kamera
+// için getUserMedia gerekir — ancak yalnızca güvenli bağlamda (https veya
+// localhost) çalışır. Telefondan http:// ile bağlanıldığında tarayıcı engeller;
+// orada dosya girdisi (cihazın kamera uygulaması) doğru çözümdür.
+const mobil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const kameraApiVar = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+                     && window.isSecureContext;
+const notu = document.getElementById('cihazNotu');
+
+if (!mobil) {
+  notu.innerHTML = kameraApiVar
+    ? '💻 Bilgisayardasınız: yukarıdaki düğmeler dosya seçiciyi açar. Bilgisayarın ' +
+      'kamerasını kullanmak için <a href="#" id="webcamAc">kamerayı açın</a>.'
+    : '💻 Bilgisayardasınız: düğmeler dosya seçiciyi açar. Tarayıcı içi kamera yalnızca ' +
+      '<code>https</code> veya <code>localhost</code> üzerinden kullanılabilir.';
+} else {
+  notu.textContent = '📱 Telefondasınız: "Fotoğraf Çek" ve "Video Çek" cihazınızın ' +
+    'kamera uygulamasını açar.';
+}
+
+// --- Tarayıcı içi kamera (yalnızca güvenli bağlam) -------------------------
+let akis = null, kaydedici = null, parcalar = [];
+const panel = document.getElementById('webcamPanel');
+const video = document.getElementById('onizleme');
+const wDurum = document.getElementById('webcamDurum');
+
+document.addEventListener('click', async (e) => {
+  if (e.target.id !== 'webcamAc') return;
+  e.preventDefault();
+  try {
+    akis = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1920 } }, audio: false
+    });
+    video.srcObject = akis;
+    panel.hidden = false;
+    wDurum.textContent = 'Kamera açık. Görüntüyü netleştirip yakalayın.';
+  } catch (err) {
+    wDurum.textContent = 'Kamera açılamadı: ' + err.message;
+  }
+});
+
+document.getElementById('kapatBtn').onclick = () => {
+  if (akis) akis.getTracks().forEach(t => t.stop());
+  panel.hidden = true; akis = null;
+};
+
+async function yukle(blob, adi) {
+  const fd = new FormData();
+  fd.append('dosyalar', blob, adi);
+  const sera = document.getElementById('seraSecim');
+  if (sera && sera.value) fd.append('sera_id', sera.value);
+  wDurum.textContent = 'İşleniyor, lütfen bekleyin...';
+  const yanit = await fetch('/analiz/dosya', { method: 'POST', body: fd });
+  if (yanit.redirected) window.location = yanit.url;
+  else wDurum.textContent = 'Hata: ' + (await yanit.text()).slice(0, 200);
+}
+
+document.getElementById('cekBtn').onclick = () => {
+  const c = document.createElement('canvas');
+  c.width = video.videoWidth; c.height = video.videoHeight;
+  c.getContext('2d').drawImage(video, 0, 0);
+  c.toBlob(b => yukle(b, 'webcam.jpg'), 'image/jpeg', 0.92);
+};
+
+document.getElementById('kayitBtn').onclick = function () {
+  if (kaydedici && kaydedici.state === 'recording') {
+    kaydedici.stop();
+    this.textContent = '⏺️ Video Kaydet';
+    return;
+  }
+  parcalar = [];
+  kaydedici = new MediaRecorder(akis, { mimeType: 'video/webm' });
+  kaydedici.ondataavailable = e => parcalar.push(e.data);
+  kaydedici.onstop = () => yukle(new Blob(parcalar, { type: 'video/webm' }), 'webcam.webm');
+  kaydedici.start();
+  this.textContent = '⏹️ Kaydı Durdur';
+  wDurum.textContent = 'Kaydediliyor... 15-20 saniye yeterlidir.';
+};
 </script>
 {% endblock %}
