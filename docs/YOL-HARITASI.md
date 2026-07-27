@@ -70,8 +70,9 @@ Not: Sürekli izleme GPU olmadan pahalıdır; önce zamanlanmış çekim öneril
 
 ## 4. Model iyileştirme döngüsü
 
-Kurulu ve çalışıyor: düşük güvenli kayıtlar → inceleme kuyruğu → ön-etiketli
-dışa aktarım → Roboflow'da düzeltme → `merge_datasets.py` → yeniden eğitim.
+Kurulu ve çalışıyor: düşük güvenli kayıtlar → inceleme kuyruğu → **tarayıcıda
+etiketleme** (Roboflow gerekmez) → eğitim formatında dışa aktarım (`images/`,
+`labels/`, `data.yaml`) → `merge_datasets.py` → yeniden eğitim.
 
 **Sıradaki ölçüm:** eğitim bitince sınıf bazlı recall'a bakılacak. Az örnekli
 sınıflar (Anthracnose 326 kutu, Powdery Mildew Fruit 590) zayıf kalırsa çözüm

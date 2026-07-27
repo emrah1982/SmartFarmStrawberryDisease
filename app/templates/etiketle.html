@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block baslik %}Etiketle #{{ a.id }}{% endblock %}
+{% block icerik %}
+
+<section class="kart">
+  <h2>✏️ Etiketleme — Analiz #{{ a.id }}</h2>
+  <p class="ipucu">
+    📍 {{ a.yer }} · {{ a.zaman|yerel }}
+    {% if a.elle_etiketlendi %} · <span class="rozet yuksek">daha önce etiketlendi</span>{% endif %}
+  </p>
+  <p class="ipucu">
+    Modelin tahminleri <strong>ön-etiket</strong> olarak yüklendi. Yanlışları düzeltin,
+    eksikleri ekleyin. Kaydettiğinizde bu görüntü <strong>eğitim verisi</strong> olur.
+  </p>
+
+  <div class="arac-cubugu">
+    <select id="sinifSecim">
+      {% for id, ad in siniflar.items() %}
+      <option value="{{ id }}">{{ id }} — {{ ad }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn kucuk" id="silBtn" disabled>🗑️ Seçili kutuyu sil</button>
+    <button class="btn kucuk" id="temizleBtn">Tümünü temizle</button>
+    <span class="ipucu" id="sayac"></span>
+  </div>
+
+  <div id="tuval-kapsayici">
+    <img id="resim" src="/media/{{ a.dosya_yolu }}" alt="Etiketlenecek görüntü">
+    <canvas id="tuval"></canvas>
+  </div>
+
+  <p class="ipucu" id="durum" style="margin-top:.5rem">
+    <strong>Kutu çizmek:</strong> boş alanda sürükleyin ·
+    <strong>Seçmek:</strong> kutuya tıklayın ·
+    <strong>Sınıf değiştirmek:</strong> kutuyu seçip listeden yeni sınıf seçin ·
+    <strong>Silmek:</strong> seçip Delete tuşu
+  </p>
+
+  <div class="butonlar" style="margin-top:.6rem">
+    <button class="btn btn-birincil" id="kaydetBtn">💾 Kaydet ve eğitime hazırla</button>
+    <a class="btn" href="/kayit/{{ a.id }}">← Kayda dön</a>
+    <a class="btn" href="/inceleme">İnceleme kuyruğu</a>
+  </div>
+  <p class="durum" id="kayitDurum"></p>
+</section>
+
+<section class="kart">
+  <h3>Etiketleme kuralları</h3>
+  <ul class="ipucu">
+    <li>Kutu, <strong>lezyonun tamamını</strong> sarmalı; fazla boşluk bırakmayın.</li>
+    <li>Aynı yaprakta birden çok leke varsa <strong>her birine ayrı kutu</strong> çizin.</li>
+    <li>Emin olmadığınız lekeyi <strong>etiketlemeyin</strong> — yanlış etiket, eksik etiketten zararlıdır.</li>
+    <li>Görüntüde hastalık yoksa <strong>hiç kutu bırakmayın</strong>: bu bir "sağlıklı/background"
+      örneği olur ve modelin yanlış alarmını azaltır.</li>
+    <li>Meyve olgunluğu için 7-9 numaralı sınıfları kullanın.</li>
+  </ul>
+</section>
+
+<style>
+#tuval-kapsayici { position: relative; display: inline-block; max-width: 100%; }
+#resim { max-width: 100%; display: block; border-radius: 10px; }
+#tuval { position: absolute; inset: 0; cursor: crosshair; touch-action: none; }
+.arac-cubugu {
+  display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin: .6rem 0;
+}
+.arac-cubugu select { width: auto; min-width: 220px; }
+</style>
+
+<script>
+const RENKLER = ['#e53935','#8e24aa','#3949ab','#00897b','#f4511e',
+                 '#6d4c41','#c0ca33','#00acc1','#fb8c00','#5e35b1'];
+const SINIF_ADLARI = {{ siniflar|tojson }};
+let kutular = {{ kutular|tojson }};      // normalize (0-1) koordinatlar
+let secili = -1, ciziyor = false, bas = null;
+
+const resim = document.getElementById('resim');
+const tuval = document.getElementById('tuval');
+const ctx = tuval.getContext('2d');
+const sinifSecim = document.getElementById('sinifSecim');
+
+function boyutla() {
+  tuval.width = resim.clientWidth;
+  tuval.height = resim.clientHeight;
+  ciz();
+}
+resim.complete ? boyutla() : resim.addEventListener('load', boyutla);
+window.addEventListener('resize', boyutla);
+
+function ciz() {
+  ctx.clearRect(0, 0, tuval.width, tuval.height);
+  kutular.forEach((k, i) => {
+    const x = (k.x - k.w / 2) * tuval.width;
+    const y = (k.y - k.h / 2) * tuval.height;
+    const w = k.w * tuval.width, h = k.h * tuval.height;
+    const renk = RENKLER[k.sinif_id % RENKLER.length];
+
+    ctx.lineWidth = i === secili ? 4 : 2;
+    ctx.strokeStyle = renk;
+    ctx.strokeRect(x, y, w, h);
+
+    const etiket = `${k.sinif_id} ${SINIF_ADLARI[k.sinif_id] || ''}`;
+    ctx.font = '13px system-ui';
+    const genislik = ctx.measureText(etiket).width + 8;
+    ctx.fillStyle = renk;
+    ctx.fillRect(x, Math.max(0, y - 18), genislik, 18);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(etiket, x + 4, Math.max(12, y - 5));
+  });
+  document.getElementById('sayac').textContent = `${kutular.length} kutu`;
+  document.getElementById('silBtn').disabled = secili < 0;
+}
+
+function konum(e) {
+  const r = tuval.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+}
+
+function kutuIcinde(p) {
+  // Küçük kutular üstte kalsın diye alandan küçüğe doğru bakılır
+  const sirali = kutular.map((k, i) => ({ k, i }))
+                        .sort((a, b) => a.k.w * a.k.h - b.k.w * b.k.h);
+  for (const { k, i } of sirali) {
+    if (Math.abs(p.x - k.x) <= k.w / 2 && Math.abs(p.y - k.y) <= k.h / 2) return i;
+  }
+  return -1;
+}
+
+tuval.addEventListener('pointerdown', e => {
+  tuval.setPointerCapture(e.pointerId);
+  const p = konum(e);
+  const i = kutuIcinde(p);
+  if (i >= 0) {                    // mevcut kutuyu seç
+    secili = i;
+    sinifSecim.value = kutular[i].sinif_id;
+    ciz();
+    return;
+  }
+  ciziyor = true; bas = p; secili = -1; ciz();
+});
+
+tuval.addEventListener('pointermove', e => {
+  if (!ciziyor) return;
+  const p = konum(e);
+  ciz();
+  ctx.setLineDash([6, 4]);
+  ctx.strokeStyle = RENKLER[sinifSecim.value % RENKLER.length];
+  ctx.lineWidth = 2;
+  ctx.strokeRect(bas.x * tuval.width, bas.y * tuval.height,
+                 (p.x - bas.x) * tuval.width, (p.y - bas.y) * tuval.height);
+  ctx.setLineDash([]);
+});
+
+tuval.addEventListener('pointerup', e => {
+  if (!ciziyor) return;
+  ciziyor = false;
+  const p = konum(e);
+  const w = Math.abs(p.x - bas.x), h = Math.abs(p.y - bas.y);
+  if (w < 0.01 || h < 0.01) { ciz(); return; }   // kazara tıklama
+  kutular.push({
+    sinif_id: parseInt(sinifSecim.value),
+    x: Math.min(Math.max((bas.x + p.x) / 2, 0), 1),
+    y: Math.min(Math.max((bas.y + p.y) / 2, 0), 1),
+    w: Math.min(w, 1), h: Math.min(h, 1)
+  });
+  secili = kutular.length - 1;
+  ciz();
+});
+
+sinifSecim.onchange = () => {
+  if (secili >= 0) { kutular[secili].sinif_id = parseInt(sinifSecim.value); ciz(); }
+};
+
+document.getElementById('silBtn').onclick = () => {
+  if (secili >= 0) { kutular.splice(secili, 1); secili = -1; ciz(); }
+};
+
+document.getElementById('temizleBtn').onclick = () => {
+  if (confirm('Tüm kutular silinsin mi? (Hastalık yoksa bu doğrudur — background örneği olur)')) {
+    kutular = []; secili = -1; ciz();
+  }
+};
+
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Delete' || e.key === 'Backspace') && secili >= 0) {
+    e.preventDefault();
+    kutular.splice(secili, 1); secili = -1; ciz();
+  }
+});
+
+document.getElementById('kaydetBtn').onclick = async () => {
+  const d = document.getElementById('kayitDurum');
+  d.textContent = 'Kaydediliyor...';
+  const yanit = await fetch('/api/kayit/{{ a.id }}/etiketler', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kutular })
+  });
+  if (yanit.ok) {
+    const s = await yanit.json();
+    d.textContent = `✅ ${s.kutu} kutu kaydedildi. Bu kayıt artık eğitim verisi olarak dışa aktarılabilir.`;
+  } else {
+    d.textContent = '❌ Hata: ' + (await yanit.text()).slice(0, 200);
+  }
+};
+</script>
+{% endblock %}

@@ -100,5 +100,15 @@
 </section>
 {% endif %}
 
+<section class="kart">
+  <h3>✏️ Etiketleri düzelt</h3>
+  <p class="ipucu">
+    Tespitler yanlış veya eksikse tarayıcıda düzeltebilirsiniz. Düzeltilen kayıt
+    <strong>eğitim verisi</strong> olur ve bir sonraki modeli iyileştirir.
+    {% if a.elle_etiketlendi %}<br><span class="rozet yuksek">Bu kayıt elle etiketlendi</span>{% endif %}
+  </p>
+  <a class="btn btn-birincil" href="/kayit/{{ a.id }}/etiketle">✏️ Etiketleme ekranını aç</a>
+</section>
+
 <p><a href="/gecmis">← Geçmişe dön</a></p>
 {% endblock %}

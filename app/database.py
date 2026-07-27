@@ -156,6 +156,10 @@ class Analiz(Base):
     inceleme_gerekli = Column(Boolean, default=False, index=True)
     incelendi = Column(Boolean, default=False, index=True)
 
+    # Uzman kutuları elle düzelttiyse bu kayıt EĞİTİM VERİSİ olarak kullanılabilir
+    elle_etiketlendi = Column(Boolean, default=False, index=True)
+    disa_aktarildi = Column(Boolean, default=False, index=True)
+
     not_ = Column('not', Text, default='')
 
     tespitler = relationship('Tespit', back_populates='analiz',
@@ -216,7 +220,8 @@ def _eksik_sutunlari_ekle():
     yeni = {
         'kameralar': {'sera_id': 'INTEGER'},
         'analizler': {'sera_id': 'INTEGER', 'keskinlik': 'FLOAT',
-                      'bulanik_kare': 'INTEGER', 'kalite_notu': 'TEXT'},
+                      'bulanik_kare': 'INTEGER', 'kalite_notu': 'TEXT',
+                      'elle_etiketlendi': 'BOOLEAN', 'disa_aktarildi': 'BOOLEAN'},
     }
     with engine.begin() as baglanti:
         for tablo, sutunlar in yeni.items():

@@ -335,3 +335,104 @@ def test_cekim_rehberi_gosteriliyor(client):
     assert 'Bulanık kareler otomatik atlanır' in r.text
     # Cihaz farkı açıklaması (dizüstünde galeri açılması kafa karıştırmasın)
     assert 'kamera uygulamasını açar' in r.text
+
+
+# ────────────────────────────────────────── elle etiketleme (Roboflow benzeri)
+def test_etiketleme_sayfasi_acilir(client):
+    client.post('/analiz/dosya', files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')},
+                follow_redirects=True)
+    r = client.get('/kayit/1/etiketle')
+    assert r.status_code == 200
+    assert 'Etiketleme' in r.text
+    # Sınıf listesi eğitimdeki ID düzeniyle gelmeli
+    assert 'Angular Leafspot' in r.text and 'strawberry_unripe' in r.text
+    assert 'tuval' in r.text          # canvas
+
+
+def test_etiketler_kaydedilir_ve_tespitler_degisir(client):
+    client.post('/analiz/dosya', files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')},
+                follow_redirects=True)
+    from app.database import Analiz, SessionLocal
+    with SessionLocal() as db:
+        aid = db.query(Analiz).order_by(Analiz.id.desc()).first().id
+
+    r = client.post(f'/api/kayit/{aid}/etiketler', json={'kutular': [
+        {'sinif_id': 0, 'x': 0.5, 'y': 0.5, 'w': 0.2, 'h': 0.2},
+        {'sinif_id': 4, 'x': 0.2, 'y': 0.3, 'w': 0.1, 'h': 0.1},
+    ]})
+    assert r.status_code == 200 and r.json()['kutu'] == 2
+
+    with SessionLocal() as db:
+        a = db.get(Analiz, aid)
+        assert a.tespit_sayisi == 2
+        assert a.elle_etiketlendi and a.incelendi
+        adlar = sorted(t.sinif_adi for t in a.tespitler)
+        assert adlar == ['Angular Leafspot', 'Leaf Spot']
+        assert all(t.guven == 1.0 for t in a.tespitler)
+
+
+def test_gecersiz_etiket_reddedilir(client):
+    client.post('/analiz/dosya', files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')},
+                follow_redirects=True)
+    from app.database import Analiz, SessionLocal
+    with SessionLocal() as db:
+        aid = db.query(Analiz).order_by(Analiz.id.desc()).first().id
+
+    kotu_sinif = client.post(f'/api/kayit/{aid}/etiketler',
+                             json={'kutular': [{'sinif_id': 99, 'x': .5, 'y': .5, 'w': .1, 'h': .1}]})
+    assert kotu_sinif.status_code == 400
+
+    kotu_koord = client.post(f'/api/kayit/{aid}/etiketler',
+                             json={'kutular': [{'sinif_id': 0, 'x': 1.5, 'y': .5, 'w': .1, 'h': .1}]})
+    assert kotu_koord.status_code == 400
+
+
+def test_bos_etiket_background_ornegi_olur(client):
+    """Hastalık yoksa hiç kutu bırakılmaz — bu geçerli bir eğitim örneğidir."""
+    client.post('/analiz/dosya', files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')},
+                follow_redirects=True)
+    from app.database import Analiz, SessionLocal
+    with SessionLocal() as db:
+        aid = db.query(Analiz).order_by(Analiz.id.desc()).first().id
+    r = client.post(f'/api/kayit/{aid}/etiketler', json={'kutular': []})
+    assert r.status_code == 200
+    with SessionLocal() as db:
+        a = db.get(Analiz, aid)
+        assert a.tespit_sayisi == 0 and a.elle_etiketlendi
+
+
+def test_egitim_formatinda_disa_aktarim(client):
+    """Çıktı merge_datasets.py'nin beklediği yapıda olmalı: images/, labels/, data.yaml"""
+    import yaml as _y
+    uid, sid = _isletme_kur(client, 'Etiket Üretici', 'E-Sera')
+    client.post('/analiz/dosya', data={'sera_id': str(sid)},
+                files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')}, follow_redirects=True)
+    from app.database import Analiz, SessionLocal
+    with SessionLocal() as db:
+        aid = db.query(Analiz).order_by(Analiz.id.desc()).first().id
+    client.post(f'/api/kayit/{aid}/etiketler',
+                json={'kutular': [{'sinif_id': 3, 'x': .4, 'y': .4, 'w': .2, 'h': .2}]})
+
+    r = client.post('/inceleme/egitime-hazirla', follow_redirects=True)
+    assert r.status_code == 200
+
+    disa = sorted(Path(config.EXPORT_DIR).glob('egitim_*'))
+    assert disa, 'egitim_ klasörü oluşmadı'
+    d = disa[-1]
+    assert (d / 'data.yaml').exists(), 'merge_datasets.py data.yaml şart koşar'
+    cfg = _y.safe_load((d / 'data.yaml').read_text(encoding='utf-8'))
+    assert cfg['nc'] == 10 and cfg['names'][3] == 'Gray Mold'
+
+    goruntuler = list((d / 'images').glob('*'))
+    etiketler = list((d / 'labels').glob('*.txt'))
+    assert goruntuler and etiketler
+    # Dosya adı sera ile başlamalı (grup bazlı split için).
+    # Aktarım bekleyen TÜM etiketli kayıtları alır, bu yüzden aramak gerekir.
+    bizimki = [g for g in goruntuler if g.name.startswith('E-Sera_')]
+    assert bizimki, f'sera adıyla başlayan dosya yok: {[g.name for g in goruntuler]}'
+    satir = (d / 'labels' / f'{bizimki[0].stem}.txt').read_text(encoding='utf-8').strip()
+    assert satir.split()[0] == '3' and len(satir.split()) == 5
+
+    # Aynı kayıt iki kez aktarılmamalı
+    tekrar = client.post('/inceleme/egitime-hazirla')
+    assert tekrar.status_code == 400

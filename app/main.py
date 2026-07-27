@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import yaml
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -49,6 +49,24 @@ def tedavi_yukle() -> dict:
         return {}
     return yaml.safe_load(p.read_text(encoding='utf-8')) or {}
 
+
+def siniflari_yukle() -> dict:
+    """Sınıf listesi configs/strawberry_data.yaml'dan okunur.
+
+    Elle etiketleme yaparken kullanılan ID'ler EĞİTİMDEKİYLE aynı olmalı;
+    aksi halde düzeltilen veri modele yanlış sınıfla döner.
+    """
+    p = BASE_DIR / 'configs' / 'strawberry_data.yaml'
+    if not p.exists():
+        return {}
+    cfg = yaml.safe_load(p.read_text(encoding='utf-8')) or {}
+    isimler = cfg.get('names', {})
+    if isinstance(isimler, list):
+        return {i: ad for i, ad in enumerate(isimler)}
+    return {int(k): v for k, v in isimler.items()}
+
+
+SINIFLAR = siniflari_yukle()
 
 TEDAVI = tedavi_yukle()
 
@@ -308,9 +326,15 @@ def inceleme(request: Request, db: Session = Depends(get_db)):
     kayitlar = (yetki.analiz_sorgusu(db, kullanici)
                 .filter(Analiz.inceleme_gerekli == True, Analiz.incelendi == False)  # noqa: E712
                 .order_by(Analiz.min_guven.asc(), Analiz.zaman.desc()).limit(100).all())
+    etiketli = (yetki.analiz_sorgusu(db, kullanici)
+                .filter(Analiz.elle_etiketlendi == True).count())  # noqa: E712
+    bekleyen_aktarim = (yetki.analiz_sorgusu(db, kullanici)
+                        .filter(Analiz.elle_etiketlendi == True,
+                                Analiz.disa_aktarildi == False).count())  # noqa: E712
     return templates.TemplateResponse(request, 'inceleme.html', {
         'request': request, 'kayitlar': kayitlar,
         'esik': config.REVIEW_THRESHOLD,
+        'etiketli': etiketli, 'bekleyen_aktarim': bekleyen_aktarim,
     })
 
 
@@ -356,6 +380,114 @@ def inceleme_disa_aktar(db: Session = Depends(get_db)):
 
     logger.info(f'{n} kayıt dışa aktarıldı: {hedef}')
     return RedirectResponse(f'/inceleme?aktarildi={n}', status_code=303)
+
+
+# ──────────────────────────────────────────────── elle etiketleme (düzeltme)
+@app.get('/kayit/{analiz_id}/etiketle', response_class=HTMLResponse)
+def etiketle(analiz_id: int, request: Request, db: Session = Depends(get_db)):
+    """Tahmin kutularının tarayıcı üzerinde düzeltildiği sayfa.
+
+    Model tahminleri ÖN-ETİKET olarak gelir; uzman düzeltir. Düzeltilen kayıt
+    doğrudan eğitim verisi olur (bkz. /inceleme → eğitime hazırla).
+    """
+    a = db.get(Analiz, analiz_id)
+    if not a:
+        raise HTTPException(404, 'Kayıt bulunamadı')
+    if not yetki.erisebilir_mi(db, yetki.aktif_kullanici(db), a):
+        raise HTTPException(403, 'Bu kayda erişim yetkiniz yok')
+
+    kutular = [{'sinif_id': t.sinif_id, 'sinif_adi': t.sinif_adi, 'guven': t.guven,
+                'x': t.x, 'y': t.y, 'w': t.w, 'h': t.h} for t in a.tespitler]
+    return templates.TemplateResponse(request, 'etiketle.html', {
+        'request': request, 'a': a, 'kutular': kutular, 'siniflar': SINIFLAR,
+    })
+
+
+@app.post('/api/kayit/{analiz_id}/etiketler')
+def etiketleri_kaydet(analiz_id: int, veri: dict = Body(...),
+                      db: Session = Depends(get_db)):
+    """Düzeltilmiş kutuları kaydeder (mevcut tespitlerin yerine geçer)."""
+    a = db.get(Analiz, analiz_id)
+    if not a:
+        raise HTTPException(404, 'Kayıt bulunamadı')
+    if not yetki.erisebilir_mi(db, yetki.aktif_kullanici(db), a):
+        raise HTTPException(403, 'Bu kayda erişim yetkiniz yok')
+
+    kutular = veri.get('kutular', [])
+    for k in kutular:
+        if int(k['sinif_id']) not in SINIFLAR:
+            raise HTTPException(400, f"Geçersiz sınıf: {k['sinif_id']}")
+        for alan in ('x', 'y', 'w', 'h'):
+            if not (0.0 <= float(k[alan]) <= 1.0):
+                raise HTTPException(400, f'Koordinat aralık dışı: {alan}={k[alan]}')
+
+    # Eski tespitler silinir; düzeltilmiş küme yazılır
+    db.query(Tespit).filter(Tespit.analiz_id == a.id).delete()
+    for k in kutular:
+        cid = int(k['sinif_id'])
+        db.add(Tespit(analiz_id=a.id, sinif_id=cid, sinif_adi=SINIFLAR[cid],
+                      guven=1.0,          # elle çizilen kutu kesin kabul edilir
+                      x=float(k['x']), y=float(k['y']),
+                      w=float(k['w']), h=float(k['h'])))
+
+    a.tespit_sayisi = len(kutular)
+    a.min_guven = 1.0 if kutular else 0.0
+    a.ort_guven = 1.0 if kutular else 0.0
+    a.elle_etiketlendi = True
+    a.incelendi = True
+    a.disa_aktarildi = False        # düzeltildi → yeniden dışa aktarılmalı
+    db.commit()
+    return {'durum': 'ok', 'kutu': len(kutular)}
+
+
+@app.post('/inceleme/egitime-hazirla')
+def egitime_hazirla(yeniden: int = Form(0), db: Session = Depends(get_db)):
+    """Elle etiketlenmiş kayıtları EĞİTİM FORMATINDA dışa aktarır.
+
+    Çıktı doğrudan merge_datasets.py ile ana dataset'e katılabilir:
+        <export>/images/*.jpg
+        <export>/labels/*.txt      (YOLO: cls x y w h)
+        <export>/data.yaml         (10 sınıf — merge_datasets.py bunu şart koşar)
+    """
+    q = db.query(Analiz).filter(Analiz.elle_etiketlendi == True)  # noqa: E712
+    if not yeniden:
+        q = q.filter(Analiz.disa_aktarildi == False)  # noqa: E712
+    kayitlar = q.all()
+    if not kayitlar:
+        raise HTTPException(400, 'Dışa aktarılacak elle etiketlenmiş kayıt yok. '
+                                 'Önce inceleme kuyruğundaki kayıtları etiketleyin.')
+
+    damga = datetime.now().strftime('%Y%m%d_%H%M')
+    hedef = config.EXPORT_DIR / f'egitim_{damga}'
+    (hedef / 'images').mkdir(parents=True, exist_ok=True)
+    (hedef / 'labels').mkdir(parents=True, exist_ok=True)
+
+    n = 0
+    for a in kayitlar:
+        kaynak = config.STORAGE_DIR / a.dosya_yolu
+        if not kaynak.exists():
+            continue
+        # Grup bazlı split için ad: sera bilgisi dosya adına yazılır
+        sera = (a.sera.ad if a.sera else 'atanmamis').replace(' ', '_')
+        ad = f'{sera}_{a.id}{kaynak.suffix.lower()}'
+        shutil.copy2(kaynak, hedef / 'images' / ad)
+        with open(hedef / 'labels' / f'{Path(ad).stem}.txt', 'w', encoding='utf-8') as f:
+            for t in a.tespitler:
+                f.write(f'{t.sinif_id} {t.x:.6f} {t.y:.6f} {t.w:.6f} {t.h:.6f}\n')
+        a.disa_aktarildi = True
+        n += 1
+
+    # merge_datasets.py her kaynakta data.yaml arar — sınıf isimleri olmadan
+    # ID eşlemesi yapılamaz
+    with open(hedef / 'data.yaml', 'w', encoding='utf-8') as f:
+        yaml.dump({'train': 'images', 'val': 'images',
+                   'nc': len(SINIFLAR),
+                   'names': {int(k): v for k, v in SINIFLAR.items()}},
+                  f, allow_unicode=True, sort_keys=False)
+
+    db.commit()
+    logger.info(f'{n} etiketli kayıt eğitim formatında dışa aktarıldı: {hedef}')
+    return RedirectResponse(f'/inceleme?egitim={n}', status_code=303)
 
 
 # ──────────────────────────────────────────────────────────────────── kameralar

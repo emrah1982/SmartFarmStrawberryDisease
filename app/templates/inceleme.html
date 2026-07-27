@@ -13,18 +13,44 @@
     Asıl kazanım, kararsız kaldığı örneklerin düzeltilip eğitime katılmasındadır.
   </p>
 
-  {% if kayitlar %}
-  <form action="/inceleme/disa-aktar" method="post">
-    <button class="btn btn-birincil" type="submit">
-      ⬇️ {{ kayitlar|length }} kaydı ön-etiketleriyle dışa aktar
+  <p class="ipucu">
+    Her kayıttaki <strong>✏️ Etiketle</strong> düğmesiyle kutuları tarayıcıda düzeltebilirsiniz —
+    Roboflow'a yüklemeye gerek yok.
+  </p>
+</section>
+
+<section class="kart">
+  <h3>🎓 Eğitime hazırlama</h3>
+  <div class="kutucuklar">
+    <div class="kutucuk"><strong>{{ etiketli }}</strong><span>elle etiketlenmiş kayıt</span></div>
+    <div class="kutucuk {% if bekleyen_aktarim %}vurgu{% endif %}">
+      <strong>{{ bekleyen_aktarim }}</strong><span>dışa aktarılmayı bekliyor</span>
+    </div>
+  </div>
+
+  <form action="/inceleme/egitime-hazirla" method="post" style="margin-top:.6rem">
+    <button class="btn btn-birincil" type="submit" {% if not bekleyen_aktarim %}disabled{% endif %}>
+      🎓 Etiketlenmiş kayıtları eğitim formatında dışa aktar
     </button>
   </form>
   <p class="ipucu">
-    Çıktı <code>storage/exports/</code> altına yazılır (görüntüler + YOLO ön-etiketleri).
-    Bu klasörü Roboflow'a yükleyip etiketleri düzeltin, sonra
-    <code>merge_datasets.py</code> ile ana dataset'e katın.
+    Çıktı <code>storage/exports/egitim_&lt;tarih&gt;/</code> altına yazılır:
+    <code>images/</code>, <code>labels/</code> (YOLO) ve <code>data.yaml</code> (10 sınıf).
+    Bu yapı doğrudan projenin veri hattına girer:
   </p>
-  {% endif %}
+  <pre class="ipucu" style="overflow-x:auto"><code>python scripts/merge_datasets.py     --inputs dataset storage/exports/egitim_&lt;tarih&gt; --output dataset_v2
+python scripts/split_dataset.py --input dataset_v2 --output dataset_v2_split</code></pre>
+  <p class="ipucu">
+    💡 Dosya adları <code>&lt;sera&gt;_&lt;id&gt;.jpg</code> biçimindedir; böylece
+    <code>split_dataset.py</code> aynı seranın görüntülerini train/test'e bölmez (veri sızıntısı önlenir).
+  </p>
+
+  <details style="margin-top:.5rem">
+    <summary>Ham ön-etiketleri dışa aktar (Roboflow'da düzeltmek için)</summary>
+    <form action="/inceleme/disa-aktar" method="post" style="margin-top:.5rem">
+      <button class="btn" type="submit">⬇️ Bekleyen kayıtları ön-etiketleriyle aktar</button>
+    </form>
+  </details>
 </section>
 
 {% if kayitlar %}
@@ -40,9 +66,12 @@
       {{ a.zaman|yerel }} ·
       {% if a.tespit_sayisi %}en düşük güven %{{ (a.min_guven*100)|round|int }}{% else %}tespit yok{% endif %}
     </small>
-    <form action="/inceleme/{{ a.id }}/tamam" method="post">
-      <button class="btn kucuk" type="submit">✓ İncelendi</button>
-    </form>
+    <div class="butonlar" style="padding:0 .55rem .55rem">
+      <a class="btn kucuk btn-birincil" href="/kayit/{{ a.id }}/etiketle">✏️ Etiketle</a>
+      <form action="/inceleme/{{ a.id }}/tamam" method="post">
+        <button class="btn kucuk" type="submit">✓ İncelendi</button>
+      </form>
+    </div>
   </div>
   {% endfor %}
 </div>

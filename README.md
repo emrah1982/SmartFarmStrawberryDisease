@@ -486,6 +486,42 @@ Açılan adresler:
 - **Telefondan** (aynı Wi-Fi): `http://<bilgisayarın-IP-adresi>:8000`
   (IP'yi öğrenmek için Windows'ta `ipconfig`)
 
+#### ✏️ Tarayıcıda etiketleme (Roboflow'a gerek yok)
+
+Her analiz kaydında **"Etiketleme ekranını aç"** düğmesi vardır; inceleme kuyruğundaki
+kartlarda da doğrudan **✏️ Etiketle** bağlantısı bulunur.
+
+- Model tahminleri **ön-etiket** olarak yüklenir — sıfırdan çizmezsiniz, düzeltirsiniz
+- Boş alanda sürükleyerek yeni kutu çizilir; kutuya tıklayıp sınıfı değiştirilir veya silinir
+- Dokunmatik destekli (`pointer` olayları): telefon ve tablette de çalışır
+- Sınıf listesi **`configs/strawberry_data.yaml`'dan** okunur → ID'ler eğitimdekiyle birebir aynı
+- Hastalık yoksa hiç kutu bırakmayın: kayıt **background örneği** olur, yanlış alarmı azaltır
+
+**Kaydedince ne olur:** kayıt `elle_etiketlendi` olarak işaretlenir, inceleme kuyruğundan
+çıkar ve eğitim verisi havuzuna girer.
+
+#### 🎓 Eğitim formatında dışa aktarma
+
+İnceleme sayfasındaki **"Etiketlenmiş kayıtları eğitim formatında dışa aktar"** düğmesi
+`storage/exports/egitim_<tarih>/` altına projenin veri hattına **doğrudan giren** bir paket üretir:
+
+```
+egitim_20260727_1816/
+├── images/   Sera_1_42.jpg        ← dosya adı sera ile başlar
+├── labels/   Sera_1_42.txt        ← YOLO: cls x y w h
+└── data.yaml                      ← 10 sınıf (merge_datasets.py bunu şart koşar)
+```
+
+```bash
+python scripts/merge_datasets.py --inputs dataset storage/exports/egitim_<tarih> --output dataset_v2
+python scripts/split_dataset.py --input dataset_v2 --output dataset_v2_split
+```
+
+Dosya adının sera ile başlaması bilinçlidir: `split_dataset.py` grubu buradan çıkarır ve
+aynı seranın görüntülerini train/test'e bölmez — [veri sızıntısı](#-veri-sızıntısını-önleme-grup-bazlı-split-split_datasetpy) önlenir.
+
+Aynı kayıt iki kez aktarılmaz (`disa_aktarildi` işareti); etiketi düzeltirseniz yeniden aktarılır.
+
 #### 🔍 Ayrıntılı analiz — ölçek kaynaklı hatalı sınıflandırma
 
 Gerçek bir saha fotoğrafında (2712×2496, yaprak güneşe karşı) yapılan ölçüm,
