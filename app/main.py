@@ -82,7 +82,8 @@ def _kaydet(sonuc, db: Session, kaynak_tip: str, kaynak_ad: str,
         kaynak_ad=kaynak_ad,
         kamera_id=kamera_id,
         dosya_yolu=dosya_yolu,
-        sonuc_yolu=str(Path(sonuc.sonuc_yolu).relative_to(config.STORAGE_DIR)) if sonuc.sonuc_yolu else '',
+        # URL'de kullanildigi icin daima ileri bolu: Windows'ta '\' URL ayraci degildir
+        sonuc_yolu=Path(sonuc.sonuc_yolu).relative_to(config.STORAGE_DIR).as_posix() if sonuc.sonuc_yolu else '',
         tespit_sayisi=len(sonuc.kutular),
         min_guven=sonuc.min_guven,
         ort_guven=sonuc.ort_guven,
@@ -144,7 +145,7 @@ async def analiz_dosya(request: Request, dosyalar: List[UploadFile] = File(...),
             raise HTTPException(500, f'{up.filename}: {e}')
 
         kayitlar.append(_kaydet(sonuc, db, tip, up.filename,
-                                str(hedef.relative_to(config.STORAGE_DIR))))
+                                hedef.relative_to(config.STORAGE_DIR).as_posix()))
 
     if not kayitlar:
         raise HTTPException(400, 'İşlenebilir dosya bulunamadı.')
@@ -174,7 +175,7 @@ def analiz_kamera(kamera_id: Optional[int] = Form(None), url: str = Form(''),
         raise HTTPException(502, str(e))
 
     a = _kaydet(sonuc, db, 'kamera', kam.ad if kam else hedef_url,
-                str(kaynak.relative_to(config.STORAGE_DIR)),
+                kaynak.relative_to(config.STORAGE_DIR).as_posix(),
                 kamera_id=kam.id if kam else None)
     return RedirectResponse(f'/kayit/{a.id}', status_code=303)
 

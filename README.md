@@ -484,6 +484,51 @@ Açılan adresler:
 - **Telefondan** (aynı Wi-Fi): `http://<bilgisayarın-IP-adresi>:8000`
   (IP'yi öğrenmek için Windows'ta `ipconfig`)
 
+### 🐳 Docker ile çalıştırma (önerilen)
+
+Docker, Python/CUDA sürüm karmaşasını ortadan kaldırır: aynı imaj sizin
+bilgisayarınızda, sunucuda veya seradaki mini PC'de birebir aynı çalışır.
+
+```bash
+# 1) Modeli yerleştirin (imaja gömülmez, dışarıdan bağlanır)
+#    models/best.pt
+
+# 2) Başlatın
+docker compose up -d
+
+# 3) Açın:  http://localhost:8000
+#    Telefondan: http://<bilgisayarın-IP-adresi>:8000
+```
+
+Durdurmak: `docker compose down` · Log: `docker compose logs -f`
+
+**Neler dışarıda tutuldu ve neden:**
+
+| Öğe | Nerede | Neden |
+|---|---|---|
+| `models/best.pt` | Volume (salt-okunur) | Model sık değişir; her seferinde imaj derlemek gerekmesin |
+| `storage/` | Volume | Kayıtlar, görseller ve SQLite konteyner silinse de kalır |
+| `tedavi_onerileri.yaml` | Volume (salt-okunur) | Önerileri düzenleyip konteyneri yeniden başlatmak yeterli |
+| `dataset/` (640 MB) | `.dockerignore` | Eğitim verisi çalışma zamanında gereksiz |
+
+**Model güncelleme:** Yeni `best.pt` dosyasını `models/` içine kopyalayın ve
+`docker compose restart` deyin — yeniden derleme gerekmez.
+
+#### CPU mu GPU mu?
+
+Varsayılan imaj **CPU** kullanır: torch'un CPU tekerleği ~200 MB, CUDA sürümü ~2,5 GB'dır.
+Fotoğraf analizinde CPU yeterlidir (görüntü başına birkaç saniye); video ve yoğun
+kullanımda GPU belirgin fark yaratır.
+
+GPU için `docker-compose.yml` içinde iki yeri açın (dosyada yorum satırı olarak hazır):
+`TORCH_INDEX` build argümanını CUDA sürümüyle değiştirin ve `deploy.resources` bloğunu etkinleştirin.
+Windows'ta ek olarak **WSL2 + NVIDIA Container Toolkit** kurulu olmalıdır.
+
+#### IP kamera erişimi
+
+Konteyner varsayılan ağ ayarıyla yerel ağdaki kameralara erişebilir; RTSP adresinde
+kameranın **IP'sini** kullanın (`localhost` konteynerin kendisini gösterir, kamerayı değil).
+
 ### Neler yapabilir
 
 | Sayfa | İşlev |

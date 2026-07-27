@@ -1,0 +1,12 @@
+# Büyük ve gereksiz dosyalar imaja girmesin
+dataset/
+datasets/
+storage/
+runs/
+models/*.pt
+.git/
+.pytest_cache/
+__pycache__/
+*.pyc
+docs/
+*.ipynb

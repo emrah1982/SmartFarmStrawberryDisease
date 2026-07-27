@@ -170,3 +170,23 @@ def test_model_yoksa_uyari(client, monkeypatch):
     assert 'Model bulunamadı' in r.text
     y = client.post('/analiz/dosya', files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')})
     assert y.status_code == 400
+
+
+def test_gorseller_tarayicidan_acilabilir(client):
+    """Kaydedilen yollar URL olarak çalışmalı.
+
+    Windows'ta relative_to() ters bölü üretir ('results\\x.jpg'); bu URL'de
+    klasör ayracı sayılmadığı için görseller 404 verir. Yollar as_posix() ile
+    saklanmalı — bu test o regresyonu yakalar.
+    """
+    r = client.post('/analiz/dosya',
+                    files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')},
+                    follow_redirects=True)
+    assert r.status_code == 200
+
+    import re
+    yollar = re.findall(r'src="(/media/[^"]+)"', r.text)
+    assert yollar, 'sayfada görsel bağlantısı yok'
+    for y in yollar:
+        assert '\\' not in y, f'yolda ters bölü var: {y}'
+        assert client.get(y).status_code == 200, f'görsel açılamadı: {y}'

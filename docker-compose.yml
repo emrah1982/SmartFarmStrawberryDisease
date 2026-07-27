@@ -1,0 +1,35 @@
+services:
+  web:
+    build:
+      context: .
+      # GPU kullanacaksanız:
+      # args:
+      #   TORCH_INDEX: https://download.pytorch.org/whl/cu121
+    image: cilek-tespit:latest
+    container_name: cilek-tespit
+    ports:
+      - "8000:8000"
+    volumes:
+      # Model imaja gömülmez — güncellemek için sadece dosyayı değiştirin
+      - ./models:/app/models:ro
+      # Kayıtlar ve yüklenen görseller konteyner silinse de kalır
+      - ./storage:/app/storage
+      # Tedavi önerilerini yeniden derlemeden düzenleyebilmek için
+      - ./configs/tedavi_onerileri.yaml:/app/configs/tedavi_onerileri.yaml:ro
+    environment:
+      MODEL_PATH: /app/models/best.pt
+      CONF_THRESHOLD: "0.25"
+      REVIEW_THRESHOLD: "0.55"
+      IMGSZ: "1024"
+    restart: unless-stopped
+
+    # --- GPU (NVIDIA) ---
+    # Windows'ta WSL2 + NVIDIA Container Toolkit gerekir.
+    # Yukarıdaki build args'ı CUDA yapıp aşağıyı açın:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
