@@ -13,6 +13,15 @@
   </p>
   <p><span class="rozet">📍 {{ a.yer }}</span></p>
 
+  {% if ayni %}
+  <div class="uyari">
+    <strong>ℹ️ Bu görüntü daha önce de analiz edilmiş:</strong>
+    {% for b in ayni %}<a href="/kayit/{{ b.id }}">#{{ b.id }}</a>{% if not loop.last %}, {% endif %}{% endfor %}.
+    <br><small class="ipucu">Eğitim havuzunda kopya oluşmaz — aynı görüntü tek dosyaya
+    yazılır ve <strong>en son etiketlenen</strong> sürüm geçerli olur.</small>
+  </div>
+  {% endif %}
+
   {% if a.kalite_notu %}
   <div class="uyari" style="margin:.6rem 0">
     <strong>📷 Görüntü kalitesi:</strong> {{ a.kalite_notu }}

@@ -139,6 +139,9 @@ class Analiz(Base):
     sera_id = Column(Integer, ForeignKey('seralar.id'), nullable=True, index=True)
 
     dosya_yolu = Column(Text, default='')         # yüklenen orijinal (göreli)
+    # Görüntü içeriğinin hash'i: aynı fotoğraf birden çok kez yüklenirse
+    # eğitim havuzunda kopya oluşmasını engeller
+    dosya_hash = Column(String(16), default='', index=True)
     sonuc_yolu = Column(Text, default='')         # kutulanmış görsel (göreli)
 
     tespit_sayisi = Column(Integer, default=0)
@@ -221,7 +224,8 @@ def _eksik_sutunlari_ekle():
         'kameralar': {'sera_id': 'INTEGER'},
         'analizler': {'sera_id': 'INTEGER', 'keskinlik': 'FLOAT',
                       'bulanik_kare': 'INTEGER', 'kalite_notu': 'TEXT',
-                      'elle_etiketlendi': 'BOOLEAN', 'disa_aktarildi': 'BOOLEAN'},
+                      'elle_etiketlendi': 'BOOLEAN', 'disa_aktarildi': 'BOOLEAN',
+                      'dosya_hash': 'VARCHAR(16)'},
     }
     with engine.begin() as baglanti:
         for tablo, sutunlar in yeni.items():

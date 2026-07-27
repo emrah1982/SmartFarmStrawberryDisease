@@ -437,3 +437,55 @@ def test_egitim_formatinda_disa_aktarim(client):
     # Aynı kayıt iki kez aktarılmamalı
     tekrar = client.post('/inceleme/egitime-hazirla')
     assert tekrar.status_code == 400
+
+
+# ─────────────────────────── aynı görüntünün birden çok kez etiketlenmesi
+def test_ayni_goruntu_havuzda_kopya_olusturmaz(client):
+    """Aynı fotoğraf iki kez yüklenip iki kez etiketlenirse havuzda TEK dosya olmalı.
+
+    Aksi halde eğitim verisinde aynı görüntü iki kez, üstelik çelişen
+    etiketlerle bulunur; split sırasında train/val'e birden düşerek
+    veri sızıntısına da yol açar.
+    """
+    from app.database import Analiz, SessionLocal
+    icerik = b'AYNI-GORUNTU-BAYTLARI'
+
+    # Aynı içerik, iki ayrı yükleme
+    client.post('/analiz/dosya', files={'dosyalar': ('ilk.jpg', icerik, 'image/jpeg')},
+                follow_redirects=True)
+    client.post('/analiz/dosya', files={'dosyalar': ('ikinci.jpg', icerik, 'image/jpeg')},
+                follow_redirects=True)
+    with SessionLocal() as db:
+        kayitlar = (db.query(Analiz).filter(Analiz.kaynak_ad.in_(['ilk.jpg', 'ikinci.jpg']))
+                    .order_by(Analiz.id).all())
+        assert len(kayitlar) == 2
+        assert kayitlar[0].dosya_hash == kayitlar[1].dosya_hash, 'hash aynı olmalı'
+        ilk_id, ikinci_id = kayitlar[0].id, kayitlar[1].id
+
+    # İkisini de farklı şekilde etiketle
+    client.post(f'/api/kayit/{ilk_id}/etiketler',
+                json={'kutular': [{'sinif_id': 0, 'x': .3, 'y': .3, 'w': .1, 'h': .1}]})
+    client.post(f'/api/kayit/{ikinci_id}/etiketler',
+                json={'kutular': [{'sinif_id': 4, 'x': .6, 'y': .6, 'w': .2, 'h': .2},
+                                  {'sinif_id': 4, 'x': .2, 'y': .2, 'w': .1, 'h': .1}]})
+
+    client.post('/inceleme/egitime-hazirla', follow_redirects=True)
+
+    havuz = Path(config.EGITIM_DIR) / 'images'
+    ayni_olanlar = [f for f in havuz.glob('*') if f.read_bytes() == icerik]
+    assert len(ayni_olanlar) == 1, f'aynı görüntü {len(ayni_olanlar)} kez var: {ayni_olanlar}'
+
+    # EN SON etiketlenen sürüm geçerli olmalı (2 kutu, sınıf 4)
+    etiket = (Path(config.EGITIM_DIR) / 'labels' / f'{ayni_olanlar[0].stem}.txt')
+    satirlar = [l for l in etiket.read_text(encoding='utf-8').strip().splitlines() if l]
+    assert len(satirlar) == 2, f'son etiket geçerli olmalı, bulunan: {satirlar}'
+    assert all(l.split()[0] == '4' for l in satirlar)
+
+
+def test_tekrar_yukleme_kullaniciya_bildirilir(client):
+    icerik = b'TEKRAR-EDEN-GORUNTU'
+    client.post('/analiz/dosya', files={'dosyalar': ('a.jpg', icerik, 'image/jpeg')},
+                follow_redirects=True)
+    r = client.post('/analiz/dosya', files={'dosyalar': ('b.jpg', icerik, 'image/jpeg')},
+                    follow_redirects=True)
+    assert 'daha önce de analiz edilmiş' in r.text

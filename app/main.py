@@ -9,6 +9,7 @@ model tahmin üretsin, sonuçlar veritabanına kaydedilsin.
     uvicorn app.main:app --host 0.0.0.0 --port 8000
 """
 
+import hashlib
 import logging
 import shutil
 import uuid
@@ -86,6 +87,14 @@ def baslangic():
                        'Eğitilmiş best.pt dosyasını models/ klasörüne koyun.')
 
 
+def icerik_hash(yol: Path) -> str:
+    """Görüntü içeriğinin kısa hash'i — aynı dosya = aynı hash."""
+    try:
+        return hashlib.sha256(yol.read_bytes()).hexdigest()[:12]
+    except OSError:
+        return ''
+
+
 def _yerel(dt: datetime) -> str:
     """UTC → yerel saat (görüntüleme için)."""
     if dt is None:
@@ -108,6 +117,7 @@ def _kaydet(sonuc, db: Session, kaynak_tip: str, kaynak_ad: str,
         kamera_id=kamera_id,
         sera_id=sera_id,
         dosya_yolu=dosya_yolu,
+        dosya_hash=icerik_hash(config.STORAGE_DIR / dosya_yolu),
         # URL'de kullanildigi icin daima ileri bolu: Windows'ta '\' URL ayraci degildir
         sonuc_yolu=Path(sonuc.sonuc_yolu).relative_to(config.STORAGE_DIR).as_posix() if sonuc.sonuc_yolu else '',
         tespit_sayisi=len(sonuc.kutular),
@@ -237,8 +247,15 @@ def kayit(analiz_id: int, request: Request, db: Session = Depends(get_db)):
     for ad, g in gruplar.items():
         g['tedavi'] = TEDAVI.get(ad, {})
 
+    # Aynı görüntü daha önce analiz edilmiş mi? (tekrar yükleme uyarısı)
+    ayni = []
+    if a.dosya_hash:
+        ayni = (db.query(Analiz)
+                .filter(Analiz.dosya_hash == a.dosya_hash, Analiz.id != a.id)
+                .order_by(Analiz.id.desc()).all())
+
     return templates.TemplateResponse(request, 'kayit.html', {
-        'request': request, 'a': a,
+        'request': request, 'a': a, 'ayni': ayni,
         'gruplar': sorted(gruplar.items(), key=lambda x: -x[1]['adet']),
     })
 
@@ -447,34 +464,48 @@ def etiketleri_kaydet(analiz_id: int, veri: dict = Body(...),
 def egitime_hazirla(yeniden: int = Form(0), db: Session = Depends(get_db)):
     """Elle etiketlenmiş kayıtları TEK birikimli eğitim klasörüne yazar.
 
-    NEDEN TEK KLASÖR: Her dışa aktarımda tarihli yeni klasör açmak, eğitim
-    öncesinde onlarca klasörü elle toplamayı gerektirirdi. Kayıtlar burada
-    storage/egitim_verisi/ altında birikir; merge_datasets.py'ye her zaman
-    aynı tek yol verilir. Dosya adı kayıt id'si içerdiğinden aynı kayıt
-    yeniden yazılırsa üzerine biner — etiketi düzeltirseniz güncellenir,
-    kopya oluşmaz.
+    NEDEN TEK KLASÖR: Her aktarımda tarihli yeni klasör açmak, eğitim öncesinde
+    onlarca klasörü elle toplamayı gerektirirdi. Kayıtlar storage/egitim_verisi/
+    altında birikir; merge_datasets.py'ye her zaman aynı tek yol verilir.
+
+    KOPYA ÖNLEME: Dosya adı görüntünün İÇERİK HASH'ine göre verilir. Aynı
+    fotoğraf iki kez yüklenip iki kez etiketlenmişse havuzda tek dosya olur ve
+    EN SON etiketlenen sürüm geçerli sayılır — çelişen etiketlerle eğitim yapılmaz.
     """
     q = db.query(Analiz).filter(Analiz.elle_etiketlendi == True)  # noqa: E712
-    if not yeniden:
-        q = q.filter(Analiz.disa_aktarildi == False)  # noqa: E712
-    kayitlar = q.all()
+    kayitlar = q.order_by(Analiz.id.asc()).all()
     if not kayitlar:
-        raise HTTPException(400, 'Aktarılacak yeni etiketli kayıt yok. Önce inceleme '
+        raise HTTPException(400, 'Aktarılacak etiketli kayıt yok. Önce inceleme '
                                  'kuyruğundaki kayıtları etiketleyin.')
+
+    # Aynı görüntünün birden çok kaydı varsa en son etiketleneni kalsın
+    benzersiz = {}
+    for a in kayitlar:
+        anahtar = a.dosya_hash or f'id{a.id}'
+        benzersiz[anahtar] = a          # sıralı gidildiği için en büyük id kalır
+    secilenler = list(benzersiz.values())
+
+    if not yeniden:
+        yazilacak = [a for a in secilenler if not a.disa_aktarildi]
+        if not yazilacak:
+            raise HTTPException(400, 'Aktarılacak yeni etiketli kayıt yok.')
+    else:
+        yazilacak = secilenler
 
     hedef = config.EGITIM_DIR
     (hedef / 'images').mkdir(parents=True, exist_ok=True)
     (hedef / 'labels').mkdir(parents=True, exist_ok=True)
 
     n = 0
-    for a in kayitlar:
+    for a in yazilacak:
         kaynak = config.STORAGE_DIR / a.dosya_yolu
         if not kaynak.exists():
             continue
-        # Ad: <sera>_<id> — sera bilgisi split_dataset.py'nin grup ayrımı için,
-        # id ise aynı kaydın üzerine binmesi için
+        # Ad: <sera>_<icerik-hash> — sera bilgisi split_dataset.py'nin grup ayrımı
+        # için, hash ise aynı görüntünün tek dosyaya yazılması için
         sera = (a.sera.ad if a.sera else 'atanmamis').replace(' ', '_')
-        ad = f'{sera}_{a.id}{kaynak.suffix.lower()}'
+        damga = a.dosya_hash or f'id{a.id}'
+        ad = f'{sera}_{damga}{kaynak.suffix.lower()}'
         shutil.copy2(kaynak, hedef / 'images' / ad)
         satirlar = [f'{t.sinif_id} {t.x:.6f} {t.y:.6f} {t.w:.6f} {t.h:.6f}'
                     for t in a.tespitler]
@@ -483,8 +514,16 @@ def egitime_hazirla(yeniden: int = Form(0), db: Session = Depends(get_db)):
         a.disa_aktarildi = True
         n += 1
 
-    # merge_datasets.py her kaynakta data.yaml arar — sınıf isimleri olmadan
-    # ID eşlemesi yapılamaz
+    # Aynı görüntünün eski (id tabanlı) kopyaları varsa temizle
+    gecerli = {f'{(a.sera.ad if a.sera else "atanmamis").replace(" ", "_")}_'
+               f'{a.dosya_hash or f"id{a.id}"}' for a in secilenler}
+    for f in (hedef / 'images').glob('*'):
+        if f.stem not in gecerli:
+            f.unlink(missing_ok=True)
+            (hedef / 'labels' / f'{f.stem}.txt').unlink(missing_ok=True)
+            logger.info(f'Havuzdan kaldırıldı (kopya/eskimiş): {f.name}')
+
+    # merge_datasets.py her kaynakta data.yaml arar
     with open(hedef / 'data.yaml', 'w', encoding='utf-8') as f:
         yaml.dump({'train': 'images', 'val': 'images',
                    'nc': len(SINIFLAR),
@@ -492,7 +531,7 @@ def egitime_hazirla(yeniden: int = Form(0), db: Session = Depends(get_db)):
                   f, allow_unicode=True, sort_keys=False)
 
     db.commit()
-    logger.info(f'{n} etiketli kayıt eğitim havuzuna eklendi: {hedef}')
+    logger.info(f'{n} etiketli kayıt eğitim havuzuna yazıldı: {hedef}')
     return RedirectResponse(f'/inceleme?eklendi={n}', status_code=303)
 
 

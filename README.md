@@ -522,9 +522,17 @@ python scripts/split_dataset.py --input dataset_v2 --output dataset_v2_split
 Dosya adının sera ile başlaması bilinçlidir: `split_dataset.py` grubu buradan çıkarır ve
 aynı seranın görüntülerini train/test'e bölmez — [veri sızıntısı](#-veri-sızıntısını-önleme-grup-bazlı-split-split_datasetpy) önlenir.
 
-Dosya adındaki **kayıt id'si** aynı kaydın tekrar yazılınca üzerine binmesini sağlar:
-kopya oluşmaz, etiketi düzeltirseniz güncellenir. `disa_aktarildi` işareti sayesinde
-aktarım yalnızca yeni/değişmiş kayıtları işler.
+**Kopya önleme:** Dosya adı görüntünün **içerik hash'ine** göre verilir
+(`Sera_1_a43c080a21a9.jpg`). Aynı fotoğrafı iki kez yükleyip iki kez etiketlerseniz
+havuzda **tek dosya** olur ve **en son etiketlenen** sürüm geçerli sayılır.
+
+> Neden önemli: aynı görüntünün iki kopyası, üstelik çelişen etiketlerle eğitime
+> girerse model aynı örneği iki kez öğrenir ve split sırasında görüntü hem train
+> hem val'e düşerek **veri sızıntısı** yaratabilir.
+
+Aynı görüntü daha önce analiz edilmişse kayıt sayfasında bilgi notu gösterilir.
+`disa_aktarildi` işareti sayesinde aktarım yalnızca yeni/değişmiş kayıtları işler;
+`yeniden=1` ile havuz baştan yazılabilir (eskimiş dosyalar temizlenir).
 
 > `storage/exports/` klasörü ayrı bir amaç içindir: Roboflow gibi dış araçlara
 > gönderilecek **ham ön-etiket partileri** oraya tarihli olarak yazılır.
