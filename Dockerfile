@@ -33,7 +33,7 @@ ENV MODEL_PATH=/app/models/best.pt \
     STORAGE_DIR=/app/storage \
     PORT=8000
 
-EXPOSE 8000
+EXPOSE 8000 8443
 
 # Ultralytics'in yazma denediği dizinler (root olmayan kullanıcıda da çalışsın)
 ENV YOLO_CONFIG_DIR=/tmp/Ultralytics \

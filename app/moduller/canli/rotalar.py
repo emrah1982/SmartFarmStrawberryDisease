@@ -47,6 +47,9 @@ def izle(request: Request):
         'request': request,
         'model_hazir': cekirdek.detector.hazir,
         'seralar': depo.seralar(),
+        # Sayfa http'den açıldıysa kullanıcıyı güvenli adrese yönlendirebilmek için
+        'https_port': config.HTTPS_PORT,
+        'guvenli_hazir': bool(config.SSL_CERT and config.SSL_KEY),
         'ayar': {
             'genislik': ayarlar.GONDERIM_GENISLIK,
             'kalite': ayarlar.GONDERIM_KALITE,

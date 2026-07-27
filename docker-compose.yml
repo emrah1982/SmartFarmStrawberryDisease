@@ -9,6 +9,8 @@ services:
     container_name: cilek-tespit
     ports:
       - "8000:8000"
+      # https (canli kamera icin) — certs/ altinda sertifika varsa acilir
+      - "8443:8443"
     volumes:
       # Model imaja gömülmez — güncellemek için sadece dosyayı değiştirin
       - ./models:/app/models:ro

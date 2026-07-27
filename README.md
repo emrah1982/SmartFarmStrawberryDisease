@@ -714,19 +714,24 @@ bu tarayıcı kuralıdır, uygulamanın yapabileceği bir şey yoktur.
 
 ```bash
 python scripts/https_sertifika.py     # certs/ altına kendinden imzalı sertifika üretir
-docker compose up -d --build          # certs/ varsa sunucu https ile başlar
-# Telefondan: https://192.168.x.x:8000/canli
+docker compose up -d --build          # certs/ varsa https AYRICA açılır
+# Telefondan: https://192.168.x.x:8443/canli
 ```
+
+**http kapanmaz.** Sunucu iki dinleyici birden açar — mevcut adresleriniz ve yer
+imleriniz kırılmaz:
+
+| Adres | Ne için |
+|-------|---------|
+| `http://<ip>:8000` | Her şey: yükleme, geçmiş, etiketleme, harita (eskisi gibi) |
+| `https://<ip>:8443` | Yukarıdakilerin hepsi **+ canlı kamera** |
+
+`/canli` sayfasını http üzerinden açarsanız **🔒 Güvenli adrese geç** düğmesi çıkar;
+tek tıkla https adresine geçersiniz.
 
 İlk açılışta "Bağlantınız gizli değil" uyarısını **Gelişmiş → Yine de devam et** ile geçin;
 kendi ağınızdaki kendi sunucunuzdur. İnternete açık kurulumda gerçek sertifika kullanın
 (Let's Encrypt / ters vekil).
-
-> ⚠️ **Adres değişir:** `certs/` içinde sertifika varsa sunucu **yalnızca https** ile
-> yanıt verir; eski `http://localhost:8000` bağlantısı çalışmaz (tarayıcı boş yanıt
-> verir). Yeni adres: `https://localhost:8000`.
-> Geri dönmek için `certs/` içindeki `sunucu.crt` ve `sunucu.key` silinip
-> `docker compose restart` yapılır.
 
 Sertifika istemiyorsanız telefonda [tek kare analizi](#-web-arayüzü-sahada-kullanım)
 (📷 Fotoğraf Çek / 🎥 Video Çek) sertifikasız çalışmaya devam eder.

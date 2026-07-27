@@ -59,6 +59,9 @@ VIDEO_MAX_FRAMES = int(os.environ.get('VIDEO_MAX_FRAMES', '40'))
 # --- Sunucu -----------------------------------------------------------------
 HOST = os.environ.get('HOST', '0.0.0.0')   # 0.0.0.0 = yerel ağdaki telefonlar erişebilir
 PORT = int(os.environ.get('PORT', '8000'))
+# https ayri portta dinler; http (PORT) her zaman acik kalir ki mevcut
+# adresler ve yer imleri kirilmasin.
+HTTPS_PORT = int(os.environ.get('HTTPS_PORT', '8443'))
 
 # --- HTTPS ------------------------------------------------------------------
 # Tarayıcılar kamerayı (getUserMedia) YALNIZCA güvenli bağlamda verir: https

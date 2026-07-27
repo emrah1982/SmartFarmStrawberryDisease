@@ -814,19 +814,38 @@ def sera_sil(sera_id: int, db: Session = Depends(get_db)):
 
 
 if __name__ == '__main__':
+    import threading
+
     import uvicorn
 
-    # Sertifika varsa https ile başlar: canlı kamera (getUserMedia) yalnızca
-    # güvenli bağlamda çalışır, telefondan kullanmak için şart.
-    ssl_ayar = {}
-    if config.SSL_CERT and config.SSL_KEY:
-        ssl_ayar = {'ssl_certfile': config.SSL_CERT, 'ssl_keyfile': config.SSL_KEY}
-    sema = 'https' if ssl_ayar else 'http'
+    # HTTP her zaman açık kalır (:8000). Sertifika varsa AYRICA https açılır
+    # (:8443).
+    #
+    # NEDEN İKİSİ BİRDEN: canlı kamera (getUserMedia) yalnızca güvenli bağlamda
+    # çalışır, yani https şart. Ama sunucuyu sadece https yapmak eski
+    # http://...:8000 adresini kırar ve "proje çalışmıyor" gibi görünür.
+    # İki dinleyici aynı uygulama nesnesini paylaşır — tek süreç, tek
+    # veritabanı bağlantısı, kilitlenme riski yok.
+    def _sunucu(**kw):
+        # Server.run() kendi olay döngüsünü kurar; ana thread dışında uvicorn
+        # sinyal işleyicilerini kendiliğinden atlar.
+        uvicorn.Server(uvicorn.Config(app, log_level='info', **kw)).run()
 
-    print(f'\n🍓 Arayüz: {sema}://localhost:{config.PORT}')
-    print(f'📱 Telefondan: {sema}://<bilgisayarınızın-IP-adresi>:{config.PORT}')
-    if not ssl_ayar:
+    guvenli = bool(config.SSL_CERT and config.SSL_KEY)
+
+    print(f'\n🍓 Arayüz: http://localhost:{config.PORT}')
+    if guvenli:
+        print(f'🔒 Güvenli (canlı kamera için): https://localhost:{config.HTTPS_PORT}')
+        print(f'📱 Telefondan: https://<bilgisayarınızın-IP-adresi>:{config.HTTPS_PORT}')
+    else:
+        print(f'📱 Telefondan: http://<bilgisayarınızın-IP-adresi>:{config.PORT}')
         print('   ⚠️ Canlı kamera için sertifika gerekir: python scripts/https_sertifika.py')
     print()
-    uvicorn.run('app.main:app', host=config.HOST, port=config.PORT,
-                reload=False, **ssl_ayar)
+
+    if guvenli:
+        threading.Thread(target=_sunucu, daemon=True, kwargs={
+            'host': config.HOST, 'port': config.HTTPS_PORT,
+            'ssl_certfile': config.SSL_CERT, 'ssl_keyfile': config.SSL_KEY,
+        }).start()
+
+    _sunucu(host=config.HOST, port=config.PORT)

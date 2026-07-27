@@ -77,16 +77,24 @@
 // bağlananlar için sebebini ve çözümünü burada açıkça yaz.
 if (!window.isSecureContext) {
   const u = document.getElementById('uyumsuz');
+  const guvenliAdres = 'https://' + location.hostname + ':{{ https_port }}/canli';
   u.hidden = false;
   u.innerHTML = '<strong>⚠️ Bu adreste kamera açılamaz.</strong> Tarayıcılar kamerayı ' +
     'yalnızca <code>https://</code> veya <code>localhost</code> üzerinde verir; ' +
     'bu sayfa <code>http://' + location.host + '</code> ile açıldı.<br>' +
-    'Telefondan kullanmak için sunucuyu sertifikayla başlatın: ' +
-    '<code>python scripts/https_sertifika.py</code> → ' +
-    '<code>docker compose up -d</code> → <code>https://' + location.hostname + ':8000</code>. ' +
-    'Ayrıntı: README → "Canlı tespit".<br>' +
-    'Sertifikasız kullanmak isterseniz <a href="/">tek kare analizi</a> ' +
-    'telefonun kamera uygulamasıyla çalışır.';
+    {% if guvenli_hazir %}
+    '<a class="btn btn-birincil" style="margin-top:.6rem" href="' + guvenliAdres + '">' +
+    '🔒 Güvenli adrese geç</a><br>' +
+    '<small>İlk açılışta "Bağlantınız gizli değil" uyarısını ' +
+    '<strong>Gelişmiş → Yine de devam et</strong> ile geçin — kendi ağınızdaki ' +
+    'kendi sunucunuz, sertifika kendinden imzalı.</small>'
+    {% else %}
+    'Sertifika üretin: <code>python scripts/https_sertifika.py</code> → ' +
+    '<code>docker compose restart</code> → <code>' + guvenliAdres + '</code><br>' +
+    '<small>Sertifikasız kullanmak isterseniz <a href="/">tek kare analizi</a> ' +
+    'telefonun kamera uygulamasıyla çalışmaya devam eder.</small>'
+    {% endif %}
+    ;
   document.getElementById('baslaBtn').disabled = true;
 }
 </script>
