@@ -123,6 +123,40 @@
 </section>
 
 <section class="kart">
+  <h3>📍 Konum</h3>
+  <p class="ipucu">
+    {% if a.konum %}
+      Şu an: <strong>{{ a.konum.etiket }}</strong>
+      <span class="rozet">{{ a.konum.kaynak }}</span>
+    {% else %}
+      Bu kayda konum atanmamış. Yaygınlık haritasında görünmesi için girin.
+    {% endif %}
+  </p>
+  <form action="/konum/kayit/{{ a.id }}" method="post">
+    <div class="satir">
+      <label style="flex:1">Blok
+        <input type="text" name="blok" placeholder="A blok"
+               value="{{ a.konum.blok if a.konum else '' }}"></label>
+      <label style="flex:1">Sıra
+        <input type="text" name="sira" placeholder="3"
+               value="{{ a.konum.sira if a.konum else '' }}"></label>
+    </div>
+    <details>
+      <summary>GPS koordinatı (isteğe bağlı)</summary>
+      <div class="satir" style="margin-top:.5rem">
+        <label style="flex:1">Enlem
+          <input type="text" name="enlem" placeholder="36.85321"
+                 value="{{ a.konum.enlem if a.konum and a.konum.enlem else '' }}"></label>
+        <label style="flex:1">Boylam
+          <input type="text" name="boylam" placeholder="30.72145"
+                 value="{{ a.konum.boylam if a.konum and a.konum.boylam else '' }}"></label>
+      </div>
+    </details>
+    <button class="btn" type="submit">Konumu kaydet</button>
+  </form>
+</section>
+
+<section class="kart">
   <h3>🗑️ Kaydı kalıcı sil</h3>
   <p class="ipucu">
     Veritabanı kaydı, yüklenen görüntü, sonuç görseli ve eğitim havuzundaki

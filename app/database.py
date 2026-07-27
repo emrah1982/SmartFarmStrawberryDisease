@@ -110,6 +110,12 @@ class Kamera(Base):
     ad = Column(String(120), nullable=False)          # "Giriş", "3. sıra"
     url = Column(Text, nullable=False)                # rtsp://... veya http://.../snapshot
     konum = Column(String(200), default='')           # sera içindeki yer: "A blok, 3. sıra"
+    # Sabit kamera konumu — bu kameradan gelen analizler bu konumu devralır
+    # (konum modülü kullanır; modül kapalıysa yalnızca boş dururlar)
+    enlem = Column(Float, nullable=True)
+    boylam = Column(Float, nullable=True)
+    blok = Column(String(60), default='')
+    sira = Column(String(30), default='')
     aktif = Column(Boolean, default=True)
     olusturma = Column(DateTime, default=simdi)
 
@@ -221,7 +227,8 @@ def _eksik_sutunlari_ekle():
     if 'kameralar' not in denetci.get_table_names():
         return
     yeni = {
-        'kameralar': {'sera_id': 'INTEGER'},
+        'kameralar': {'sera_id': 'INTEGER', 'enlem': 'FLOAT', 'boylam': 'FLOAT',
+                      'blok': 'VARCHAR(60)', 'sira': 'VARCHAR(30)'},
         'analizler': {'sera_id': 'INTEGER', 'keskinlik': 'FLOAT',
                       'bulanik_kare': 'INTEGER', 'kalite_notu': 'TEXT',
                       'elle_etiketlendi': 'BOOLEAN', 'disa_aktarildi': 'BOOLEAN',

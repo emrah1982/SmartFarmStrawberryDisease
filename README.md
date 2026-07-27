@@ -635,6 +635,63 @@ Yönetim: **İşletmeler** sayfası (üretici + sera), **Kameralar** sayfası (k
 Geçmiş sayfasında üretici ve sera filtreleri, Panel'de sera bazlı özet tablosu
 (analiz, tespit, en sık hastalık, bekleyen inceleme) bulunur.
 
+### 🗺️ Konum ve Yaygınlık Modülü
+
+"Hastalık **nerede** yoğunlaşmış?" sorusunu yanıtlar. Menüdeki **Yaygınlık** sayfası.
+
+#### Konum üç yoldan gelir
+
+| Kaynak | Nasıl | Ne zaman kullanışlı |
+|---|---|---|
+| **EXIF GPS** | Telefon/drone fotoğrafındaki koordinat otomatik okunur | Açık alan, tarla, drone uçuşu |
+| **Kamera** | Kameraya bir kez konum tanımlanır; o kameradan gelen analizler devralır | Sabit sera kameraları |
+| **Elle** | Kayıt sayfasından blok/sıra girilir | **Sera içi** — GPS hassasiyeti yetersiz kalır, "A blok / 3. sıra" daha kullanışlıdır |
+
+#### Yaygınlık nasıl ölçülür
+
+**Enfekte görüntü oranı** kullanılır, kutu sayısı değil:
+
+> Tek bir yaprakta 16 leke olması o bölgeyi 16 kat sorunlu yapmaz. Asıl soru
+> "bu bölgede çekilen görüntülerin yüzde kaçında hastalık var". Kutu sayısı
+> ayrıca **şiddet** göstergesi olarak raporlanır.
+
+Olgunluk sınıfları (`strawberry_*`) yaygınlık hesabına girmez — onlar hastalık değildir.
+
+Sayfa üç görünüm sunar: bölge tablosu (yaygınlık %'sine göre sıralı), **ısı haritası**
+(yeşil→kırmızı) ve GPS noktaları varsa **dağılım grafiği**. Harita karosu kullanılmaz,
+yani internet olmadan da çalışır.
+
+#### Modüler yapı — neden
+
+Konum yeteneği `app/moduller/konum/` altında **kendi tablosu, rotaları ve şablonlarıyla**
+durur; çekirdek `Analiz` tablosuna sütun eklemez (ayrı `analiz_konumlari` tablosu kullanır).
+
+```
+app/moduller/
+├── __init__.py            # modül kaydı (Modul dataclass + kaydet())
+└── konum/
+    ├── __init__.py        # modül tanımı: ad, başlık, menü yolu, router
+    ├── modeller.py        # AnalizKonum tablosu
+    ├── servis.py          # EXIF GPS okuma, yaygınlık hesabı
+    ├── rotalar.py         # /konum/... sayfaları
+    └── templates/konum/   # kendi şablonları
+```
+
+Bunun getirisi:
+
+- **Başka projeye taşıma:** tek klasör kopyalanır, `yuklu_moduller()` listesine eklenir
+- **Kapatma:** listeden çıkarılır; çekirdek şema ve sayfalar etkilenmez
+- **Menü:** modüller kendilerini bildirir, `base.html` otomatik listeler
+- **Çekirdek sadeliği:** `app/main.py` modülün ayrıntısını bilmez, yalnızca
+  `moduller.kaydet(app, engine)` çağırır
+
+#### Drone kullanımı
+
+Drone görüntüleri de EXIF GPS taşır; ek geliştirme gerekmez — fotoğrafları yüklemeniz
+yeterlidir. Yüksekten çekimde lezyonlar küçük göründüğü için
+[Ayrıntılı analiz](#-ayrıntılı-analiz--ölçek-kaynaklı-hatalı-sınıflandırma) seçeneğini
+işaretlemeniz önerilir.
+
 ### 🔒 Güvenlik ve çok müşterili kullanım
 
 Uygulamada **kullanıcı girişi yoktur**; yerel ağda tek işletme için tasarlanmıştır.

@@ -15,6 +15,7 @@
     <a href="/inceleme">İnceleme</a>
     <a href="/etiketlenenler">Etiketlenenler</a>
     <a href="/panel">Panel</a>
+    {% for m in moduller %}<a href="{{ m.yol }}">{{ m.baslik }}</a>{% endfor %}
     <a href="/isletmeler">İşletmeler</a>
     <a href="/kameralar">Kameralar</a>
   </nav>

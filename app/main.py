@@ -28,9 +28,9 @@ from sqlalchemy.orm import Session
 
 from app import config
 from app.database import (Analiz, Kamera, Sera, SessionLocal, Tespit, Uretici,
-                          get_db, init_db)
+                          engine, get_db, init_db)
 from app.detector import detector
-from app import yetki
+from app import moduller, yetki
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
@@ -77,6 +77,9 @@ TEDAVI = tedavi_yukle()
 DOCKER_ICINDE = Path('/.dockerenv').exists()
 
 
+MODULLER = moduller.kaydet(app, engine)
+
+
 @app.on_event('startup')
 def baslangic():
     init_db()
@@ -106,6 +109,7 @@ def _yerel(dt: datetime) -> str:
 
 
 templates.env.filters['yerel'] = _yerel
+templates.env.globals['moduller'] = [m for m in MODULLER if m.menude]
 
 
 def _kaydet(sonuc, db: Session, kaynak_tip: str, kaynak_ad: str,
@@ -138,6 +142,17 @@ def _kaydet(sonuc, db: Session, kaynak_tip: str, kaynak_ad: str,
                       guven=k.guven, x=k.x, y=k.y, w=k.w, h=k.h, kare=k.kare))
     db.commit()
     db.refresh(a)
+
+    # Konum modülü etkinse konumu belirlemeye çalış (EXIF GPS / kamera konumu)
+    try:
+        from app.moduller.konum import konum_ata
+        konum_ata(db, a, config.STORAGE_DIR / dosya_yolu,
+                  db.get(Kamera, kamera_id) if kamera_id else None)
+    except ImportError:
+        pass                     # modül kapalı — konum atlanır
+    except Exception as e:
+        logger.warning(f'Konum atanamadı: {e}')
+
     return a
 
 
@@ -708,8 +723,17 @@ def kameralar(request: Request, db: Session = Depends(get_db)):
 @app.post('/kameralar/ekle')
 def kamera_ekle(ad: str = Form(...), url: str = Form(...), konum: str = Form(''),
                 sera_id: Optional[int] = Form(None),
+                blok: str = Form(''), sira: str = Form(''),
+                enlem: str = Form(''), boylam: str = Form(''),
                 db: Session = Depends(get_db)):
-    db.add(Kamera(ad=ad.strip(), url=url.strip(), konum=konum.strip(), sera_id=sera_id))
+    def sayi(x):
+        try:
+            return float(x) if x else None
+        except ValueError:
+            return None
+    db.add(Kamera(ad=ad.strip(), url=url.strip(), konum=konum.strip(), sera_id=sera_id,
+                  blok=blok.strip(), sira=sira.strip(),
+                  enlem=sayi(enlem), boylam=sayi(boylam)))
     db.commit()
     return RedirectResponse('/kameralar', status_code=303)
 

@@ -18,7 +18,22 @@
     <label>Kamera adı<input type="text" name="ad" required placeholder="Giriş / 3. sıra"></label>
     <label>URL<input type="text" name="url" required
       placeholder="rtsp://kullanici:parola@192.168.1.50:554/stream1"></label>
-    <label>Konum (isteğe bağlı)<input type="text" name="konum" placeholder="A blok, 3. sıra"></label>
+    <label>Konum açıklaması<input type="text" name="konum" placeholder="A blok, 3. sıra"></label>
+    <p class="ipucu" style="margin:.2rem 0">
+      Aşağıdakiler <strong>yaygınlık haritası</strong> içindir: bu kameradan gelen
+      analizler bu konumu otomatik devralır.
+    </p>
+    <div class="satir">
+      <label style="flex:1">Blok<input type="text" name="blok" placeholder="A blok"></label>
+      <label style="flex:1">Sıra<input type="text" name="sira" placeholder="3"></label>
+    </div>
+    <details>
+      <summary>GPS koordinatı (isteğe bağlı)</summary>
+      <div class="satir" style="margin-top:.5rem">
+        <label style="flex:1">Enlem<input type="text" name="enlem" placeholder="36.85321"></label>
+        <label style="flex:1">Boylam<input type="text" name="boylam" placeholder="30.72145"></label>
+      </div>
+    </details>
     <button class="btn btn-birincil" type="submit">Ekle</button>
   </form>
 

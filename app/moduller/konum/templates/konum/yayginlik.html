@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block baslik %}Hastalık Yaygınlığı{% endblock %}
+{% block icerik %}
+
+<section class="kart">
+  <h2>🗺️ Hastalık Yaygınlığı</h2>
+  <p class="ipucu">
+    Hastalık <strong>nerede yoğunlaşmış</strong>? Konum bilgisi olan kayıtlar
+    bölgelere göre gruplanır.
+  </p>
+
+  {% if seralar %}
+  <form class="satir" method="get">
+    <select name="sera_id">
+      <option value="0">Tüm seralar</option>
+      {% for s in seralar %}
+      <option value="{{ s.id }}" {% if sera_id == s.id %}selected{% endif %}>{{ s.tam_ad }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn" type="submit">Filtrele</button>
+  </form>
+  {% endif %}
+
+  {% if konumsuz %}
+  <p class="ipucu" style="margin-top:.6rem">
+    ℹ️ {{ toplam }} görüntünün <strong>{{ konumsuz }}</strong> tanesinde konum yok.
+    Konum üç yoldan gelir: telefonun <strong>EXIF GPS</strong>'i (konum servisi açıkken),
+    <strong>kameranın</strong> tanımlı konumu, veya kayıt sayfasından <strong>elle</strong> giriş.
+  </p>
+  {% endif %}
+</section>
+
+{% if bolgeler %}
+<section class="kart">
+  <h3>Bölgelere göre</h3>
+  <p class="ipucu">
+    <strong>Yaygınlık = enfekte görüntü oranı.</strong> Kutu sayısı değil:
+    tek yaprakta 16 leke olması o bölgeyi 16 kat sorunlu yapmaz. Kutu sayısı
+    ayrıca <em>şiddet</em> göstergesi olarak verilir.
+  </p>
+  <table>
+    <tr><th>Bölge</th><th>Görüntü</th><th>Enfekte</th><th>Yaygınlık</th><th>Kutu</th><th>En sık</th></tr>
+    {% for b in bolgeler %}
+    <tr>
+      <td>{{ b.konum }}</td>
+      <td>{{ b.analiz }}</td>
+      <td>{{ b.enfekte }}</td>
+      <td>
+        <span class="rozet {% if b.oran >= 60 %}dusuk{% elif b.oran >= 25 %}orta{% else %}yuksek{% endif %}">
+          %{{ b.oran }}
+        </span>
+      </td>
+      <td>{{ b.kutu }}</td>
+      <td>{{ b.en_sik }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="ipucu">
+    Renkler: <span class="rozet dusuk">%60+</span> acil müdahale ·
+    <span class="rozet orta">%25-59</span> takip ·
+    <span class="rozet yuksek">%25 altı</span> düşük
+  </p>
+</section>
+
+<section class="kart">
+  <h3>Isı haritası</h3>
+  <div class="isi-izgara">
+    {% for b in bolgeler %}
+    <div class="isi-hucre" style="--oran: {{ b.oran }}"
+         title="{{ b.konum }} — %{{ b.oran }} enfekte ({{ b.enfekte }}/{{ b.analiz }}), {{ b.kutu }} kutu">
+      <strong>{{ b.konum }}</strong>
+      <span>%{{ b.oran }}</span>
+      <small>{{ b.enfekte }}/{{ b.analiz }}</small>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if noktalar %}
+<section class="kart">
+  <h3>GPS dağılımı</h3>
+  <p class="ipucu">
+    Koordinatı olan {{ noktalar|length }} kayıt. Noktalar kendi sınırları içinde
+    ölçeklenir (çevrimdışı çalışsın diye harita karosu kullanılmaz).
+    Kırmızı = hastalık tespit edildi, yeşil = temiz. Üzerine gelin.
+  </p>
+  <div class="gps-alan">
+    {% for n in noktalar %}
+    <a class="gps-nokta {% if n.hastalik %}hasta{% endif %}"
+       href="/kayit/{{ n.id }}"
+       style="left: {{ n.x }}%; top: {{ n.y }}%"
+       title="#{{ n.id }} — {{ n.ozet }} ({{ n.enlem|round(5) }}, {{ n.boylam|round(5) }})"></a>
+    {% endfor %}
+    <span class="yon">↑ Kuzey</span>
+  </div>
+</section>
+{% endif %}
+
+{% if not bolgeler %}
+<section class="kart">
+  <p class="ipucu">
+    Henüz konum bilgisi olan kayıt yok. Nasıl eklenir:
+  </p>
+  <ul class="ipucu">
+    <li><strong>Telefon:</strong> Kamera uygulamasında konum etiketleme açıksa
+      fotoğrafın EXIF'inde GPS gelir ve otomatik okunur.</li>
+    <li><strong>IP kamera:</strong> Kamera tanımına konum girin; o kameradan gelen
+      tüm analizler o konumu alır.</li>
+    <li><strong>Elle:</strong> Kayıt sayfasındaki konum formundan blok/sıra yazın —
+      serada GPS hassasiyeti çoğu zaman yetersizdir, "A blok / 3. sıra" daha kullanışlıdır.</li>
+    <li><strong>Drone:</strong> Drone görüntüleri de EXIF GPS taşır; aynı yoldan okunur.</li>
+  </ul>
+</section>
+{% endif %}
+
+<style>
+.isi-izgara {
+  display: grid; gap: .5rem;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
+.isi-hucre {
+  border-radius: 10px; padding: .6rem; text-align: center; color: #fff;
+  /* oran arttıkça yeşilden kırmızıya */
+  background: hsl(calc(120 - var(--oran) * 1.2) 65% 42%);
+}
+.isi-hucre strong { display: block; font-size: .82rem; }
+.isi-hucre span { font-size: 1.3rem; font-weight: 700; }
+.isi-hucre small { display: block; opacity: .85; font-size: .72rem; }
+
+.gps-alan {
+  position: relative; width: 100%; aspect-ratio: 4/3;
+  background: var(--zemin); border: 1px solid var(--cizgi); border-radius: 10px;
+  background-image: linear-gradient(var(--cizgi) 1px, transparent 1px),
+                    linear-gradient(90deg, var(--cizgi) 1px, transparent 1px);
+  background-size: 10% 10%;
+}
+.gps-nokta {
+  position: absolute; width: 14px; height: 14px; border-radius: 50%;
+  transform: translate(-50%, -50%); border: 2px solid #fff;
+  background: var(--yesil); box-shadow: 0 1px 4px rgba(0,0,0,.3);
+}
+.gps-nokta.hasta { background: var(--ana); width: 18px; height: 18px; }
+.gps-alan .yon { position: absolute; top: 6px; left: 8px; font-size: .75rem; color: var(--soluk); }
+</style>
+{% endblock %}

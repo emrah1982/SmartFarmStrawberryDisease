@@ -9,3 +9,4 @@ opencv-python>=4.8.0
 
 # Tahmin için gerekli (yerelde çalıştırırken kurulu olmalı)
 ultralytics>=8.3.200
+pillow>=10.0          # EXIF GPS okuma (konum modülü)

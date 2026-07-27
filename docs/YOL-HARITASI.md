@@ -15,7 +15,8 @@ Projenin bugünkü durumu ve sonraki adımlar. Kararların **gerekçesi** de yaz
 | Arayüz | FastAPI + SQLite, yerel ağ; telefon/webcam/IP kamera |
 | İşletme yapısı | Üretici → Sera → Kamera → Analiz |
 | Dağıtım | Docker (CPU imajı 697 MB), GPU seçeneği hazır |
-| Sürekli iyileştirme | Düşük güvenli kayıtlar inceleme kuyruğuna, ön-etiketli dışa aktarım |
+| Sürekli iyileştirme | İnceleme kuyruğu, tarayıcıda etiketleme, tek birikimli eğitim havuzu |
+| Konum/yaygınlık | Modül (`app/moduller/konum`): EXIF GPS, kamera konumu, elle blok/sıra, ısı haritası |
 
 ---
 
