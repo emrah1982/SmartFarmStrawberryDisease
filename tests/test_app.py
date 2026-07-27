@@ -523,3 +523,55 @@ def test_paket_eskimis_kalmaz(client):
     # Etiketlenen kayıt kuyruktan çıktığı için paketten de kalkmalı (eskimiş kalmaz)
     assert not etiket.exists(), 'etiketlenmiş kayıt pakette eskimiş halde kalmamalı'
     assert ilk >= 0
+
+
+# ─────────────────────────────── etiketlenmiş kayıtları görüntüleme
+def test_etiketlenenler_sayfasi(client):
+    """Kullanıcı ne etiketlediğini görebilmeli."""
+    from app.database import Analiz, SessionLocal
+    client.post('/analiz/dosya', files={'dosyalar': ('gorunur.jpg', b'GORUNUR', 'image/jpeg')},
+                follow_redirects=True)
+    with SessionLocal() as db:
+        aid = db.query(Analiz).filter(Analiz.kaynak_ad == 'gorunur.jpg').first().id
+
+    bos = client.get('/etiketlenenler')
+    assert bos.status_code == 200
+
+    client.post(f'/api/kayit/{aid}/etiketler', json={'kutular': [
+        {'sinif_id': 0, 'x': .3, 'y': .3, 'w': .1, 'h': .1},
+        {'sinif_id': 0, 'x': .6, 'y': .6, 'w': .1, 'h': .1},
+    ]})
+
+    r = client.get('/etiketlenenler')
+    assert r.status_code == 200
+    assert f'/kayit/{aid}/etiket-onizleme.jpg' in r.text, 'önizleme görseli sayfada olmalı'
+    assert 'Angular Leafspot' in r.text          # sınıf dağılımı
+    assert 'toplam kutu' in r.text
+
+
+def test_etiket_onizlemesi_dinamik(client):
+    """Önizleme dosyaya yazılmamalı; her istekte veritabanından üretilmeli."""
+    import cv2, numpy as np
+    from app.database import Analiz, SessionLocal
+
+    # Gerçek bir JPEG gerekiyor (cv2 okuyabilsin)
+    kare = np.full((200, 300, 3), 200, dtype='uint8')
+    ok, tampon = cv2.imencode('.jpg', kare)
+    assert ok
+    client.post('/analiz/dosya',
+                files={'dosyalar': ('onizleme.jpg', tampon.tobytes(), 'image/jpeg')},
+                follow_redirects=True)
+    with SessionLocal() as db:
+        aid = db.query(Analiz).filter(Analiz.kaynak_ad == 'onizleme.jpg').first().id
+
+    client.post(f'/api/kayit/{aid}/etiketler',
+                json={'kutular': [{'sinif_id': 3, 'x': .5, 'y': .5, 'w': .4, 'h': .4}]})
+    ilk = client.get(f'/kayit/{aid}/etiket-onizleme.jpg')
+    assert ilk.status_code == 200 and ilk.headers['content-type'] == 'image/jpeg'
+    assert ilk.headers.get('cache-control') == 'no-store'
+
+    # Etiket değişince önizleme de değişmeli (dosya önbelleği yok)
+    client.post(f'/api/kayit/{aid}/etiketler', json={'kutular': []})
+    sonra = client.get(f'/kayit/{aid}/etiket-onizleme.jpg')
+    assert sonra.status_code == 200
+    assert sonra.content != ilk.content, 'önizleme güncel veritabanından üretilmeli'

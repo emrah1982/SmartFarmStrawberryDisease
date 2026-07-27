@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block baslik %}Etiketlenenler{% endblock %}
+{% block icerik %}
+
+<section class="kart">
+  <h2>✏️ Etiketlediğim Kayıtlar</h2>
+  <p class="ipucu">
+    Elle düzelttiğiniz kayıtlar burada. Görsellerdeki kutular <strong>sizin
+    etiketleriniz</strong>dir (model tahmini değil) ve her açılışta veritabanından
+    yeniden çizilir — düzeltirseniz anında güncellenir.
+  </p>
+
+  <div class="kutucuklar">
+    <div class="kutucuk"><strong>{{ kayitlar|length }}</strong><span>etiketli görüntü</span></div>
+    <div class="kutucuk"><strong>{{ toplam_kutu }}</strong><span>toplam kutu</span></div>
+    <div class="kutucuk {% if bekleyen_aktarim %}vurgu{% endif %}">
+      <strong>{{ bekleyen_aktarim }}</strong><span>havuza yazılmayı bekliyor</span>
+    </div>
+  </div>
+
+  {% if dagilim %}
+  <h3 style="margin-top:1rem">Etiketlediğiniz sınıflar</h3>
+  <table class="cubuk">
+    {% set enbuyuk = dagilim[0][1] %}
+    {% for ad, adet in dagilim %}
+    <tr>
+      <td class="ad">{{ ad }}</td>
+      <td class="cizgi"><span style="width: {{ (adet / enbuyuk * 100)|round|int }}%"></span></td>
+      <td class="sayi">{{ adet }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  {% if bekleyen_aktarim %}
+  <form action="/inceleme/egitime-hazirla" method="post" style="margin-top:.8rem">
+    <button class="btn btn-birincil" type="submit">
+      🎓 {{ bekleyen_aktarim }} kaydı eğitim havuzuna yaz
+    </button>
+  </form>
+  {% else %}
+  <p class="ipucu" style="margin-top:.8rem">
+    ✅ Tümü eğitim havuzunda: <code>{{ havuz_yolu }}</code>
+  </p>
+  {% endif %}
+</section>
+
+{% if kayitlar %}
+<div class="izgara">
+  {% for a in kayitlar %}
+  <div class="onizleme">
+    <a href="/kayit/{{ a.id }}">
+      <img src="/kayit/{{ a.id }}/etiket-onizleme.jpg" alt="Etiketler">
+    </a>
+    <span class="etiket var">{{ a.ozet }}</span>
+    <small>
+      #{{ a.id }} · {{ a.yer }}<br>
+      {{ a.zaman|yerel }} ·
+      {% if a.disa_aktarildi %}<span class="rozet yuksek">havuzda</span>
+      {% else %}<span class="rozet orta">bekliyor</span>{% endif %}
+    </small>
+    <div class="butonlar" style="padding:0 .55rem .55rem">
+      <a class="btn kucuk btn-birincil" href="/kayit/{{ a.id }}/etiketle">✏️ Düzenle</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<section class="kart">
+  <p class="ipucu">
+    Henüz elle etiketlenmiş kayıt yok.
+    <a href="/inceleme">İnceleme kuyruğundan</a> bir kayıt açıp
+    <strong>✏️ Etiketle</strong> ile başlayabilirsiniz.
+  </p>
+</section>
+{% endif %}
+{% endblock %}

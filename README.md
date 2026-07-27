@@ -500,6 +500,12 @@ kartlarda da doğrudan **✏️ Etiketle** bağlantısı bulunur.
 **Kaydedince ne olur:** kayıt `elle_etiketlendi` olarak işaretlenir, inceleme kuyruğundan
 çıkar ve eğitim verisi havuzuna girer.
 
+**Ne etiketlediğinizi görmek:** menüdeki **Etiketlenenler** sayfası tüm elle
+düzeltilmiş kayıtları kutularıyla birlikte gösterir; sınıf dağılımı, toplam kutu sayısı
+ve her kaydın havuza yazılıp yazılmadığı görünür. Kutular **her açılışta veritabanından
+yeniden çizilir** (`/kayit/<id>/etiket-onizleme.jpg`) — dosya olarak saklanmadığı için
+etiketi düzelttiğinizde görsel anında güncellenir, eskimiş önizleme kalmaz.
+
 #### 🎓 Eğitim formatında dışa aktarma
 
 İnceleme sayfasındaki **"Etiketlenmiş kayıtları eğitim formatında dışa aktar"** düğmesi

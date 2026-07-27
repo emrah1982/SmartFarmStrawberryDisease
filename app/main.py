@@ -17,9 +17,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Optional
 
+import cv2
 import yaml
 from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
@@ -545,6 +546,76 @@ def egitime_hazirla(yeniden: int = Form(0), db: Session = Depends(get_db)):
     db.commit()
     logger.info(f'{n} etiketli kayıt eğitim havuzuna yazıldı: {hedef}')
     return RedirectResponse(f'/inceleme?eklendi={n}', status_code=303)
+
+
+# ─────────────────────────────────── etiketlenmiş kayıtlar (görüntüleme)
+# Etiketleme arayüzüyle aynı renk düzeni (BGR — OpenCV)
+ETIKET_RENKLERI = [(53, 57, 229), (162, 36, 142), (75, 73, 57), (139, 136, 0),
+                   (30, 81, 244), (65, 76, 109), (51, 202, 192), (193, 172, 0),
+                   (0, 140, 251), (177, 53, 94)]
+
+
+@app.get('/kayit/{analiz_id}/etiket-onizleme.jpg')
+def etiket_onizleme(analiz_id: int, db: Session = Depends(get_db)):
+    """Kutuları görüntü üzerine ANLIK çizip döner.
+
+    Önizleme dosya olarak saklanmaz: etiket düzeltilince eskimiş görsel
+    kalmasın diye her istekte veritabanının o anki hâlinden üretilir.
+    """
+    a = db.get(Analiz, analiz_id)
+    if not a:
+        raise HTTPException(404, 'Kayıt bulunamadı')
+    if not yetki.erisebilir_mi(db, yetki.aktif_kullanici(db), a):
+        raise HTTPException(403, 'Bu kayda erişim yetkiniz yok')
+
+    kaynak = config.STORAGE_DIR / a.dosya_yolu
+    if not kaynak.exists():
+        raise HTTPException(404, 'Görüntü dosyası yok')
+
+    img = cv2.imread(str(kaynak))
+    if img is None:
+        raise HTTPException(500, 'Görüntü okunamadı')
+    h, w = img.shape[:2]
+    kalinlik = max(2, int(min(h, w) / 350))
+
+    for t in a.tespitler:
+        x1 = int((t.x - t.w / 2) * w); y1 = int((t.y - t.h / 2) * h)
+        x2 = int((t.x + t.w / 2) * w); y2 = int((t.y + t.h / 2) * h)
+        renk = ETIKET_RENKLERI[t.sinif_id % len(ETIKET_RENKLERI)]
+        cv2.rectangle(img, (x1, y1), (x2, y2), renk, kalinlik)
+        cv2.putText(img, f'{t.sinif_id} {t.sinif_adi}', (x1, max(18, y1 - 6)),
+                    cv2.FONT_HERSHEY_SIMPLEX, max(0.5, min(h, w) / 1600),
+                    renk, kalinlik)
+
+    ok, tampon = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 88])
+    if not ok:
+        raise HTTPException(500, 'Önizleme üretilemedi')
+    return Response(content=tampon.tobytes(), media_type='image/jpeg',
+                    headers={'Cache-Control': 'no-store'})   # eskimiş görsel gösterme
+
+
+@app.get('/etiketlenenler', response_class=HTMLResponse)
+def etiketlenenler(request: Request, db: Session = Depends(get_db)):
+    """Elle etiketlenmiş kayıtlar — ne etiketlediğinizi görün ve düzeltin."""
+    kullanici = yetki.aktif_kullanici(db)
+    kayitlar = (yetki.analiz_sorgusu(db, kullanici)
+                .filter(Analiz.elle_etiketlendi == True)  # noqa: E712
+                .order_by(Analiz.id.desc()).all())
+
+    # Sınıf dağılımı: etiketlediğiniz kutular hangi sınıflarda?
+    dagilim = {}
+    for a in kayitlar:
+        for t in a.tespitler:
+            dagilim[t.sinif_adi] = dagilim.get(t.sinif_adi, 0) + 1
+
+    return templates.TemplateResponse(request, 'etiketlenenler.html', {
+        'request': request, 'kayitlar': kayitlar,
+        'dagilim': sorted(dagilim.items(), key=lambda x: -x[1]),
+        'toplam_kutu': sum(dagilim.values()),
+        'bekleyen_aktarim': sum(1 for a in kayitlar if not a.disa_aktarildi),
+        'havuz_yolu': str(config.EGITIM_DIR),
+    })
+
 
 
 # ──────────────────────────────────────────────────────────────────── kameralar

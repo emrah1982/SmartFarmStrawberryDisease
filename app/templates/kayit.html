@@ -28,7 +28,10 @@
   </div>
   {% endif %}
 
-  {% if a.sonuc_yolu %}
+  {% if a.elle_etiketlendi %}
+  <p class="ipucu">✏️ <strong>Sizin etiketleriniz</strong> (model tahmini değil):</p>
+  <img class="buyuk" src="/kayit/{{ a.id }}/etiket-onizleme.jpg" alt="Etiketler">
+  {% elif a.sonuc_yolu %}
   <img class="buyuk" src="/media/{{ a.sonuc_yolu }}" alt="Tespit sonucu">
   {% else %}
   <p class="ipucu">Görsel çıktı üretilemedi.</p>
