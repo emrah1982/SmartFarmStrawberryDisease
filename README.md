@@ -82,7 +82,7 @@ Dataset GitHub deposunda **yoktur** (418 MB). Bilgisayarınızda `dataset_colab.
 oluşturup Drive'da şu konuma yükleyin:
 
 ```
-MyDrive/StrawberryDisease/dataset_colab.zip
+MyDrive/SmartFarmStrawberryDisease/dataset/dataset_colab.zip
 ```
 
 Zip'i yeniden üretmek gerekirse (repo kökünde):
@@ -101,7 +101,7 @@ Tek elle müdahale: Drive bağlama hücresi bir kez yetki onayı ister.
 
 Sonuçlar doğrudan Drive'a yazılır:
 ```
-MyDrive/StrawberryDisease/
+MyDrive/SmartFarmStrawberryDisease/
 ├── results/strawberry_exp/     # grafikler, confusion matrix, weights/
 └── best_models/best_strawberry_exp.pt
 ```
@@ -357,6 +357,7 @@ SmartFarmBerry/
 │   ├── split_dataset.py         # Grup bazlı (veri sızıntısız) train/val/test split
 │   ├── add_background_images.py # Sağlıklı (background) görüntü ekleme
 │   ├── augment_by_class.py      # Sınıf hedefli augmentation (dengesizlik giderici)
+│   ├── collect_field_data.py    # Saha görüntülerini ön-etiketle + önceliklendir
 │   ├── train_yolo.py            # Model eğitimi
 │   ├── evaluate_model.py        # Model değerlendirme
 │   └── sahi_predict.py          # SAHI ile dilimli inference (küçük lezyonlar)
@@ -460,6 +461,128 @@ hsv_s: 0.5         # Renk hastalık sinyalidir; agresif augmentasyon ipuçların
 - `cos_lr: true` + `epochs: 200` — Fine-tune senaryosunda kosinüs LR azalması ile uzun eğitim, sabit adımlı kısa eğitimden daha iyi yakınsar; `patience: 50` gereksiz uzamayı keser.
 - `hsv_s: 0.5`, `hsv_h: 0.02` — Hastalık teşhisinde renk (kahverengi leke, gri küf, beyaz külleme) ayırt edici özelliktir; agresif renk augmentasyonu sınıflar arası renk ipuçlarını yok eder.
 - Not: YOLO26 DFL-free ve NMS-free olduğu için config'deki `dfl` ve inference `iou` eşiği YOLO26'da etkisizdir; YOLOv8'e dönerseniz tekrar geçerli olurlar.
+
+## 🔄 Sahadan Gelen Veriyle Sürekli İyileştirme
+
+Model eğitildikten sonra asıl değer burada başlar: sahada çekilen gerçek görüntüleri
+toplayıp eğitime katmak. Rakipleriniz de aynı public dataset'e erişebilir; **sizin
+seranızdan akan veri kopyalanamaz.**
+
+### Döngü
+
+```
+Sahada tahmin  →  zorlanılan kareleri topla  →  uzman düzeltsin
+      ↑                                              ↓
+  yeni sürümü dağıt  ←  sabit test setiyle karşılaştır  ←  yeniden eğit
+```
+
+### 1) Saha görüntülerini topla ve önceliklendir (`collect_field_data.py`)
+
+**Neden hepsini etiketlemiyoruz?** Modelin zaten %95 güvenle doğru bildiği kareyi
+etiketlemek ona yeni bir şey öğretmez. Öğrenme değeri en yüksek olanlar modelin
+**kararsız kaldığı** karelerdir. Bu yaklaşıma *aktif öğrenme* denir: aynı etiketleme
+emeğiyle çok daha fazla kazanım sağlar.
+
+```bash
+python scripts/collect_field_data.py \
+    --model runs/train/strawberry_exp/weights/best.pt \
+    --images saha_fotograflari/ \
+    --output saha_2026_07/
+```
+
+Script her görüntüye tahmin üretir, bunları **ön-etiket** olarak YOLO formatında
+kaydeder ve üç gruba ayırır:
+
+| Klasör | Anlamı | Ne yapmalı |
+|---|---|---|
+| `incele/` | Model kararsız (düşük güvenli tespit var) | **Önce bunları düzeltin** — en değerli veri |
+| `otomatik/` | Tüm tespitler yüksek güvenli | Örnekleme yapıp doğrulayın |
+| `tespit_yok/` | Hiç tespit yok | Sağlıklı mı, yoksa **kaçırılmış hastalık** mı? Mutlaka bakın |
+
+`rapor.csv` her görüntü için tespit sayısı, güven değerleri ve sınıfları listeler.
+
+> 💡 Ön-etiket sayesinde uzman sıfırdan kutu çizmez, sadece düzeltir — etiketleme
+> 3-5 kat hızlanır.
+
+### 2) Etiketleri düzelt
+
+`incele/` klasörünü Roboflow'a yükleyin (görüntüler + `labels/` ön-etiketleri birlikte).
+Roboflow bunları hazır kutular olarak gösterir; uzman yanlışları düzeltip eksikleri ekler.
+
+⚠️ **Etiket kalitesi veri miktarından önemlidir.** Hastalık teşhisi uzmanlık ister;
+etiketleri bir ziraat mühendisi/fitopatoloji uzmanına doğrulatın. Yanlış etiketli veri,
+az veriden daha zararlıdır.
+
+### 3) Ana dataset'e kat
+
+```bash
+# Düzeltilmiş veriyi indirip mevcut dataset ile birleştir
+python scripts/merge_datasets.py \
+    --inputs dataset/ saha_2026_07_duzeltilmis/ \
+    --output dataset_v2/
+
+# Grup bazlı böl (aynı bitki/sera iki split'e düşmesin)
+python scripts/split_dataset.py --input dataset_v2 --output dataset_v2_split
+
+# Sınıf dengesizliğini yeniden değerlendir
+python scripts/augment_by_class.py --update-data-yaml
+```
+
+🔒 **Test setini DONDURUN.** Yeni veri yalnızca train (ve gerekirse val) setine girmeli.
+Test seti hiç değişmezse model sürümlerini adil karşılaştırabilirsiniz; her seferinde
+değişirse "iyileşme gerçek mi, test mi kolaylaştı" ayırt edemezsiniz.
+
+📸 **Dosya adlandırma:** Saha çekimlerinde `sera1_bitki05_001.jpg` gibi bir düzen
+kullanın. `split_dataset.py` grubu buradan çıkarır ve aynı bitkinin kareleri
+train/test'e bölünmez (veri sızıntısı önlenir).
+
+### 4) Yeniden eğit
+
+İki seçenek:
+
+```bash
+# A) Sıfırdan (temiz, tercih edilen): tüm veriyle yeni model
+#    Colab notebook'ta MOD = 'sifirdan'
+
+# B) İnce ayar (hızlı): mevcut modelden devam
+#    train_config.yaml içinde model: runs/train/strawberry_exp/weights/best.pt
+```
+
+Veri seti belirgin büyüdüyse (A) daha iyi sonuç verir. Küçük eklemelerde (B) hızlıdır
+ama modelin eski veriye aşırı uyumu kalıcı olabilir.
+
+### 5) Karşılaştır ve karar ver
+
+```bash
+python scripts/evaluate_model.py --model <yeni_best.pt> --data configs/strawberry_data.yaml
+```
+
+Sadece genel mAP'ye bakmayın. **Sınıf bazlı recall** ve **sağlıklı bitkide yanlış alarm
+oranı** yeni sürümün gerçekten daha iyi olup olmadığını gösterir. Yeni model eskisinden
+kötüyse dağıtmayın — sebebini araştırın (etiket hatası? dengesiz ekleme?).
+
+### 6) Sürüm takibi
+
+Her eğitim için şunları kaydedin: hangi veri anlık görüntüsüyle eğitildi, hangi config,
+sabit test setindeki sonuçlar. Basit bir tablo bile yeterlidir:
+
+| Sürüm | Tarih | Train görüntü | Test mAP50 | Anthracnose recall | Yanlış alarm |
+|---|---|---|---|---|---|
+| v1 | 2026-07 | 9.343 | — | — | — |
+| v2 | | | | | |
+
+Daha kurumsal bir yapı isterseniz model için **MLflow / Weights & Biases**, veri için
+**DVC / Roboflow versiyonlama** kullanılabilir.
+
+### Ne kadar veri, ne zaman?
+
+- **Hemen:** `tespit_yok` çıkan sağlıklı bitki görüntüleri — background örneği olarak
+  bedava değer üretir, yanlış alarmı düşürür.
+- **Öncelikli:** Az örnekli sınıflar (Anthracnose Fruit Rot, Powdery Mildew Fruit).
+  Augmentasyon bunları çeşitlendirir ama **yeni bilgi yaratmaz**; recall hâlâ düşükse
+  çözüm gerçek veridir.
+- **Pratik hedef:** Sınıf başına 500-1.000 gerçek saha örneği. Her toplama turunda
+  200-500 görüntü etiketlemek sürdürülebilir bir tempodur.
 
 ## 🚀 Ürünleşme ve Dağıtım
 
