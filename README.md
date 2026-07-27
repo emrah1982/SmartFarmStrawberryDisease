@@ -401,6 +401,8 @@ pytest tests/test_domain_entities.py -v
 
 Detaylı dokümantasyon için `docs/INDEX.md` dosyasına bakın:
 
+- **[Yol Haritası](docs/YOL-HARITASI.md)**: bugünkü durum, sonraki adımlar, ticari/hukuki notlar
+
 - **Kullanım Kılavuzu**: Kurulum, çalıştırma, örnekler
 - **Mimari Tasarım**: Katmanlı mimari, bağımlılıklar, veri akışı
 - **Geliştirme Kuralları**: SOLID prensipleri, kod stili, test stratejisi
@@ -533,6 +535,24 @@ kamerada" sorusunun cevabı kayıtlarda tutulur:
 Yönetim: **İşletmeler** sayfası (üretici + sera), **Kameralar** sayfası (kamera → sera).
 Geçmiş sayfasında üretici ve sera filtreleri, Panel'de sera bazlı özet tablosu
 (analiz, tespit, en sık hastalık, bekleyen inceleme) bulunur.
+
+### 🔒 Güvenlik ve çok müşterili kullanım
+
+Uygulamada **kullanıcı girişi yoktur**; yerel ağda tek işletme için tasarlanmıştır.
+Ağdaki herkes tüm üreticilerin verisini görebilir.
+
+Altyapı çok müşterili kullanıma **hazırlanmıştır**:
+
+- `Kullanici` tablosu tanımlı (`rol`: admin / uretici, `uretici_id` bağı)
+- [app/yetki.py](app/yetki.py) tek geçiş noktasıdır: rotalar veriye doğrudan değil
+  `analiz_sorgusu()`, `gorunur_seralar()`, `erisebilir_mi()` gibi yardımcılar
+  üzerinden erişir. Giriş sistemi eklendiğinde **yalnızca bu dosya değişir**,
+  izolasyon tüm sayfalara otomatik uygulanır.
+
+> **Neden şimdiden:** İzolasyonu sonradan eklemek her sorguyu tek tek bulup filtre
+> eklemek demektir; bir tanesini atlamak bir müşterinin verisini başkasına gösterir.
+
+Ayrıntılı plan: [docs/YOL-HARITASI.md](docs/YOL-HARITASI.md)
 
 ### 🐳 Docker ile çalıştırma (önerilen)
 

@@ -31,6 +31,28 @@ def simdi():
     return datetime.now(timezone.utc)
 
 
+class Kullanici(Base):
+    """Uygulama kullanıcısı — ŞU AN KULLANILMIYOR, altyapı olarak hazır.
+
+    Giriş sistemi eklendiğinde (bkz. app/yetki.py ve docs/YOL-HARITASI.md):
+    - rol='admin'    → tüm üreticilerin verisini görür
+    - rol='uretici'  → yalnızca uretici_id'sine bağlı seraların verisini görür
+
+    Tablo baştan tanımlanır ki çok müşterili kullanıma geçiş veritabanı
+    göçü gerektirmesin.
+    """
+    __tablename__ = 'kullanicilar'
+
+    id = Column(Integer, primary_key=True)
+    kullanici_adi = Column(String(80), unique=True, nullable=False)
+    parola_hash = Column(String(255), default='')
+    ad = Column(String(160), default='')
+    rol = Column(String(20), default='admin')          # admin | uretici
+    uretici_id = Column(Integer, ForeignKey('ureticiler.id'), nullable=True)
+    aktif = Column(Boolean, default=True)
+    olusturma = Column(DateTime, default=simdi)
+
+
 class Uretici(Base):
     """Sera sahibi / müşteri. Birden çok serası olabilir."""
     __tablename__ = 'ureticiler'

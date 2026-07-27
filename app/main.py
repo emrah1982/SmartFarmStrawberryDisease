@@ -28,6 +28,7 @@ from app import config
 from app.database import (Analiz, Kamera, Sera, SessionLocal, Tespit, Uretici,
                           get_db, init_db)
 from app.detector import detector
+from app import yetki
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
@@ -114,9 +115,12 @@ def _kaydet(sonuc, db: Session, kaynak_tip: str, kaynak_ad: str,
 # ────────────────────────────────────────────────────────────────── sayfalar
 @app.get('/', response_class=HTMLResponse)
 def anasayfa(request: Request, db: Session = Depends(get_db)):
-    kameralar = db.query(Kamera).filter(Kamera.aktif == True).all()  # noqa: E712
-    seralar = db.query(Sera).filter(Sera.aktif == True).all()  # noqa: E712
-    son = db.query(Analiz).order_by(Analiz.zaman.desc()).limit(6).all()
+    # Veriye doğrudan değil yetki katmanı üzerinden erişilir: giriş sistemi
+    # eklendiğinde izolasyon otomatik uygulanır (bkz. app/yetki.py)
+    kullanici = yetki.aktif_kullanici(db)
+    kameralar = yetki.gorunur_kameralar(db, kullanici)
+    seralar = yetki.gorunur_seralar(db, kullanici)
+    son = yetki.analiz_sorgusu(db, kullanici).order_by(Analiz.zaman.desc()).limit(6).all()
     return templates.TemplateResponse(request, 'index.html', {
         'request': request, 'kameralar': kameralar, 'seralar': seralar, 'son': son,
         'model_hazir': detector.hazir, 'model_yolu': config.MODEL_PATH,
@@ -200,6 +204,8 @@ def kayit(analiz_id: int, request: Request, db: Session = Depends(get_db)):
     a = db.get(Analiz, analiz_id)
     if not a:
         raise HTTPException(404, 'Kayıt bulunamadı')
+    if not yetki.erisebilir_mi(db, yetki.aktif_kullanici(db), a):
+        raise HTTPException(403, 'Bu kayda erişim yetkiniz yok')
 
     # Sınıf bazlı özet + tedavi önerisi
     gruplar = {}
@@ -220,7 +226,8 @@ def kayit(analiz_id: int, request: Request, db: Session = Depends(get_db)):
 def gecmis(request: Request, sinif: str = '', tip: str = '', gun: int = 0,
            sera_id: int = 0, uretici_id: int = 0,
            db: Session = Depends(get_db)):
-    q = db.query(Analiz)
+    kullanici = yetki.aktif_kullanici(db)
+    q = yetki.analiz_sorgusu(db, kullanici)
     if sinif:
         q = q.join(Tespit).filter(Tespit.sinif_adi == sinif)
     if tip:
@@ -238,8 +245,8 @@ def gecmis(request: Request, sinif: str = '', tip: str = '', gun: int = 0,
     siniflar = [r[0] for r in db.query(Tespit.sinif_adi).distinct().all()]
     return templates.TemplateResponse(request, 'gecmis.html', {
         'request': request, 'kayitlar': kayitlar, 'siniflar': sorted(siniflar),
-        'seralar': db.query(Sera).filter(Sera.aktif == True).all(),  # noqa: E712
-        'ureticiler': db.query(Uretici).filter(Uretici.aktif == True).all(),  # noqa: E712
+        'seralar': yetki.gorunur_seralar(db, kullanici),
+        'ureticiler': yetki.gorunur_ureticiler(db, kullanici),
         'secili': {'sinif': sinif, 'tip': tip, 'gun': gun,
                    'sera_id': sera_id, 'uretici_id': uretici_id},
     })
@@ -247,9 +254,10 @@ def gecmis(request: Request, sinif: str = '', tip: str = '', gun: int = 0,
 
 @app.get('/panel', response_class=HTMLResponse)
 def panel(request: Request, db: Session = Depends(get_db)):
-    toplam = db.query(func.count(Analiz.id)).scalar() or 0
-    bekleyen = db.query(func.count(Analiz.id)).filter(
-        Analiz.inceleme_gerekli == True, Analiz.incelendi == False).scalar() or 0  # noqa: E712
+    kullanici = yetki.aktif_kullanici(db)
+    toplam = yetki.analiz_sorgusu(db, kullanici).count()
+    bekleyen = yetki.analiz_sorgusu(db, kullanici).filter(
+        Analiz.inceleme_gerekli == True, Analiz.incelendi == False).count()  # noqa: E712
 
     sinif_dagilim = (db.query(Tespit.sinif_adi, func.count(Tespit.id))
                      .group_by(Tespit.sinif_adi)
@@ -263,7 +271,7 @@ def panel(request: Request, db: Session = Depends(get_db)):
 
     # Sera bazlı özet: hangi serada kaç analiz, kaç tespit, kaç bekleyen
     sera_ozet = []
-    for sera in db.query(Sera).filter(Sera.aktif == True).all():  # noqa: E712
+    for sera in yetki.gorunur_seralar(db, kullanici):
         analizler = db.query(Analiz).filter(Analiz.sera_id == sera.id)
         n = analizler.count()
         if not n:
@@ -293,7 +301,8 @@ def panel(request: Request, db: Session = Depends(get_db)):
 # ─────────────────────────────────────────────────── inceleme (aktif öğrenme)
 @app.get('/inceleme', response_class=HTMLResponse)
 def inceleme(request: Request, db: Session = Depends(get_db)):
-    kayitlar = (db.query(Analiz)
+    kullanici = yetki.aktif_kullanici(db)
+    kayitlar = (yetki.analiz_sorgusu(db, kullanici)
                 .filter(Analiz.inceleme_gerekli == True, Analiz.incelendi == False)  # noqa: E712
                 .order_by(Analiz.min_guven.asc(), Analiz.zaman.desc()).limit(100).all())
     return templates.TemplateResponse(request, 'inceleme.html', {
@@ -350,8 +359,9 @@ def inceleme_disa_aktar(db: Session = Depends(get_db)):
 @app.get('/kameralar', response_class=HTMLResponse)
 def kameralar(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(request, 'kameralar.html', {
-        'request': request, 'kameralar': db.query(Kamera).all(),
-        'seralar': db.query(Sera).filter(Sera.aktif == True).all(),  # noqa: E712
+        'request': request,
+        'kameralar': yetki.gorunur_kameralar(db, yetki.aktif_kullanici(db), yalniz_aktif=False),
+        'seralar': yetki.gorunur_seralar(db, yetki.aktif_kullanici(db)),
     })
 
 
@@ -379,7 +389,7 @@ def isletmeler(request: Request, db: Session = Depends(get_db)):
     """Üretici → Sera → Kamera hiyerarşisini tek sayfada yönetir."""
     return templates.TemplateResponse(request, 'isletmeler.html', {
         'request': request,
-        'ureticiler': db.query(Uretici).filter(Uretici.aktif == True).all(),  # noqa: E712
+        'ureticiler': yetki.gorunur_ureticiler(db, yetki.aktif_kullanici(db)),
     })
 
 
