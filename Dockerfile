@@ -39,4 +39,6 @@ EXPOSE 8000
 ENV YOLO_CONFIG_DIR=/tmp/Ultralytics \
     MPLCONFIGDIR=/tmp/matplotlib
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# app.main uzerinden baslatilir: sertifika (certs/) varsa https ile acilir.
+# Canli kamera (getUserMedia) yalnizca https/localhost uzerinde calisir.
+CMD ["python", "-m", "app.main"]

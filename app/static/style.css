@@ -123,6 +123,20 @@ main { max-width: 900px; margin: 0 auto; padding: 1rem; }
 
 /* stretch: satırdaki düğmeler en uzununun boyuna uyar (metin 2 satıra düşse bile) */
 .butonlar { display: flex; gap: .6rem; flex-wrap: wrap; align-items: stretch; }
+
+/* Canlı tespit: kutu katmanı videonun tam üstüne biner.
+   Tuval boyutu JS'te videonun EKRANDAKİ boyutuna eşitlenir; kutular normalize
+   (0-1) geldiği için kamera çözünürlüğü değişse de hizalama bozulmaz. */
+.canli-sahne { position: relative; width: 100%; max-width: 720px; margin-top: .6rem; }
+.canli-sahne video {
+  width: 100%; display: block; border-radius: 12px; background: #000;
+}
+.canli-sahne canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none;                 /* çizim katmanı dokunuşu engellemesin */
+}
+.rozet-satir { display: flex; flex-wrap: wrap; gap: .35rem; }
+.kayit-rozet { text-decoration: none; background: #e8f5e9; color: var(--yesil); }
 .satir { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
 .satir > select, .satir > input[type=text] { flex: 1 1 200px; }
 

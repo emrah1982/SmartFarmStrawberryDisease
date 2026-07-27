@@ -16,6 +16,9 @@ services:
       - ./storage:/app/storage
       # Tedavi önerilerini yeniden derlemeden düzenleyebilmek için
       - ./configs/tedavi_onerileri.yaml:/app/configs/tedavi_onerileri.yaml:ro
+      # HTTPS sertifikası (varsa otomatik kullanılır — canlı kamera için şart)
+      #   python scripts/https_sertifika.py  ile üretilir
+      - ./certs:/app/certs:ro
     environment:
       MODEL_PATH: /app/models/best.pt
       CONF_THRESHOLD: "0.25"

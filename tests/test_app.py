@@ -4,20 +4,12 @@ Gerçek YOLO modeli yerine sahte bir detector kullanılır: testler ultralytics
 ve eğitilmiş model olmadan da çalışır, sadece uygulama mantığı sınanır.
 """
 
-import os
-import sys
-import tempfile
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-# Testler geçici bir depolama/DB kullansın — gerçek kayıtlara dokunulmaz
-_tmp = tempfile.mkdtemp(prefix='cilek_test_')
-os.environ['STORAGE_DIR'] = _tmp
-os.environ['DATABASE_URL'] = f'sqlite:///{Path(_tmp) / "test.db"}'
-
+# Geçici depolama/DB yönlendirmesi conftest.py'de yapılır (import'tan önce
+# çalışması ve HER test dosyası için geçerli olması gerekir).
 from fastapi.testclient import TestClient          # noqa: E402
 
 from app import config, main                        # noqa: E402

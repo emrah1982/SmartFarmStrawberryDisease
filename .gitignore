@@ -57,3 +57,6 @@ node_modules/
 
 # Uygulama verileri (yuklenen gorseller, sonuclar, SQLite)
 storage/
+
+# HTTPS sertifikasi (makineye ozel, ozel anahtar icerir)
+certs/

@@ -319,6 +319,26 @@ class Detector:
         return Sonuc(kutular=self._kutulari_al(r), sonuc_yolu=cikti_yol,
                      islenen_kare=1, sure_ms=int((time.time() - t0) * 1000))
 
+    # ------------------------------------------------- canlı akış (tek kare)
+    def kare(self, frame, imgsz: Optional[int] = None) -> Sonuc:
+        """Bellekteki tek kareyi işler; DOSYA YAZMAZ.
+
+        Canlı akışta saniyede birkaç kare gelir: her karede diske görsel
+        yazmak (goruntu()/kamera() gibi) hem yavaşlatır hem depolamayı
+        şişirir. Kutular JSON olarak tarayıcıya gönderilir, çizimi tarayıcı
+        yapar. Kayıt yalnızca kullanıcı istediğinde/otomatik kural
+        tetiklendiğinde ayrıca yapılır.
+
+        imgsz: canlıda küçük tutulur (hız); tek kare analizindeki değerden
+        bağımsızdır.
+        """
+        model = self.yukle()
+        t0 = time.time()
+        r = model(frame, conf=config.CONF_THRESHOLD,
+                  imgsz=imgsz or config.IMGSZ, verbose=False)[0]
+        return Sonuc(kutular=self._kutulari_al(r), islenen_kare=1,
+                     sure_ms=int((time.time() - t0) * 1000))
+
     # ------------------------------------------------------------------ yardım
     def _kutulari_al(self, r, kare: int = 0) -> List[Kutu]:
         names = r.names if hasattr(r, 'names') else self._names

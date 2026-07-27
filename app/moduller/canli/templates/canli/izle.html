@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block baslik %}Canlı Tespit{% endblock %}
+{% block icerik %}
+
+{% if not model_hazir %}
+<div class="uyari"><strong>⚠️ Model bulunamadı.</strong>
+  Canlı tespit için eğitilmiş <code>best.pt</code> gerekir.</div>
+{% endif %}
+
+<section class="kart">
+  <h2>🔴 Canlı Tespit</h2>
+  <p class="ipucu">Kamerayı bitkiye tutun; tespitler görüntünün üzerine anlık çizilir.
+    Kararlı bulgular <strong>kendiliğinden kaydedilir</strong>, istediğiniz anı
+    <strong>💾 Bu Kareyi Kaydet</strong> ile saklayabilirsiniz.</p>
+
+  {% if seralar %}
+  <label>Hangi sera? <small class="ipucu">(kayıtlar bu seraya işlenir)</small>
+    <select id="sera">
+      <option value="">— seçilmedi —</option>
+      {% for s in seralar %}<option value="{{ s.id }}">{{ s.tam_ad }}</option>{% endfor %}
+    </select>
+  </label>
+  {% endif %}
+
+  <div class="butonlar">
+    <button class="btn btn-birincil" id="baslaBtn">▶️ Kamerayı Başlat</button>
+    <button class="btn" id="kaydetBtn" hidden>💾 Bu Kareyi Kaydet</button>
+    <button class="btn" id="cevirBtn" hidden>🔄 Kamerayı Çevir</button>
+    <button class="btn btn-tehlike" id="durdurBtn" hidden>⏹️ Durdur</button>
+  </div>
+
+  <div id="sahne" class="canli-sahne" hidden>
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="tuval"></canvas>
+  </div>
+
+  <p class="durum" id="durum"></p>
+  <p class="ipucu" id="sayac"></p>
+  <p id="liste"></p>
+
+  <div id="uyumsuz" class="uyari" hidden></div>
+
+  <h3 style="margin-top:1rem">Bu oturumda kaydedilenler</h3>
+  <p class="ipucu">⚡ otomatik · 💾 elle. Kayda tıklayınca ayrıntısı açılır.</p>
+  <div id="kayitlar" class="rozet-satir"></div>
+</section>
+
+<section class="kart">
+  <h3>ℹ️ Canlı tespit nasıl çalışır?</h3>
+  <ul class="ipucu">
+    <li><strong>Kare tarayıcıda küçültülür</strong> ({{ ayar.genislik }} piksel) ve sunucuya
+      gönderilir; sunucu modeli çalıştırıp yalnızca kutu koordinatlarını döner. Görüntü
+      çizimi tarayıcıda yapılır — ağdan resim taşınmaz, akış akıcı kalır.</li>
+    <li><strong>Geri basınç:</strong> Bir sonraki kare, öncekinin sonucu gelmeden
+      gönderilmez. Sunucu yavaşsa kuyruk birikmez, kare/sn kendiliğinden düşer.</li>
+    <li><strong>Otomatik kayıt:</strong> Aynı hastalık üst üste {{ ayar.kararlilik }} karede
+      ve en az %{{ (ayar.kayit_guven * 100)|round|int }} güvenle görülürse kayıt açılır.
+      Tek karelik yanlış tespitler böylece kayda geçmez.</li>
+    <li><strong>Bulanık kareler atlanır</strong> — yürürken hareket bulanıklığı en sık
+      doğruluk kaybı sebebidir. "Bulanık" uyarısı görürseniz bir an durun.</li>
+    <li><strong>Canlıda hız için düşük çözünürlük</strong> kullanılır. Şüpheli bir bölge
+      görürseniz durup <a href="/">tek kare analizi</a> yapın; "Ayrıntılı analiz"
+      seçeneği çok daha hassastır.</li>
+  </ul>
+</section>
+
+<script>
+  window.CANLI_AYAR = {
+    genislik: {{ ayar.genislik }},
+    kalite: {{ ayar.kalite }},
+    en_az_aralik: {{ ayar.en_az_aralik }}
+  };
+</script>
+<script type="module" src="/statik/canli/izle.js"></script>
+<script>
+// Kamera yalnızca güvenli bağlamda açılır. Telefonda http://<ip>:8000 ile
+// bağlananlar için sebebini ve çözümünü burada açıkça yaz.
+if (!window.isSecureContext) {
+  const u = document.getElementById('uyumsuz');
+  u.hidden = false;
+  u.innerHTML = '<strong>⚠️ Bu adreste kamera açılamaz.</strong> Tarayıcılar kamerayı ' +
+    'yalnızca <code>https://</code> veya <code>localhost</code> üzerinde verir; ' +
+    'bu sayfa <code>http://' + location.host + '</code> ile açıldı.<br>' +
+    'Telefondan kullanmak için sunucuyu sertifikayla başlatın: ' +
+    '<code>python scripts/https_sertifika.py</code> → ' +
+    '<code>docker compose up -d</code> → <code>https://' + location.hostname + ':8000</code>. ' +
+    'Ayrıntı: README → "Canlı tespit".<br>' +
+    'Sertifikasız kullanmak isterseniz <a href="/">tek kare analizi</a> ' +
+    'telefonun kamera uygulamasıyla çalışır.';
+  document.getElementById('baslaBtn').disabled = true;
+}
+</script>
+{% endblock %}

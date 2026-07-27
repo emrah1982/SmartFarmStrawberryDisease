@@ -815,6 +815,18 @@ def sera_sil(sera_id: int, db: Session = Depends(get_db)):
 
 if __name__ == '__main__':
     import uvicorn
-    print(f'\n🍓 Arayüz: http://localhost:{config.PORT}')
-    print(f'📱 Telefondan: http://<bilgisayarınızın-IP-adresi>:{config.PORT}\n')
-    uvicorn.run('app.main:app', host=config.HOST, port=config.PORT, reload=False)
+
+    # Sertifika varsa https ile başlar: canlı kamera (getUserMedia) yalnızca
+    # güvenli bağlamda çalışır, telefondan kullanmak için şart.
+    ssl_ayar = {}
+    if config.SSL_CERT and config.SSL_KEY:
+        ssl_ayar = {'ssl_certfile': config.SSL_CERT, 'ssl_keyfile': config.SSL_KEY}
+    sema = 'https' if ssl_ayar else 'http'
+
+    print(f'\n🍓 Arayüz: {sema}://localhost:{config.PORT}')
+    print(f'📱 Telefondan: {sema}://<bilgisayarınızın-IP-adresi>:{config.PORT}')
+    if not ssl_ayar:
+        print('   ⚠️ Canlı kamera için sertifika gerekir: python scripts/https_sertifika.py')
+    print()
+    uvicorn.run('app.main:app', host=config.HOST, port=config.PORT,
+                reload=False, **ssl_ayar)

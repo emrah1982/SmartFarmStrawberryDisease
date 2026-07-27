@@ -60,5 +60,16 @@ VIDEO_MAX_FRAMES = int(os.environ.get('VIDEO_MAX_FRAMES', '40'))
 HOST = os.environ.get('HOST', '0.0.0.0')   # 0.0.0.0 = yerel ağdaki telefonlar erişebilir
 PORT = int(os.environ.get('PORT', '8000'))
 
+# --- HTTPS ------------------------------------------------------------------
+# Tarayıcılar kamerayı (getUserMedia) YALNIZCA güvenli bağlamda verir: https
+# veya localhost. Telefondan http://<ip>:8000 ile bağlanıldığında canlı kamera
+# açılmaz. Kendinden imzalı sertifika üretmek için:
+#     python scripts/https_sertifika.py
+# Dosyalar certs/ altına yazılır ve bu değişkenlerle otomatik kullanılır.
+_vars_cert = BASE_DIR / 'certs' / 'sunucu.crt'
+_vars_key = BASE_DIR / 'certs' / 'sunucu.key'
+SSL_CERT = os.environ.get('SSL_CERTFILE') or (str(_vars_cert) if _vars_cert.exists() else '')
+SSL_KEY = os.environ.get('SSL_KEYFILE') or (str(_vars_key) if _vars_key.exists() else '')
+
 for d in (UPLOAD_DIR, RESULT_DIR, INCELEME_DIR, EGITIM_DIR):
     d.mkdir(parents=True, exist_ok=True)

@@ -657,6 +657,112 @@ Yönetim: **İşletmeler** sayfası (üretici + sera), **Kameralar** sayfası (k
 Geçmiş sayfasında üretici ve sera filtreleri, Panel'de sera bazlı özet tablosu
 (analiz, tespit, en sık hastalık, bekleyen inceleme) bulunur.
 
+### 🔴 Canlı Tespit (kamerayı tut, anında gör)
+
+`/canli` sayfası kamerayı ekranda tutar ve tespitleri **görüntünün üzerine anlık çizer** —
+fotoğraf çekip yüklemeye gerek kalmaz. Sıra aralarında yürürken hastalıklı bitkiyi ekranda
+görürsünüz.
+
+#### Nasıl çalışır?
+
+```
+tarayıcı ──kare(640px JPEG)──▶ sunucu ──model──▶ kutular ──JSON──▶ tarayıcı ──çizim
+    ▲                                                                    │
+    └──────────────── sıradaki kare ancak sonuç gelince ◀────────────────┘
+```
+
+Tasarım kararları ve sebepleri:
+
+- **Görüntü değil koordinat taşınır.** Sunucu kutulanmış resim değil, yalnızca kutu
+  koordinatlarını (JSON, birkaç yüz bayt) döner; çizimi tarayıcı yapar. Ağdan resim
+  taşımak akışı kilitlerdi.
+- **Geri basınç (backpressure).** Sabit FPS ile gönderilmez; bir sonraki kare, öncekinin
+  sonucu gelmeden yollanmaz. Sunucu yavaşsa kare/sn kendiliğinden düşer, **kuyruk
+  birikmez**. Sabit FPS'te yavaş sunucuda görüntü saniyelerce geriden gelirdi.
+- **Kare tarayıcıda küçültülür** (640 px, JPEG %60) ve model canlıda `CANLI_IMGSZ=640`
+  ile çalışır — tek kare analizindeki 1024'e göre birkaç kat hızlıdır.
+- **Bulanık kare modele verilmez.** Laplacian keskinliği eşiğin altındaysa kare atlanır ve
+  ekranda "sabit tutun" uyarısı çıkar; hareket bulanıklığı en sık doğruluk kaybı sebebidir.
+- **WebSocket engelliyse REST'e düşer** (`POST /canli/kare`). Davranış aynıdır — iki uç da
+  aynı `_isle()` fonksiyonunu kullanır.
+- **Sekme arkaya alınınca kamera kapanır** — pil ve mobil veri boşa gitmesin.
+
+#### Kayıt nasıl açılır? (her kare kaydedilmez)
+
+Saniyede birkaç kare gelirken her tespiti kaydetmek veritabanını doldurur ve tek karelik
+yanlış tespitler de kayda geçerdi. Bir bulgu ancak **kararlı** hale gelince kaydedilir:
+
+| Kural | Varsayılan | Ortam değişkeni |
+|-------|-----------|-----------------|
+| Aynı sınıf üst üste N karede görülmeli | 3 | `CANLI_KARARLILIK_KARE` |
+| En az güven | %60 | `CANLI_KAYIT_GUVEN` |
+| Aynı sınıf için bekleme | 20 sn | `CANLI_BEKLEME_SN` |
+| Otomatik kaydı kapat | açık | `CANLI_OTOMATIK_KAYIT=0` |
+
+"Üst üste" gerçekten ardışık kareleri ifade eder: bulgu bir karede kaybolursa sayaç
+sıfırlanır. **💾 Bu Kareyi Kaydet** düğmesiyle istediğiniz anı elle de saklarsınız.
+
+Kayıtlar `kaynak_tip='canli'` ile **çekirdekle aynı biçimde** açılır: geçmişte, inceleme
+kuyruğunda, etiketleme ekranında ve haritada diğerleriyle birlikte görünür — ayrı bir
+"canlı kayıt" kavramı yoktur.
+
+#### ⚠️ Telefonda kamera açılmıyorsa: HTTPS gerekir
+
+Tarayıcılar kamerayı (`getUserMedia`) **yalnızca güvenli bağlamda** verir: `https://` veya
+`localhost`. Telefondan `http://192.168.x.x:8000` ile bağlandığınızda canlı kamera açılmaz —
+bu tarayıcı kuralıdır, uygulamanın yapabileceği bir şey yoktur.
+
+```bash
+python scripts/https_sertifika.py     # certs/ altına kendinden imzalı sertifika üretir
+docker compose up -d --build          # certs/ varsa sunucu https ile başlar
+# Telefondan: https://192.168.x.x:8000/canli
+```
+
+İlk açılışta "Bağlantınız gizli değil" uyarısını **Gelişmiş → Yine de devam et** ile geçin;
+kendi ağınızdaki kendi sunucunuzdur. İnternete açık kurulumda gerçek sertifika kullanın
+(Let's Encrypt / ters vekil).
+
+> ⚠️ **Adres değişir:** `certs/` içinde sertifika varsa sunucu **yalnızca https** ile
+> yanıt verir; eski `http://localhost:8000` bağlantısı çalışmaz (tarayıcı boş yanıt
+> verir). Yeni adres: `https://localhost:8000`.
+> Geri dönmek için `certs/` içindeki `sunucu.crt` ve `sunucu.key` silinip
+> `docker compose restart` yapılır.
+
+Sertifika istemiyorsanız telefonda [tek kare analizi](#-web-arayüzü-sahada-kullanım)
+(📷 Fotoğraf Çek / 🎥 Video Çek) sertifikasız çalışmaya devam eder.
+
+#### Beklenen hız
+
+Docker'da **CPU** ile 640 px karede ölçülen: kare başına ~0.4–1.0 sn → **1–2.5 kare/sn**.
+Yavaş yürüyüş hızında yeterlidir. GPU'lu makinede (`docker-compose.yml` içindeki GPU
+bölümü açılarak) 10+ kare/sn'ye çıkar. Şüpheli bir bölge görürseniz durup **tek kare
+analizi + Ayrıntılı analiz** yapın: canlı akış hız için düşük çözünürlük kullanır,
+uzaktan/küçük lezyonlarda tek kare analizi çok daha hassastır.
+
+#### Bileşen düzeni
+
+Canlı akış çekirdekten farklı çalıştığı (WebSocket, geri basınç, otomatik kayıt) için ayrı
+modüldür; klasör silinse uygulama çalışmaya devam eder ve menüden kendiliğinden kalkar.
+
+```
+app/moduller/canli/
+├── __init__.py              # modül tanımı (menüde 'ana' grubu)
+├── ayarlar.py               # eşikler/parametreler — tek yerden
+├── servis.py                # SAF mantık: kare çözme, tespit, KayitKarari
+├── depo.py                  # tek DB temas noktası: kaydet, sera listesi
+├── rotalar.py               # sayfa + WebSocket + REST yedeği
+├── templates/canli/izle.html
+└── static/                  # tarayıcı bileşenleri (birbirini bilmez)
+    ├── kamera.js            # kamera aç/kapa/çevir, kare üret
+    ├── akis.js              # sunucuya gönder (WS → REST yedeği, geri basınç)
+    ├── cizim.js             # kutuları tuvale çiz
+    └── izle.js              # yapıştırıcı: üçünü bağlar
+```
+
+`servis.KayitKarari` zamanı dışarıdan alır (`simdi` parametresi), böylece **kamerasız ve
+sunucusuz** test edilir — kayıt kuralının doğruluğu `tests/test_canli.py` içinde 5 testle
+sabitlenmiştir.
+
 ### 🗺️ Konum ve Yaygınlık Modülü
 
 "Hastalık **nerede** yoğunlaşmış?" sorusunu yanıtlar. Menüdeki **Yaygınlık** sayfası.
@@ -706,6 +812,21 @@ Bunun getirisi:
 - **Menü:** modüller kendilerini bildirir, `base.html` otomatik listeler
 - **Çekirdek sadeliği:** `app/main.py` modülün ayrıntısını bilmez, yalnızca
   `moduller.kaydet(app, engine)` çağırır
+
+#### Modül eklerken
+
+`app/moduller/<ad>/` klasörü açılır, `Modul(...)` döndüren bir `modul()` yazılır ve
+`yuklu_moduller()` listesine eklenir. Çekirdekte hiçbir dosya değişmez:
+
+| Alan | Ne işe yarar |
+|------|--------------|
+| `grup='ana'\|'model'\|'ayarlar'` | menüde hangi katmana düşeceği |
+| `ikon`, `baslik`, `yol` | menüdeki görünümü |
+| `tablolar_olustur(engine)` | kendi tablolarını kurar (varsa) |
+| `statik` | kendi js/css klasörü → `/statik/<ad>/...` olarak sunulur |
+
+> `/statik/<ad>` kullanılır, `/static/<ad>` değil: çekirdek `/static`'i zaten bağlamıştır
+> ve Starlette önce onu eşleştirir; alt yol oraya düşüp 404 verirdi.
 
 #### Drone kullanımı
 
