@@ -102,20 +102,27 @@ main { max-width: 900px; margin: 0 auto; padding: 1rem; }
 }
 
 /* butonlar ve form */
+/* Düğmeler <button>, <label> ve <a> olarak kullanılıyor; üçü de aynı görünsün.
+   font: inherit  → <button> tarayıcının kendi yazı tipini kullanmasın (yükseklik kayar)
+   margin: 0      → aşağıdaki genel `label` kuralının margin-bottom'ı sızmasın
+   min-height     → metin uzunluğundan bağımsız eşit yükseklik */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
-  padding: .75rem 1.1rem; border-radius: 10px; border: 1px solid var(--cizgi);
+  padding: .7rem 1.1rem; border-radius: 10px; border: 1px solid var(--cizgi);
   background: var(--kart); color: var(--metin); cursor: pointer;
-  font-size: 1rem; text-decoration: none;
+  font: inherit; font-size: 1rem; line-height: 1.25;
+  margin: 0; min-height: 2.9rem;
+  text-decoration: none; text-align: center;
 }
 .btn:hover { border-color: var(--ana); }
 .btn-birincil { background: var(--ana); border-color: var(--ana); color: #fff; }
 .btn-birincil:hover { background: var(--ana-koyu); }
-.btn.kucuk { padding: .35rem .7rem; font-size: .82rem; }
+.btn.kucuk { padding: .35rem .7rem; font-size: .82rem; min-height: 0; }
 .btn-tehlike { border-color: var(--ana); color: var(--ana); }
 .btn-tehlike:hover { background: var(--ana); color: #fff; }
 
-.butonlar { display: flex; gap: .6rem; flex-wrap: wrap; }
+/* stretch: satırdaki düğmeler en uzununun boyuna uyar (metin 2 satıra düşse bile) */
+.butonlar { display: flex; gap: .6rem; flex-wrap: wrap; align-items: stretch; }
 .satir { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
 .satir > select, .satir > input[type=text] { flex: 1 1 200px; }
 
