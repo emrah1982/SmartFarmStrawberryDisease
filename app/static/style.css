@@ -77,6 +77,8 @@ main { max-width: 900px; margin: 0 auto; padding: 1rem; }
 .btn-birincil { background: var(--ana); border-color: var(--ana); color: #fff; }
 .btn-birincil:hover { background: var(--ana-koyu); }
 .btn.kucuk { padding: .35rem .7rem; font-size: .82rem; }
+.btn-tehlike { border-color: var(--ana); color: var(--ana); }
+.btn-tehlike:hover { background: var(--ana); color: #fff; }
 
 .butonlar { display: flex; gap: .6rem; flex-wrap: wrap; }
 .satir { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }

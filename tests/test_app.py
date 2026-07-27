@@ -635,3 +635,79 @@ def test_panel_model_ve_elle_ayrimi(client):
     assert 'Gray Mold' in model_bolum          # model tahmini
     assert 'Anthracnose' in elle_bolum         # elle etiket
     assert 'Anthracnose' not in model_bolum, 'elle etiket model bölümünde görünmemeli'
+
+
+# ─────────────────────────────────────────────────── kalıcı silme
+def test_kayit_kalici_silinir(client):
+    """Kayıt silinince veritabanı satırı VE diskteki tüm kopyaları gitmeli."""
+    from app.database import Analiz, SessionLocal
+    client.post('/analiz/dosya', files={'dosyalar': ('silinecek.jpg', b'SIL-BENI', 'image/jpeg')},
+                follow_redirects=True)
+    with SessionLocal() as db:
+        a = db.query(Analiz).filter(Analiz.kaynak_ad == 'silinecek.jpg').first()
+        aid, dosya, sonuc, h = a.id, a.dosya_yolu, a.sonuc_yolu, a.dosya_hash
+
+    client.post(f'/api/kayit/{aid}/etiketler',
+                json={'kutular': [{'sinif_id': 0, 'x': .5, 'y': .5, 'w': .2, 'h': .2}]})
+    client.post('/inceleme/egitime-hazirla', follow_redirects=True)
+
+    havuz_img = list((Path(config.EGITIM_DIR) / 'images').glob(f'atanmamis_{h}.*'))
+    havuz_lbl = Path(config.EGITIM_DIR) / 'labels' / f'atanmamis_{h}.txt'
+    assert havuz_img and havuz_lbl.exists(), 'önce havuzda olmalı'
+    assert (Path(config.STORAGE_DIR) / dosya).exists()
+
+    r = client.post(f'/kayit/{aid}/sil', follow_redirects=True)
+    assert r.status_code == 200
+
+    with SessionLocal() as db:
+        assert db.get(Analiz, aid) is None, 'veritabanı kaydı silinmeli'
+        from app.database import Tespit
+        assert db.query(Tespit).filter(Tespit.analiz_id == aid).count() == 0,             'tespitler de silinmeli'
+    assert not (Path(config.STORAGE_DIR) / dosya).exists(), 'orijinal görüntü silinmeli'
+    if sonuc:
+        assert not (Path(config.STORAGE_DIR) / sonuc).exists(), 'sonuç görseli silinmeli'
+    assert not any(f.exists() for f in havuz_img), 'havuzdaki görüntü silinmeli'
+    assert not havuz_lbl.exists(), 'havuzdaki etiket silinmeli'
+
+
+def test_silme_ayni_goruntunun_diger_kaydini_korur(client):
+    """Aynı görüntünün etiketli başka kaydı varsa havuz dosyası KALMALI."""
+    from app.database import Analiz, SessionLocal
+    icerik = b'PAYLASILAN-GORUNTU'
+    client.post('/analiz/dosya', files={'dosyalar': ('x1.jpg', icerik, 'image/jpeg')},
+                follow_redirects=True)
+    client.post('/analiz/dosya', files={'dosyalar': ('x2.jpg', icerik, 'image/jpeg')},
+                follow_redirects=True)
+    with SessionLocal() as db:
+        kayitlar = sorted(db.query(Analiz).filter(Analiz.kaynak_ad.in_(['x1.jpg', 'x2.jpg'])).all(),
+                          key=lambda a: a.id)
+        id1, id2, h = kayitlar[0].id, kayitlar[1].id, kayitlar[0].dosya_hash
+
+    for i in (id1, id2):
+        client.post(f'/api/kayit/{i}/etiketler',
+                    json={'kutular': [{'sinif_id': 0, 'x': .5, 'y': .5, 'w': .1, 'h': .1}]})
+    client.post('/inceleme/egitime-hazirla', follow_redirects=True)
+
+    havuz_lbl = Path(config.EGITIM_DIR) / 'labels' / f'atanmamis_{h}.txt'
+    assert havuz_lbl.exists()
+
+    client.post(f'/kayit/{id1}/sil', follow_redirects=True)
+    assert havuz_lbl.exists(), 'diğer kayıt hâlâ etiketli olduğu için havuz dosyası kalmalı'
+
+    client.post(f'/kayit/{id2}/sil', follow_redirects=True)
+    assert not havuz_lbl.exists(), 'son kayıt da silinince havuz dosyası gitmeli'
+
+
+def test_silme_onay_uyarisi_arayuzde(client):
+    """Kullanıcı ne silineceğini görmeden onaylamamalı."""
+    from app.database import Analiz, SessionLocal
+    client.post('/analiz/dosya', files={'dosyalar': ('u.jpg', b'UYARI', 'image/jpeg')},
+                follow_redirects=True)
+    with SessionLocal() as db:
+        aid = db.query(Analiz).filter(Analiz.kaynak_ad == 'u.jpg').first().id
+    client.post(f'/api/kayit/{aid}/etiketler',
+                json={'kutular': [{'sinif_id': 0, 'x': .5, 'y': .5, 'w': .1, 'h': .1}]})
+
+    r = client.get('/etiketlenenler')
+    assert 'silOnayi' in r.text and 'GERİ ALINAMAZ' in r.text
+    assert 'Kalıcı sil' in r.text

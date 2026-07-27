@@ -500,6 +500,14 @@ kartlarda da doğrudan **✏️ Etiketle** bağlantısı bulunur.
 **Kaydedince ne olur:** kayıt `elle_etiketlendi` olarak işaretlenir, inceleme kuyruğundan
 çıkar ve eğitim verisi havuzuna girer.
 
+**Kalıcı silme:** Etiketlenenler ve kayıt detay sayfalarındaki **🗑️ Kalıcı sil**
+düğmesi, onay penceresinden sonra kaydı **tamamen** kaldırır: veritabanı satırı ve
+etiket kutuları, yüklenen orijinal görüntü, sonuç görseli ve eğitim havuzundaki
+kopyası. Geri alınamaz.
+
+> Aynı görüntünün etiketlenmiş **başka bir kaydı** varsa havuz dosyası silinmez —
+> o kayda ait olduğu için kalması gerekir. Son kayıt da silindiğinde havuzdan kalkar.
+
 **Ne etiketlediğinizi görmek:** menüdeki **Etiketlenenler** sayfası tüm elle
 düzeltilmiş kayıtları kutularıyla birlikte gösterir; sınıf dağılımı, toplam kutu sayısı
 ve her kaydın havuza yazılıp yazılmadığı görünür. Kutular **her açılışta veritabanından

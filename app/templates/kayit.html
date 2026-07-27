@@ -122,5 +122,30 @@
   <a class="btn btn-birincil" href="/kayit/{{ a.id }}/etiketle">✏️ Etiketleme ekranını aç</a>
 </section>
 
+<section class="kart">
+  <h3>🗑️ Kaydı kalıcı sil</h3>
+  <p class="ipucu">
+    Veritabanı kaydı, yüklenen görüntü, sonuç görseli ve eğitim havuzundaki
+    kopyası birlikte silinir. <strong>Geri alınamaz.</strong>
+  </p>
+  <form action="/kayit/{{ a.id }}/sil" method="post" onsubmit="return silOnayi({{ a.id }})">
+    <button class="btn btn-tehlike" type="submit">🗑️ Kalıcı olarak sil</button>
+  </form>
+</section>
+
 <p><a href="/gecmis">← Geçmişe dön</a></p>
+
+<script>
+function silOnayi(id) {
+  return confirm(
+    'DİKKAT — Kayıt #' + id + ' kalıcı olarak silinecek.\n\n' +
+    'Silinecekler:\n' +
+    '  • Veritabanı kaydı ve tüm etiket kutuları\n' +
+    '  • Yüklenen orijinal görüntü\n' +
+    '  • Tespit sonucu görseli\n' +
+    '  • Eğitim havuzundaki kopyası (egitim_verisi/)\n\n' +
+    'Bu işlem GERİ ALINAMAZ. Devam edilsin mi?'
+  );
+}
+</script>
 {% endblock %}

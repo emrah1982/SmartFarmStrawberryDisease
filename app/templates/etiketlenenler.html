@@ -61,6 +61,9 @@
     </small>
     <div class="butonlar" style="padding:0 .55rem .55rem">
       <a class="btn kucuk btn-birincil" href="/kayit/{{ a.id }}/etiketle">✏️ Düzenle</a>
+      <form action="/kayit/{{ a.id }}/sil" method="post" onsubmit="return silOnayi({{ a.id }})">
+        <button class="btn kucuk btn-tehlike" type="submit">🗑️ Kalıcı sil</button>
+      </form>
     </div>
   </div>
   {% endfor %}
@@ -74,4 +77,17 @@
   </p>
 </section>
 {% endif %}
+<script>
+function silOnayi(id) {
+  return confirm(
+    'DİKKAT — Kayıt #' + id + ' kalıcı olarak silinecek.\n\n' +
+    'Silinecekler:\n' +
+    '  • Veritabanı kaydı ve tüm etiket kutuları\n' +
+    '  • Yüklenen orijinal görüntü\n' +
+    '  • Tespit sonucu görseli\n' +
+    '  • Eğitim havuzundaki kopyası (egitim_verisi/)\n\n' +
+    'Bu işlem GERİ ALINAMAZ. Devam edilsin mi?'
+  );
+}
+</script>
 {% endblock %}

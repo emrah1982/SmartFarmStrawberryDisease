@@ -638,6 +638,63 @@ def etiketlenenler(request: Request, db: Session = Depends(get_db)):
 
 
 
+# ───────────────────────────────────────────────────── kalıcı silme
+def _havuz_anahtari(a: Analiz) -> str:
+    """Eğitim havuzu / paket dosyalarının ad kökü: <sera>_<icerik-hash>."""
+    sera = (a.sera.ad if a.sera else 'atanmamis').replace(' ', '_')
+    return f'{sera}_{a.dosya_hash or f"id{a.id}"}'
+
+
+@app.post('/kayit/{analiz_id}/sil')
+def kayit_sil(analiz_id: int, db: Session = Depends(get_db)):
+    """Kaydı ve ona ait TÜM dosyaları kalıcı olarak siler.
+
+    Silinenler: veritabanı satırı ve tespitleri, yüklenen orijinal görüntü,
+    kutulanmış sonuç görseli, eğitim havuzundaki ve dış araç paketindeki
+    kopyaları. Geri alınamaz.
+
+    DİKKAT: Aynı görüntünün etiketlenmiş başka bir kaydı varsa havuz dosyası
+    SİLİNMEZ — o kayda ait olduğu için kalması gerekir.
+    """
+    a = db.get(Analiz, analiz_id)
+    if not a:
+        raise HTTPException(404, 'Kayıt bulunamadı')
+    if not yetki.erisebilir_mi(db, yetki.aktif_kullanici(db), a):
+        raise HTTPException(403, 'Bu kayda erişim yetkiniz yok')
+
+    anahtar = _havuz_anahtari(a)
+    silinecek = []
+
+    # Yüklenen orijinal ve kutulanmış sonuç
+    for goreli in (a.dosya_yolu, a.sonuc_yolu):
+        if goreli:
+            silinecek.append(config.STORAGE_DIR / goreli)
+
+    # Havuz/paket kopyaları — aynı anahtarı kullanan başka kayıt kalmıyorsa
+    baska = [b for b in db.query(Analiz).filter(Analiz.id != a.id).all()
+             if b.elle_etiketlendi and _havuz_anahtari(b) == anahtar]
+    if not baska:
+        for kok in (config.EGITIM_DIR, config.INCELEME_DIR):
+            for f in (kok / 'images').glob(f'{anahtar}.*'):
+                silinecek.append(f)
+            silinecek.append(kok / 'labels' / f'{anahtar}.txt')
+
+    silinen = 0
+    for yol in silinecek:
+        try:
+            if yol.exists():
+                yol.unlink()
+                silinen += 1
+        except OSError as e:
+            logger.warning(f'Dosya silinemedi: {yol} ({e})')
+
+    db.delete(a)          # tespitler cascade ile gider
+    db.commit()
+    logger.info(f'Kayıt #{analiz_id} kalıcı silindi ({silinen} dosya).')
+    return RedirectResponse('/etiketlenenler?silindi=1', status_code=303)
+
+
+
 # ──────────────────────────────────────────────────────────────────── kameralar
 @app.get('/kameralar', response_class=HTMLResponse)
 def kameralar(request: Request, db: Session = Depends(get_db)):
