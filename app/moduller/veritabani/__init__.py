@@ -11,7 +11,7 @@ from app.moduller.veritabani.rotalar import router
 def modul():
     from app.moduller import Modul
     return Modul(ad='veritabani', baslik='Veritabanı', yol='/veritabani',
-                 router=router)
+                 router=router, grup='ayarlar', ikon='🗄️')
 
 
 __all__ = ['modul', 'router']

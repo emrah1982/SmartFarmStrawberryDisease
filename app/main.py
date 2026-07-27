@@ -109,7 +109,27 @@ def _yerel(dt: datetime) -> str:
 
 
 templates.env.filters['yerel'] = _yerel
-templates.env.globals['moduller'] = [m for m in MODULLER if m.menude]
+def _menu_moduller(grup: str):
+    return [m for m in MODULLER if m.menude and m.grup == grup]
+
+
+def bekleyen_sayisi() -> int:
+    """İnceleme bekleyen kayıt sayısı — menüde rozet olarak gösterilir.
+
+    Kullanıcı 'yapılacak işi' menüde görsün diye burada hesaplanır; sayfa
+    başına tek küçük sorgudur.
+    """
+    try:
+        with SessionLocal() as db:
+            return (db.query(Analiz)
+                    .filter(Analiz.inceleme_gerekli == True,      # noqa: E712
+                            Analiz.incelendi == False).count())   # noqa: E712
+    except Exception:
+        return 0
+
+
+templates.env.globals['menu_moduller'] = _menu_moduller
+templates.env.globals['bekleyen_sayisi'] = bekleyen_sayisi
 
 
 def _kaydet(sonuc, db: Session, kaynak_tip: str, kaynak_ad: str,

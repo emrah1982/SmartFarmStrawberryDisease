@@ -711,3 +711,44 @@ def test_silme_onay_uyarisi_arayuzde(client):
     r = client.get('/etiketlenenler')
     assert 'silOnayi' in r.text and 'GERİ ALINAMAZ' in r.text
     assert 'Kalıcı sil' in r.text
+
+
+# ─────────────────────────────────────────────────────── menü düzeni
+def test_menu_gruplu_ve_gunluk_isler_gorunur(client):
+    """Günlük işler doğrudan, kurulum sayfaları grup altında olmalı."""
+    r = client.get('/')
+    # 1. katman: hep görünür
+    for baslik in ('Analiz', 'Kayıtlar', 'Durum', 'Harita'):
+        assert baslik in r.text, f'{baslik} menüde olmalı'
+    # 2-3. katman: gruplar
+    assert 'Model' in r.text and 'Ayarlar' in r.text
+    assert 'Üretici &amp; Sera' in r.text or 'Üretici & Sera' in r.text
+    # Grup içindekiler <details> ile saklanır
+    assert '<details class="grup"' in r.text
+
+
+def test_menu_bekleyen_is_sayaci(client):
+    """Menüdeki sayaç, inceleme bekleyen gerçek kayıt sayısını göstermeli."""
+    from app.database import Analiz, SessionLocal
+
+    def bekleyen():
+        with SessionLocal() as db:
+            return (db.query(Analiz)
+                    .filter(Analiz.inceleme_gerekli == True,      # noqa: E712
+                            Analiz.incelendi == False).count())   # noqa: E712
+
+    onceki = bekleyen()
+    client.post('/analiz/dosya', files={'dosyalar': ('m.jpg', b'MENU', 'image/jpeg')},
+                follow_redirects=True)      # SahteDetector düşük güvenli kutu üretir
+    simdiki = bekleyen()
+    assert simdiki == onceki + 1, 'yeni kayıt kuyruğa girmeliydi'
+
+    r = client.get('/')
+    assert 'rozet-sayac' in r.text, 'bekleyen iş menüde rozetle gösterilmeli'
+    assert f'>{simdiki}<' in r.text or f'>{simdiki} <' in r.text, \
+        f'sayaç {simdiki} göstermeli'
+
+
+def test_menu_bulundugun_sayfayi_isaretler(client):
+    assert 'etkin' in client.get('/').text
+    assert 'etkin' in client.get('/panel').text

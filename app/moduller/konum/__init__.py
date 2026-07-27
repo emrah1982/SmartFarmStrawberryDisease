@@ -17,8 +17,9 @@ def modul():
     from app.moduller import Modul
     return Modul(
         ad='konum',
-        baslik='Yaygınlık',
+        baslik='Harita',
         yol='/konum/yayginlik',
+        grup='ana', ikon='🗺️',
         router=router,
         tablolar_olustur=tablolar_olustur,
     )

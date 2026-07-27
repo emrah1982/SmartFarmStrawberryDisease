@@ -7,17 +7,50 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+{% set yol = request.url.path %}
+{% set bekleyen = bekleyen_sayisi() %}
 <header>
   <a class="marka" href="/">🍓 Çilek Tespit</a>
+
+  <!-- Menü kullanım sıklığına göre üç katman:
+       1) günlük iş — hep görünür
+       2) model geliştirme — bekleyen iş varsa rozetli
+       3) kurulum/ayar — nadiren açılır -->
   <nav>
-    <a href="/">Analiz</a>
-    <a href="/gecmis">Geçmiş</a>
-    <a href="/inceleme">İnceleme</a>
-    <a href="/etiketlenenler">Etiketlenenler</a>
-    <a href="/panel">Panel</a>
-    {% for m in moduller %}<a href="{{ m.yol }}">{{ m.baslik }}</a>{% endfor %}
-    <a href="/isletmeler">İşletmeler</a>
-    <a href="/kameralar">Kameralar</a>
+    <a href="/" class="{% if yol == '/' %}etkin{% endif %}">📷 Analiz</a>
+    <a href="/gecmis"
+       class="{% if yol.startswith('/gecmis') or yol.startswith('/kayit') %}etkin{% endif %}">🕘 Kayıtlar</a>
+    <a href="/panel" class="{% if yol == '/panel' %}etkin{% endif %}">📊 Durum</a>
+    {% for m in menu_moduller('ana') %}
+    <a href="{{ m.yol }}"
+       class="{% if yol.startswith(m.yol) %}etkin{% endif %}">{{ m.ikon }} {{ m.baslik }}</a>
+    {% endfor %}
+
+    <details class="grup"
+             {% if yol.startswith('/inceleme') or yol.startswith('/etiketlenenler') %}open{% endif %}>
+      <summary>🎓 Model{% if bekleyen %} <span class="rozet-sayac">{{ bekleyen }}</span>{% endif %}</summary>
+      <div class="grup-icerik">
+        <a href="/inceleme">Onay bekleyenler{% if bekleyen %}
+          <span class="rozet-sayac">{{ bekleyen }}</span>{% endif %}</a>
+        <a href="/etiketlenenler">Etiketlerim</a>
+        {% for m in menu_moduller('model') %}
+        <a href="{{ m.yol }}">{{ m.ikon }} {{ m.baslik }}</a>
+        {% endfor %}
+      </div>
+    </details>
+
+    <details class="grup"
+             {% if yol.startswith('/isletmeler') or yol.startswith('/kameralar')
+                   or yol.startswith('/veritabani') %}open{% endif %}>
+      <summary>⚙️ Ayarlar</summary>
+      <div class="grup-icerik">
+        <a href="/isletmeler">Üretici &amp; Sera</a>
+        <a href="/kameralar">Kameralar</a>
+        {% for m in menu_moduller('ayarlar') %}
+        <a href="{{ m.yol }}">{{ m.ikon }} {{ m.baslik }}</a>
+        {% endfor %}
+      </div>
+    </details>
   </nav>
 </header>
 

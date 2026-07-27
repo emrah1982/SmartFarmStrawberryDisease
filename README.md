@@ -486,6 +486,28 @@ Açılan adresler:
 - **Telefondan** (aynı Wi-Fi): `http://<bilgisayarın-IP-adresi>:8000`
   (IP'yi öğrenmek için Windows'ta `ipconfig`)
 
+### 🧭 Menü düzeni (neden böyle?)
+
+Menü, sayfaları **kullanım sıklığına** göre üç katmana ayırır. Düz bir liste
+hâlinde 9 bağlantı olduğunda hangisinin günlük iş, hangisinin bir kerelik
+kurulum olduğu anlaşılmıyordu:
+
+| Katman | Ne zaman kullanılır | Menüdeki yeri |
+|--------|--------------------|---------------|
+| **📷 Analiz · 🕘 Kayıtlar · 📊 Durum · 🗺️ Harita** | Her gün — görüntü ver, sonuca bak, yaygınlığı izle | Doğrudan görünür |
+| **🎓 Model** (Onay bekleyenler, Etiketlerim) | Haftada birkaç kez — modeli iyileştirme döngüsü | Açılır grup, **bekleyen iş sayısı rozetle** gösterilir |
+| **⚙️ Ayarlar** (Üretici & Sera, Kameralar, Veritabanı) | Kurulumda bir kez | Açılır grup |
+
+Tasarım kararları:
+- **Rozet = yapılacak iş.** İnceleme bekleyen kayıt varsa sayı menüde görünür;
+  kullanıcı "bugün onaylanacak bir şey var mı?" diye sayfa gezmez.
+- **Bulunduğun sayfa vurgulanır** (`etkin` sınıfı), ilgili grup otomatik açılır.
+- **Adlar işe göre**: teknik "İnceleme/Etiketlenenler" yerine
+  "Onay bekleyenler/Etiketlerim"; "Panel" yerine "Durum".
+- **Modüller kendi katmanını seçer.** Bir modül `Modul(grup='ana'|'model'|'ayarlar')`
+  diyerek menüde nereye düşeceğini bildirir; `base.html` değiştirilmez
+  (bkz. [Konum modülü](#️-konum-ve-yaygınlık-modülü)).
+
 #### ✏️ Tarayıcıda etiketleme (Roboflow'a gerek yok)
 
 Her analiz kaydında **"Etiketleme ekranını aç"** düğmesi vardır; inceleme kuyruğundaki

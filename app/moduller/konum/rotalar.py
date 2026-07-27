@@ -25,10 +25,8 @@ templates = Jinja2Templates(directory=[
 
 
 def _ortak_ayarlar():
-    """Çekirdeğin şablon filtrelerini/global'lerini modülde de kullanılabilir yapar."""
-    from app import main as cekirdek
-    templates.env.filters.setdefault('yerel', cekirdek._yerel)
-    templates.env.globals.setdefault('moduller', cekirdek.templates.env.globals.get('moduller', []))
+    from app.moduller import sablon_ayarla
+    sablon_ayarla(templates)
 
 
 @router.get('/yayginlik', response_class=HTMLResponse)

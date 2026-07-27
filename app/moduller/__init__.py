@@ -29,6 +29,20 @@ class Modul:
     router: APIRouter
     tablolar_olustur: Optional[Callable] = None
     menude: bool = True
+    grup: str = 'ayarlar'      # ana | model | ayarlar — menüde nereye düşeceği
+    ikon: str = ''
+
+
+def sablon_ayarla(templates):
+    """Modül şablonlarına çekirdeğin filtre ve global'lerini taşır.
+
+    Menü, tarih biçimi gibi ortak şeyler her modülde tekrar tanımlanmasın.
+    """
+    from app import main as cekirdek
+    for ad, f in cekirdek.templates.env.filters.items():
+        templates.env.filters.setdefault(ad, f)
+    for ad, g in cekirdek.templates.env.globals.items():
+        templates.env.globals.setdefault(ad, g)
 
 
 def yuklu_moduller() -> List[Modul]:

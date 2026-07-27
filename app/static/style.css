@@ -40,12 +40,47 @@ header {
   z-index: 10;
 }
 .marka { color: #fff; font-weight: 700; font-size: 1.15rem; text-decoration: none; }
-header nav { display: flex; gap: .35rem; flex-wrap: wrap; margin-top: .5rem; }
+header nav { display: flex; gap: .35rem; flex-wrap: wrap; margin-top: .5rem; align-items: flex-start; }
 header nav a {
-  color: #fff; text-decoration: none; padding: .3rem .7rem;
+  color: #fff; text-decoration: none; padding: .35rem .8rem;
   border-radius: 999px; background: rgba(255,255,255,.15); font-size: .9rem;
+  white-space: nowrap;
 }
 header nav a:hover { background: rgba(255,255,255,.3); }
+/* Bulunduğun sayfa belli olsun */
+header nav a.etkin { background: #fff; color: var(--ana); font-weight: 600; }
+
+/* Gruplanmış menü (Model / Ayarlar) — günlük iş dışındaki sayfaları saklar */
+header nav .grup { position: relative; }
+header nav .grup > summary {
+  list-style: none; cursor: pointer; color: #fff;
+  padding: .35rem .8rem; border-radius: 999px;
+  background: rgba(255,255,255,.15); font-size: .9rem; white-space: nowrap;
+}
+header nav .grup > summary::-webkit-details-marker { display: none; }
+header nav .grup > summary::after { content: ' ▾'; opacity: .7; }
+header nav .grup[open] > summary { background: rgba(0,0,0,.18); }
+header nav .grup-icerik {
+  display: flex; flex-direction: column; gap: .25rem;
+  margin-top: .35rem; padding: .4rem;
+  background: rgba(0,0,0,.2); border-radius: 12px;
+}
+@media (min-width: 700px) {
+  /* Geniş ekranda açılır menü olarak konumlansın, satırı bozmasın */
+  header nav .grup-icerik {
+    position: absolute; z-index: 20; min-width: 190px;
+    background: var(--ana-koyu); box-shadow: 0 6px 18px rgba(0,0,0,.3);
+  }
+}
+header nav .grup-icerik a { background: transparent; text-align: left; }
+header nav .grup-icerik a:hover { background: rgba(255,255,255,.2); }
+
+/* Bekleyen iş sayacı — kullanıcı yapılacak işi menüde görsün */
+.rozet-sayac {
+  display: inline-block; min-width: 1.15rem; padding: 0 .35rem;
+  border-radius: 999px; background: #fff; color: var(--ana);
+  font-size: .75rem; font-weight: 700; text-align: center; line-height: 1.3rem;
+}
 
 main { max-width: 900px; margin: 0 auto; padding: 1rem; }
 
