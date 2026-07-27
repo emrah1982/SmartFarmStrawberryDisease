@@ -503,24 +503,31 @@ kartlarda da doğrudan **✏️ Etiketle** bağlantısı bulunur.
 #### 🎓 Eğitim formatında dışa aktarma
 
 İnceleme sayfasındaki **"Etiketlenmiş kayıtları eğitim formatında dışa aktar"** düğmesi
-`storage/exports/egitim_<tarih>/` altına projenin veri hattına **doğrudan giren** bir paket üretir:
+kayıtları **tek bir birikimli klasöre** yazar — her aktarımda yeni klasör açılmaz:
 
 ```
-egitim_20260727_1816/
-├── images/   Sera_1_42.jpg        ← dosya adı sera ile başlar
-├── labels/   Sera_1_42.txt        ← YOLO: cls x y w h
-└── data.yaml                      ← 10 sınıf (merge_datasets.py bunu şart koşar)
+storage/egitim_verisi/
+├── images/   Sera_1_42.jpg  Sera_1_57.jpg …
+├── labels/   Sera_1_42.txt  Sera_1_57.txt …   (YOLO: cls x y w h)
+└── data.yaml                                   (10 sınıf — merge_datasets.py şart koşar)
 ```
+
+Eğitim öncesi **tek yol** verilir; klasörleri elle toplamak gerekmez:
 
 ```bash
-python scripts/merge_datasets.py --inputs dataset storage/exports/egitim_<tarih> --output dataset_v2
+python scripts/merge_datasets.py --inputs dataset storage/egitim_verisi --output dataset_v2
 python scripts/split_dataset.py --input dataset_v2 --output dataset_v2_split
 ```
 
 Dosya adının sera ile başlaması bilinçlidir: `split_dataset.py` grubu buradan çıkarır ve
 aynı seranın görüntülerini train/test'e bölmez — [veri sızıntısı](#-veri-sızıntısını-önleme-grup-bazlı-split-split_datasetpy) önlenir.
 
-Aynı kayıt iki kez aktarılmaz (`disa_aktarildi` işareti); etiketi düzeltirseniz yeniden aktarılır.
+Dosya adındaki **kayıt id'si** aynı kaydın tekrar yazılınca üzerine binmesini sağlar:
+kopya oluşmaz, etiketi düzeltirseniz güncellenir. `disa_aktarildi` işareti sayesinde
+aktarım yalnızca yeni/değişmiş kayıtları işler.
+
+> `storage/exports/` klasörü ayrı bir amaç içindir: Roboflow gibi dış araçlara
+> gönderilecek **ham ön-etiket partileri** oraya tarihli olarak yazılır.
 
 #### 🔍 Ayrıntılı analiz — ölçek kaynaklı hatalı sınıflandırma
 

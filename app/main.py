@@ -335,6 +335,9 @@ def inceleme(request: Request, db: Session = Depends(get_db)):
         'request': request, 'kayitlar': kayitlar,
         'esik': config.REVIEW_THRESHOLD,
         'etiketli': etiketli, 'bekleyen_aktarim': bekleyen_aktarim,
+        'havuz_yolu': str(config.EGITIM_DIR),
+        'havuz_adet': len(list((config.EGITIM_DIR / 'images').glob('*')))
+                      if (config.EGITIM_DIR / 'images').exists() else 0,
     })
 
 
@@ -442,23 +445,24 @@ def etiketleri_kaydet(analiz_id: int, veri: dict = Body(...),
 
 @app.post('/inceleme/egitime-hazirla')
 def egitime_hazirla(yeniden: int = Form(0), db: Session = Depends(get_db)):
-    """Elle etiketlenmiş kayıtları EĞİTİM FORMATINDA dışa aktarır.
+    """Elle etiketlenmiş kayıtları TEK birikimli eğitim klasörüne yazar.
 
-    Çıktı doğrudan merge_datasets.py ile ana dataset'e katılabilir:
-        <export>/images/*.jpg
-        <export>/labels/*.txt      (YOLO: cls x y w h)
-        <export>/data.yaml         (10 sınıf — merge_datasets.py bunu şart koşar)
+    NEDEN TEK KLASÖR: Her dışa aktarımda tarihli yeni klasör açmak, eğitim
+    öncesinde onlarca klasörü elle toplamayı gerektirirdi. Kayıtlar burada
+    storage/egitim_verisi/ altında birikir; merge_datasets.py'ye her zaman
+    aynı tek yol verilir. Dosya adı kayıt id'si içerdiğinden aynı kayıt
+    yeniden yazılırsa üzerine biner — etiketi düzeltirseniz güncellenir,
+    kopya oluşmaz.
     """
     q = db.query(Analiz).filter(Analiz.elle_etiketlendi == True)  # noqa: E712
     if not yeniden:
         q = q.filter(Analiz.disa_aktarildi == False)  # noqa: E712
     kayitlar = q.all()
     if not kayitlar:
-        raise HTTPException(400, 'Dışa aktarılacak elle etiketlenmiş kayıt yok. '
-                                 'Önce inceleme kuyruğundaki kayıtları etiketleyin.')
+        raise HTTPException(400, 'Aktarılacak yeni etiketli kayıt yok. Önce inceleme '
+                                 'kuyruğundaki kayıtları etiketleyin.')
 
-    damga = datetime.now().strftime('%Y%m%d_%H%M')
-    hedef = config.EXPORT_DIR / f'egitim_{damga}'
+    hedef = config.EGITIM_DIR
     (hedef / 'images').mkdir(parents=True, exist_ok=True)
     (hedef / 'labels').mkdir(parents=True, exist_ok=True)
 
@@ -467,13 +471,15 @@ def egitime_hazirla(yeniden: int = Form(0), db: Session = Depends(get_db)):
         kaynak = config.STORAGE_DIR / a.dosya_yolu
         if not kaynak.exists():
             continue
-        # Grup bazlı split için ad: sera bilgisi dosya adına yazılır
+        # Ad: <sera>_<id> — sera bilgisi split_dataset.py'nin grup ayrımı için,
+        # id ise aynı kaydın üzerine binmesi için
         sera = (a.sera.ad if a.sera else 'atanmamis').replace(' ', '_')
         ad = f'{sera}_{a.id}{kaynak.suffix.lower()}'
         shutil.copy2(kaynak, hedef / 'images' / ad)
-        with open(hedef / 'labels' / f'{Path(ad).stem}.txt', 'w', encoding='utf-8') as f:
-            for t in a.tespitler:
-                f.write(f'{t.sinif_id} {t.x:.6f} {t.y:.6f} {t.w:.6f} {t.h:.6f}\n')
+        satirlar = [f'{t.sinif_id} {t.x:.6f} {t.y:.6f} {t.w:.6f} {t.h:.6f}'
+                    for t in a.tespitler]
+        (hedef / 'labels' / f'{Path(ad).stem}.txt').write_text(
+            chr(10).join(satirlar) + (chr(10) if satirlar else ''), encoding='utf-8')
         a.disa_aktarildi = True
         n += 1
 
@@ -486,8 +492,8 @@ def egitime_hazirla(yeniden: int = Form(0), db: Session = Depends(get_db)):
                   f, allow_unicode=True, sort_keys=False)
 
     db.commit()
-    logger.info(f'{n} etiketli kayıt eğitim formatında dışa aktarıldı: {hedef}')
-    return RedirectResponse(f'/inceleme?egitim={n}', status_code=303)
+    logger.info(f'{n} etiketli kayıt eğitim havuzuna eklendi: {hedef}')
+    return RedirectResponse(f'/inceleme?eklendi={n}', status_code=303)
 
 
 # ──────────────────────────────────────────────────────────────────── kameralar

@@ -416,9 +416,10 @@ def test_egitim_formatinda_disa_aktarim(client):
     r = client.post('/inceleme/egitime-hazirla', follow_redirects=True)
     assert r.status_code == 200
 
-    disa = sorted(Path(config.EXPORT_DIR).glob('egitim_*'))
-    assert disa, 'egitim_ klasörü oluşmadı'
-    d = disa[-1]
+    # Tek birikimli klasör: her aktarımda yeni klasör AÇILMAMALI
+    d = Path(config.EGITIM_DIR)
+    assert d.exists(), 'egitim_verisi klasörü oluşmadı'
+    assert not list(Path(config.EXPORT_DIR).glob('egitim_*')),         'tarihli egitim_* klasörü açılmamalı — tek havuz kullanılıyor'
     assert (d / 'data.yaml').exists(), 'merge_datasets.py data.yaml şart koşar'
     cfg = _y.safe_load((d / 'data.yaml').read_text(encoding='utf-8'))
     assert cfg['nc'] == 10 and cfg['names'][3] == 'Gray Mold'

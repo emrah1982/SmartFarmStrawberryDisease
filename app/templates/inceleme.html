@@ -34,15 +34,22 @@
     </button>
   </form>
   <p class="ipucu">
-    Çıktı <code>storage/exports/egitim_&lt;tarih&gt;/</code> altına yazılır:
-    <code>images/</code>, <code>labels/</code> (YOLO) ve <code>data.yaml</code> (10 sınıf).
-    Bu yapı doğrudan projenin veri hattına girer:
+    Kayıtlar <strong>tek bir klasörde birikir</strong> — her aktarımda yeni klasör açılmaz,
+    elle toplamanız gerekmez:
   </p>
-  <pre class="ipucu" style="overflow-x:auto"><code>python scripts/merge_datasets.py     --inputs dataset storage/exports/egitim_&lt;tarih&gt; --output dataset_v2
+  <p><code>{{ havuz_yolu }}</code> &nbsp; <span class="rozet">{{ havuz_adet }} görüntü</span></p>
+  <pre class="ipucu" style="overflow-x:auto"><code>egitim_verisi/
+├── images/   Sera_1_42.jpg …
+├── labels/   Sera_1_42.txt …   (YOLO: cls x y w h)
+└── data.yaml                   (10 sınıf)</code></pre>
+  <p class="ipucu">Eğitim öncesi tek komut yeter:</p>
+  <pre class="ipucu" style="overflow-x:auto"><code>python scripts/merge_datasets.py --inputs dataset storage/egitim_verisi --output dataset_v2
 python scripts/split_dataset.py --input dataset_v2 --output dataset_v2_split</code></pre>
   <p class="ipucu">
-    💡 Dosya adları <code>&lt;sera&gt;_&lt;id&gt;.jpg</code> biçimindedir; böylece
-    <code>split_dataset.py</code> aynı seranın görüntülerini train/test'e bölmez (veri sızıntısı önlenir).
+    💡 Dosya adı <code>&lt;sera&gt;_&lt;kayıt-id&gt;.jpg</code>: sera bilgisi
+    <code>split_dataset.py</code>'nin grup ayrımı için (veri sızıntısı önlenir),
+    kayıt id'si ise aynı kaydı tekrar aktarınca <strong>kopya oluşmasın</strong> diye
+    (etiketi düzeltirseniz üzerine yazılır).
   </p>
 
   <details style="margin-top:.5rem">
