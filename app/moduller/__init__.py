@@ -34,7 +34,8 @@ class Modul:
 def yuklu_moduller() -> List[Modul]:
     """Etkin modüller. Kapatmak için ilgili satırı yorumlamak yeterlidir."""
     from app.moduller.konum import modul as konum_modul
-    return [konum_modul()]
+    from app.moduller.veritabani import modul as veritabani_modul
+    return [konum_modul(), veritabani_modul()]
 
 
 def kaydet(app: FastAPI, engine=None) -> List[Modul]:

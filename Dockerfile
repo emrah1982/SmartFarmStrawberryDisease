@@ -25,6 +25,8 @@ RUN pip install --no-cache-dir -r requirements-docker.txt
 
 COPY app ./app
 COPY configs ./configs
+# Yardimci scriptler (ornegin db_incele.py) konteyner icinden de calissin
+COPY scripts ./scripts
 
 # Model ve veriler imaja gömülmez; volume olarak bağlanır
 ENV MODEL_PATH=/app/models/best.pt \

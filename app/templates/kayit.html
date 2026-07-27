@@ -129,9 +129,30 @@
       Şu an: <strong>{{ a.konum.etiket }}</strong>
       <span class="rozet">{{ a.konum.kaynak }}</span>
     {% else %}
-      Bu kayda konum atanmamış. Yaygınlık haritasında görünmesi için girin.
+      Bu kayda konum atanmamış. Yaygınlık haritasında görünmesi için aşağıdan girin.
     {% endif %}
   </p>
+
+  {% if not a.konum %}
+  <details>
+    <summary>Telefonla çektim ama konum gelmedi — neden?</summary>
+    <ul class="ipucu" style="margin-top:.4rem">
+      <li><strong>Konum etiketleme kapalı olabilir:</strong> Telefonun kamera
+        uygulamasında "Konum/Coğrafi etiket" ayarını açın (Android: Kamera →
+        Ayarlar → Konum etiketleri; iPhone: Ayarlar → Gizlilik → Konum Servisleri → Kamera).</li>
+      <li><strong>Tarayıcı içi kamerayla çekildiyse GPS olmaz:</strong> "Bilgisayar
+        Kamerasını Aç" ile alınan kareler yeniden kodlandığı için EXIF taşımaz.
+        GPS için telefonun <strong>kendi kamera uygulamasını</strong> açan
+        "📷 Fotoğraf Çek" düğmesini veya "Dosya Seç"i kullanın.</li>
+      <li><strong>iPhone paylaşırken konumu silebilir:</strong> Fotoğrafı yüklerken
+        "Seçenekler → Tüm Fotoğraf Verileri" açık olmalı.</li>
+      <li><strong>WhatsApp/Telegram ile aktarılan görseller</strong> EXIF'i tamamen siler.
+        Fotoğrafı doğrudan telefondan yükleyin.</li>
+      <li>Sera içinde GPS zaten <strong>±5-10 m</strong> saparak sıra ayrımı yapamaz;
+        blok/sıra yazmak daha kullanışlıdır.</li>
+    </ul>
+  </details>
+  {% endif %}
   <form action="/konum/kayit/{{ a.id }}" method="post">
     <div class="satir">
       <label style="flex:1">Blok

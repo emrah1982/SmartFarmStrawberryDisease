@@ -692,6 +692,39 @@ yeterlidir. Yüksekten çekimde lezyonlar küçük göründüğü için
 [Ayrıntılı analiz](#-ayrıntılı-analiz--ölçek-kaynaklı-hatalı-sınıflandırma) seçeneğini
 işaretlemeniz önerilir.
 
+### 🗄️ Veritabanını görüntüleme
+
+SQLite dosyası tek yerdedir ve üç şekilde incelenebilir:
+
+| Yol | Nasıl |
+|---|---|
+| **Tarayıcıdan** | Menüdeki **Veritabanı** sayfası — tablolar, satır sayıları, sayfalanmış içerik (salt okunur) |
+| **Terminalden** | `python scripts/db_incele.py` · `--tablo analizler --limit 20`<br>Docker'da: `docker exec cilek-tespit python scripts/db_incele.py --tablo tespitler` |
+| **Masaüstü araçla** | `storage/kayitlar.db` dosyasını *DB Browser for SQLite* gibi bir programla açın |
+
+> **Docker'da dosya nerede?** Konteynerde `/app/storage/kayitlar.db`,
+> bilgisayarınızda `storage/kayitlar.db` — **aynı dosyadır** (volume ile bağlı).
+> Konteyneri silseniz bile veriler kalır.
+
+Görüntüleyici **salt okunurdur**: serbest SQL çalıştırılmaz, yalnızca uygulamanın
+tanımladığı tablolar listelenir. Bu da `app/moduller/veritabani/` altında ayrı bir
+modüldür; gerek yoksa `yuklu_moduller()` listesinden çıkarılabilir.
+
+### 📍 Telefon fotoğraflarında konum
+
+Telefonla çekilen fotoğrafın GPS taşıması için:
+
+- Kamera uygulamasında **konum etiketleme açık** olmalı
+  (Android: Kamera → Ayarlar → Konum etiketleri · iPhone: Ayarlar → Gizlilik → Konum Servisleri → Kamera)
+- Yükleme sırasında telefonun **kendi kamera uygulaması** kullanılmalı ("📷 Fotoğraf Çek")
+  veya galeriden seçilmeli. **Tarayıcı içi kamerayla** alınan kareler yeniden
+  kodlandığı için EXIF taşımaz.
+- iPhone'da paylaşırken **"Tüm Fotoğraf Verileri"** açık olmalı
+- **WhatsApp/Telegram ile aktarılan görseller EXIF'i tamamen kaybeder**
+
+Konum gelmezse kayıt sayfasındaki açılır bölümde bu nedenler listelenir ve blok/sıra
+elle girilebilir. Sera içinde GPS zaten ±5-10 m sapar; **blok/sıra yazmak daha kullanışlıdır**.
+
 ### 🔒 Güvenlik ve çok müşterili kullanım
 
 Uygulamada **kullanıcı girişi yoktur**; yerel ağda tek işletme için tasarlanmıştır.

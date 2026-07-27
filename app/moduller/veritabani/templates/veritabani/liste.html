@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block baslik %}Veritabanı{% endblock %}
+{% block icerik %}
+
+<section class="kart">
+  <h2>🗄️ Veritabanı</h2>
+  <p class="ipucu">
+    Salt okunur görünüm — buradan veri değiştirilemez veya silinemez.
+  </p>
+  <table>
+    <tr><th>Dosya</th><td><code>{{ db_yolu }}</code></td></tr>
+    <tr><th>Boyut</th><td>{{ db_boyut }} KB</td></tr>
+    <tr><th>Bağlantı</th><td><code>{{ db_url }}</code></td></tr>
+  </table>
+  <p class="ipucu" style="margin-top:.6rem">
+    Docker'da bu dosya konteynerde <code>/app/storage/kayitlar.db</code>,
+    bilgisayarınızda <code>storage/kayitlar.db</code> yolundadır —
+    <strong>aynı dosyadır</strong> (volume ile bağlı). Masaüstü bir araçla
+    (örn. <em>DB Browser for SQLite</em>) doğrudan açabilirsiniz.
+  </p>
+</section>
+
+<section class="kart">
+  <h3>Tablolar</h3>
+  <table>
+    <tr><th>Tablo</th><th>Satır</th><th>Sütunlar</th></tr>
+    {% for t in tablolar %}
+    <tr>
+      <td><a href="/veritabani/{{ t.ad }}"><strong>{{ t.ad }}</strong></a></td>
+      <td>{{ t.adet if t.adet >= 0 else '?' }}</td>
+      <td><small class="ipucu">{{ t.sutunlar|join(', ') }}</small></td>
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+{% endblock %}

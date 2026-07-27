@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block baslik %}{{ tablo_adi }}{% endblock %}
+{% block icerik %}
+
+<section class="kart">
+  <h2>🗄️ {{ tablo_adi }}</h2>
+  <p class="ipucu">
+    {{ toplam }} satır · sayfa {{ sayfa }}/{{ sayfa_sayisi }} ·
+    <a href="/veritabani">← tablo listesi</a>
+  </p>
+</section>
+
+<section class="kart" style="overflow-x:auto">
+  {% if satirlar %}
+  <table>
+    <tr>{% for s in sutunlar %}<th>{{ s }}</th>{% endfor %}</tr>
+    {% for satir in satirlar %}
+    <tr>
+      {% for s in sutunlar %}
+      <td><small>{{ satir[s] if satir[s] is not none else '—' }}</small></td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="ipucu">Tablo boş.</p>
+  {% endif %}
+</section>
+
+{% if sayfa_sayisi > 1 %}
+<div class="butonlar">
+  {% if sayfa > 1 %}
+  <a class="btn kucuk" href="/veritabani/{{ tablo_adi }}?sayfa={{ sayfa - 1 }}">← önceki</a>
+  {% endif %}
+  {% if sayfa < sayfa_sayisi %}
+  <a class="btn kucuk" href="/veritabani/{{ tablo_adi }}?sayfa={{ sayfa + 1 }}">sonraki →</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
