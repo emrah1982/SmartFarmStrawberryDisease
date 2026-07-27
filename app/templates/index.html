@@ -44,22 +44,27 @@
       </span>
     </label>
 
+    <!-- Düğmeler cihaza göre açılır (aşağıdaki script).
+         Masaüstünde capture="environment" yok sayılır; o yüzden telefona özel
+         "Çek" düğmeleri orada gösterilmez — yoksa üç düğme de aynı dosya
+         seçiciyi açar ve kullanıcı kamera bekler. JS kapalıysa "Dosya Seç"
+         görünür kalır: her cihazda çalışan güvenli seçenek. -->
     <div class="butonlar">
       <button type="button" class="btn btn-birincil" id="webcamAc" hidden>
-        💻 Bilgisayar Kamerasını Aç
+        💻 Kamerayı Aç
       </button>
-      <label class="btn btn-birincil" id="lblFoto">
-        <span id="txtFoto">📷 Fotoğraf Çek</span>
+      <label class="btn btn-birincil" id="lblFoto" hidden>
+        <span>📷 Fotoğraf Çek</span>
         <input type="file" name="dosyalar" accept="image/*" capture="environment" hidden
                onchange="gonder(this)">
       </label>
-      <label class="btn" id="lblVideo">
-        <span id="txtVideo">🎥 Video Çek</span>
+      <label class="btn" id="lblVideo" hidden>
+        <span>🎥 Video Çek</span>
         <input type="file" name="dosyalar" accept="video/*" capture="environment" hidden
                onchange="gonder(this)">
       </label>
-      <label class="btn">
-        <span>🖼️ Dosya Seç</span>
+      <label class="btn" id="lblDosya">
+        <span id="txtDosya">🖼️ Dosya Seç</span>
         <input type="file" name="dosyalar" accept="image/*,video/*" multiple hidden
                onchange="gonder(this)">
       </label>
@@ -173,26 +178,29 @@ const mobil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const kameraApiVar = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
                      && window.isSecureContext;
 const notu = document.getElementById('cihazNotu');
+const lblDosya = document.getElementById('lblDosya');
 
-if (!mobil) {
-  // Masaüstünde capture="environment" yok sayılır ve dosya seçici açılır.
-  // Kullanıcı "Fotoğraf Çek" yazısını görüp kamera bekliyor; etiketleri düzelt.
-  document.getElementById('txtFoto').textContent = '🖼️ Fotoğraf Seç';
-  document.getElementById('txtVideo').textContent = '🎞️ Video Seç';
-
-  if (kameraApiVar) {
-    document.getElementById('webcamAc').hidden = false;
-    notu.innerHTML = '💻 <strong>Bilgisayardasınız.</strong> "Seç" düğmeleri dosya ' +
-      'seçiciyi açar; kamera için <strong>Bilgisayar Kamerasını Aç</strong> düğmesini kullanın.';
-  } else {
-    notu.innerHTML = '💻 <strong>Bilgisayardasınız.</strong> Düğmeler dosya seçiciyi açar. ' +
-      'Tarayıcı içi kamera yalnızca güvenli bağlamda çalışır — bu sayfayı ' +
-      '<code>http://localhost:8000</code> adresinden açarsanız kamera düğmesi görünür ' +
-      '(IP adresiyle <code>http://</code> üzerinden tarayıcı kamerayı engeller).';
-  }
+if (mobil) {
+  // Telefonda cihazın kamera uygulaması açılır — asıl iş bu.
+  document.getElementById('lblFoto').hidden = false;      // birincil
+  document.getElementById('lblVideo').hidden = false;
+  document.getElementById('txtDosya').textContent = '🖼️ Galeriden Seç';
+  notu.innerHTML = '📱 <strong>Telefondasınız.</strong> "Fotoğraf Çek" / "Video Çek" ' +
+    'kamera uygulamanızı açar; daha önce çektiklerinizi "Galeriden Seç" ile yükleyin.';
+} else if (kameraApiVar) {
+  // Masaüstünde gerçek kamera yalnızca burada mümkün.
+  document.getElementById('webcamAc').hidden = false;     // birincil
+  notu.innerHTML = '💻 <strong>Bilgisayardasınız.</strong> Canlı görüntü için ' +
+    '<strong>Kamerayı Aç</strong>; bilgisayarınızdaki fotoğraf/videolar için ' +
+    '<strong>Dosya Seç</strong> (birden fazla seçebilirsiniz).';
 } else {
-  notu.textContent = '📱 Telefondasınız: "Fotoğraf Çek" ve "Video Çek" cihazınızın ' +
-    'kamera uygulamasını açar.';
+  // Kamera yok: tek anlamlı eylem dosya yükleme — onu birincil yap.
+  lblDosya.classList.add('btn-birincil');
+  notu.innerHTML = '💻 <strong>Bilgisayardasınız.</strong> Fotoğraf/video dosyalarını ' +
+    '<strong>Dosya Seç</strong> ile yükleyin. Tarayıcı içi kamera yalnızca güvenli ' +
+    'bağlamda çalışır — bu sayfayı <code>http://localhost:8000</code> adresinden ' +
+    'açarsanız kamera düğmesi de görünür (IP adresiyle <code>http://</code> ' +
+    'üzerinden tarayıcı kamerayı engeller).';
 }
 
 // --- Tarayıcı içi kamera (yalnızca güvenli bağlam) -------------------------

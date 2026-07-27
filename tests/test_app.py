@@ -67,6 +67,28 @@ def test_anasayfa_acilir(client):
     assert 'Fotoğraf Çek' in r.text and 'Video Çek' in r.text
 
 
+def test_yukleme_dugmeleri_cihaza_gore(client):
+    """Cihaza özel düğmeler gizli başlar; JS kapalıyken bile dosya seçme çalışır."""
+    import re
+    r = client.get('/')
+    butonlar = r.text[r.text.index('<div class="butonlar">'):]
+    butonlar = butonlar[:butonlar.index('</div>')]
+
+    # Telefona/masaüstüne özel olanlar JS ile açılır → başlangıçta hidden
+    for kimlik in ('webcamAc', 'lblFoto', 'lblVideo'):
+        blok = butonlar[butonlar.index(f'id="{kimlik}"'):]
+        assert 'hidden' in blok[:blok.index('>')], f'{kimlik} gizli başlamalı'
+
+    # Her cihazda çalışan seçenek görünür kalmalı (JS yoksa tek çıkış yolu)
+    dosya = butonlar[butonlar.index('id="lblDosya"'):]
+    assert 'hidden' not in dosya[:dosya.index('>')]
+
+    # Aynı anda tek birincil düğme olmalı — ikisi kırmızıysa asıl eylem belirsizleşir
+    gorunur = [m for m in re.finditer(r'class="btn btn-birincil"[^>]*>', butonlar)
+               if 'hidden' not in m.group(0)]
+    assert len(gorunur) == 0, 'birincil düğmeyi JS cihaza göre seçmeli'
+
+
 def test_foto_analizi_kayit_olusturur(client):
     r = client.post('/analiz/dosya',
                     files={'dosyalar': ('bahce.jpg', b'sahte-goruntu', 'image/jpeg')},
