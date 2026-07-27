@@ -72,8 +72,12 @@ def openssl_ile(adlar) -> bool:
     komut = [
         'openssl', 'req', '-x509', '-nodes', '-newkey', 'rsa:2048',
         '-keyout', str(KEY), '-out', str(CRT), '-days', '825',
-        '-subj', '/CN=cilek-tespit',
+        '-subj', '/CN=Cilek Tespit Yerel Sunucu',
         '-addext', f'subjectAltName={_san(adlar)}',
+        # CA:true → sertifika telefona "güvenilir kök" olarak kurulabilir.
+        # Kurulduktan sonra tarayıcı hiç uyarı vermez.
+        '-addext', 'basicConstraints=critical,CA:true',
+        '-addext', 'keyUsage=critical,digitalSignature,keyEncipherment,keyCertSign',
     ]
     sonuc = subprocess.run(komut, capture_output=True, text=True)
     if sonuc.returncode != 0:
@@ -95,7 +99,8 @@ def cryptography_ile(adlar) -> bool:
         return False
 
     anahtar = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    ad = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, 'cilek-tespit')])
+    ad = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,
+                                       'Cilek Tespit Yerel Sunucu')])
     alt = []
     for a in adlar:
         try:
@@ -112,6 +117,14 @@ def cryptography_ile(adlar) -> bool:
                  .not_valid_before(simdi - timedelta(days=1))
                  .not_valid_after(simdi + timedelta(days=825))
                  .add_extension(x509.SubjectAlternativeName(alt), critical=False)
+                 # CA:true → telefona güvenilir kök olarak kurulabilsin
+                 .add_extension(x509.BasicConstraints(ca=True, path_length=None),
+                                critical=True)
+                 .add_extension(x509.KeyUsage(
+                     digital_signature=True, key_encipherment=True, key_cert_sign=True,
+                     content_commitment=False, data_encipherment=False,
+                     key_agreement=False, crl_sign=False,
+                     encipher_only=False, decipher_only=False), critical=True)
                  .sign(anahtar, hashes.SHA256()))
 
     KEY.write_bytes(anahtar.private_bytes(
@@ -137,9 +150,13 @@ def main():
     print('\nBaşlatma:')
     print('   Yerel : python -m app.main')
     print('   Docker: docker compose up -d --build')
-    print(f'\nTelefondan: https://{adlar[-1]}:8000/canli')
-    print('İlk açılışta "Bağlantınız gizli değil" uyarısını "Gelişmiş → Devam et" ile geçin\n'
-          '(kendinden imzalı sertifika; kendi ağınızdaki kendi sunucunuz).')
+    print('\n💻 Bilgisayarda sertifikaya GEREK YOK: http://localhost:8000/canli')
+    print('   (localhost tarayıcılarca zaten güvenli bağlam sayılır, kamera açılır)')
+    print(f'\n📱 Telefondan: https://{adlar[-1]}:8443/canli')
+    print('   "Bağlantınız gizli değil" uyarısı çıkacak. İki seçenek:')
+    print('     1) Hızlı  : Gelişmiş → "Yine de devam et"  (her tarayıcıda bir kez)')
+    print(f'     2) Kalıcı : https://{adlar[-1]}:8443/canli/sertifika adresini açıp')
+    print('                 sertifikayı kurun — sonrasında hiç uyarı çıkmaz.')
     return 0
 
 

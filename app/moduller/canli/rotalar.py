@@ -16,9 +16,10 @@ import time
 from pathlib import Path
 from typing import Dict, Optional
 
-from fastapi import APIRouter, Form, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import (APIRouter, Form, HTTPException, Request, UploadFile,
+                     WebSocket, WebSocketDisconnect)
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from app import config
@@ -59,6 +60,34 @@ def izle(request: Request):
             'kayit_guven': ayarlar.KAYIT_GUVEN,
         },
     })
+
+
+# ──────────────────────────────────────────────────── sertifika kurulumu
+@router.get('/sertifika', response_class=HTMLResponse)
+def sertifika_sayfasi(request: Request):
+    """Telefona sertifika kurma yönergesi.
+
+    Kendinden imzalı sertifikada tarayıcı her cihazda bir kez uyarı verir.
+    Sertifikayı cihaza kurmak bu uyarıyı kalıcı olarak kaldırır.
+    """
+    _ortak_ayarlar()
+    return templates.TemplateResponse(request, 'canli/sertifika.html', {
+        'request': request,
+        'var_mi': bool(config.SSL_CERT) and Path(config.SSL_CERT).exists(),
+        'https_port': config.HTTPS_PORT,
+    })
+
+
+@router.get('/sertifika.crt')
+def sertifika_dosyasi():
+    """Sertifikayı indirir. Yalnızca AÇIK anahtar — özel anahtar asla sunulmaz."""
+    if not (config.SSL_CERT and Path(config.SSL_CERT).exists()):
+        raise HTTPException(404, 'Sertifika üretilmemiş')
+    return FileResponse(
+        config.SSL_CERT,
+        # Android bu türü görünce "sertifika kur" ekranını açar
+        media_type='application/x-x509-ca-cert',
+        filename='cilek-tespit.crt')
 
 
 # ───────────────────────────────────────────────────────── ortak kare işleme

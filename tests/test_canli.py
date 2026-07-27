@@ -179,3 +179,36 @@ def test_rest_yedegi_oturum_bazli_kararlilik_tutar(client):
 def test_canli_menude_ana_grupta(client):
     r = client.get('/')
     assert '/canli' in r.text
+
+
+# ─────────────────────────────────────────────────────── sertifika kurulumu
+def test_sertifika_sayfasi_acilir(client):
+    """Telefonda çıkan güven uyarısının çözümü uygulama içinden anlatılmalı."""
+    r = client.get('/canli/sertifika')
+    assert r.status_code == 200
+    assert 'localhost' in r.text                     # bilgisayarda gerek yok bilgisi
+
+
+def test_sertifika_yoksa_404(client, monkeypatch):
+    from app import config
+    monkeypatch.setattr(config, 'SSL_CERT', '')
+    assert client.get('/canli/sertifika.crt').status_code == 404
+
+
+def test_sertifika_indirilebilir(client, monkeypatch, tmp_path):
+    sahte = tmp_path / 'sunucu.crt'
+    sahte.write_text('-----BEGIN CERTIFICATE-----\nsahte\n-----END CERTIFICATE-----')
+    from app import config
+    monkeypatch.setattr(config, 'SSL_CERT', str(sahte))
+
+    r = client.get('/canli/sertifika.crt')
+    assert r.status_code == 200
+    # Android bu içerik türünü görünce "sertifika kur" ekranını açar
+    assert r.headers['content-type'] == 'application/x-x509-ca-cert'
+    assert 'BEGIN CERTIFICATE' in r.text
+
+
+def test_ozel_anahtar_asla_sunulmaz(client):
+    """Özel anahtar hiçbir yoldan indirilememeli."""
+    for yol in ('/canli/sertifika.key', '/canli/sunucu.key', '/statik/canli/sunucu.key'):
+        assert client.get(yol).status_code == 404, yol

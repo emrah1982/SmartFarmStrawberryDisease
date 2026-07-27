@@ -85,9 +85,10 @@ if (!window.isSecureContext) {
     {% if guvenli_hazir %}
     '<a class="btn btn-birincil" style="margin-top:.6rem" href="' + guvenliAdres + '">' +
     '🔒 Güvenli adrese geç</a><br>' +
-    '<small>İlk açılışta "Bağlantınız gizli değil" uyarısını ' +
-    '<strong>Gelişmiş → Yine de devam et</strong> ile geçin — kendi ağınızdaki ' +
-    'kendi sunucunuz, sertifika kendinden imzalı.</small>'
+    '<small>Orada "Bağlantınız gizli değil" uyarısı çıkarsa ' +
+    '<strong>Gelişmiş → Yine de devam et</strong> deyin — bu bir hata değil, ' +
+    'sertifikanın kendi bilgisayarınızda üretilmiş olmasındandır. ' +
+    'Uyarının hiç çıkmaması için: <a href="/canli/sertifika">sertifikayı telefona kurun</a>.</small>'
     {% else %}
     'Sertifika üretin: <code>python scripts/https_sertifika.py</code> → ' +
     '<code>docker compose restart</code> → <code>' + guvenliAdres + '</code><br>' +

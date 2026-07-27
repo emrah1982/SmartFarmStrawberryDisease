@@ -729,8 +729,22 @@ imleriniz kırılmaz:
 `/canli` sayfasını http üzerinden açarsanız **🔒 Güvenli adrese geç** düğmesi çıkar;
 tek tıkla https adresine geçersiniz.
 
-İlk açılışta "Bağlantınız gizli değil" uyarısını **Gelişmiş → Yine de devam et** ile geçin;
-kendi ağınızdaki kendi sunucunuzdur. İnternete açık kurulumda gerçek sertifika kullanın
+#### "Bağlantınız gizli değil" uyarısı — hata değil
+
+Sertifika bir şirketten satın alınmadığı, sizin bilgisayarınızda üretildiği için tarayıcı
+onu tanımaz (`ERR_CERT_AUTHORITY_INVALID`). Trafik yine de şifrelidir.
+
+- **Bilgisayarda sertifikaya gerek yok.** `http://localhost:8000/canli` uyarısız çalışır —
+  tarayıcılar `localhost`'u zaten güvenli bağlam sayar. Uyarıyı görüyorsanız muhtemelen
+  gereksiz yere https adresini açtınız.
+- **Telefonda hızlı çözüm:** Uyarı ekranında **Gelişmiş → Yine de devam et**
+  (her tarayıcıda bir kez).
+- **Telefonda kalıcı çözüm:** `/canli/sertifika` sayfasını açıp sertifikayı cihaza kurun;
+  sonrasında uyarı hiç çıkmaz. Sertifika `CA:true` olarak üretilir, bu yüzden Android'de
+  *Ayarlar → Güvenlik → Sertifika yükle → CA sertifikası*, iOS'ta *Profil İndirildi* →
+  ardından *Sertifika Güveni Ayarları*'ndan tam güven verilerek kurulabilir.
+
+İnternete açık kurulumda kendinden imzalı sertifika kullanmayın; gerçek sertifika alın
 (Let's Encrypt / ters vekil).
 
 Sertifika istemiyorsanız telefonda [tek kare analizi](#-web-arayüzü-sahada-kullanım)

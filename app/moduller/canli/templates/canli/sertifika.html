@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block baslik %}Sertifika Kurulumu{% endblock %}
+{% block icerik %}
+
+<section class="kart">
+  <h2>🔒 "Bağlantınız gizli değil" uyarısı</h2>
+
+  <p class="ipucu">Bu <strong>hata değil</strong>, beklenen bir uyarıdır. Sertifika bir
+    şirketten satın alınmadığı, sizin bilgisayarınızda üretildiği için tarayıcı onu
+    tanımaz. Trafik yine de şifrelidir; sunucu kendi ağınızdaki kendi bilgisayarınızdır.</p>
+
+  <h3>💻 Bilgisayarda kullanıyorsanız</h3>
+  <p class="ipucu">Sertifikaya <strong>gerek yok</strong>. Tarayıcılar
+    <code>localhost</code> adresini zaten güvenli sayar; canlı kamera uyarısız çalışır:</p>
+  <p><a class="btn btn-birincil" href="http://localhost:8000/canli">http://localhost:8000/canli</a></p>
+
+  <h3 style="margin-top:1.2rem">📱 Telefonda kullanıyorsanız</h3>
+  <p class="ipucu">Telefon <code>localhost</code> diyemez (o kendi cihazını gösterir),
+    bilgisayarın IP'sine bağlanır — orada kamera için https şarttır. İki yol var:</p>
+
+  <h4>1. Hızlı yol (kurulum yok)</h4>
+  <ul class="ipucu">
+    <li>Uyarı ekranında <strong>Gelişmiş</strong> → <strong>Yine de devam et</strong>
+      (İngilizce: <em>Advanced → Proceed anyway</em>).</li>
+    <li>Her tarayıcıda bir kez sorulur; sonra hatırlar.</li>
+  </ul>
+
+  <h4>2. Kalıcı yol (uyarı hiç çıkmaz)</h4>
+  {% if var_mi %}
+  <p><a class="btn btn-birincil" href="/canli/sertifika.crt" download>📜 Sertifikayı İndir</a></p>
+  <ul class="ipucu">
+    <li><strong>Android:</strong> Dosyayı indirin →
+      <em>Ayarlar → Güvenlik → Şifreleme ve kimlik bilgileri → Sertifika yükle →
+      CA sertifikası</em> → indirilen <code>cilek-tespit.crt</code> seçilir.
+      (Telefonda ekran kilidi tanımlı olmalıdır; Android bunu şart koşar.)</li>
+    <li><strong>iPhone:</strong> Dosyayı indirin → <em>Ayarlar → Profil İndirildi</em> →
+      Yükle. Sonra <em>Ayarlar → Genel → Hakkında → Sertifika Güveni Ayarları</em>
+      bölümünden bu sertifikaya <strong>tam güven verin</strong> (bu ikinci adım
+      atlanırsa uyarı devam eder).</li>
+  </ul>
+  <p class="ipucu">⚠️ Bu sertifikayı yalnızca <strong>kendi telefonunuza</strong> kurun.
+    Kurulan sertifika, o cihazda bu sunucuyu doğrulanmış kabul eder.</p>
+  {% else %}
+  <div class="uyari">
+    <strong>Sertifika henüz üretilmemiş.</strong>
+    Bilgisayarda proje klasöründe çalıştırın:<br>
+    <code>python scripts/https_sertifika.py</code> → <code>docker compose restart</code>
+  </div>
+  {% endif %}
+
+  <h3 style="margin-top:1.2rem">Adresler</h3>
+  <table>
+    <tr><th>Adres</th><th>Ne için</th></tr>
+    <tr><td><code>http://&lt;ip&gt;:8000</code></td>
+        <td>Yükleme, geçmiş, etiketleme, harita — uyarısız</td></tr>
+    <tr><td><code>https://&lt;ip&gt;:{{ https_port }}</code></td>
+        <td>Yukarıdakiler + <strong>canlı kamera</strong></td></tr>
+  </table>
+  <p class="ipucu">Canlı kamera dışındaki her şey için http adresi yeterlidir;
+    sertifikayla hiç uğraşmadan kullanabilirsiniz.</p>
+
+  <p style="margin-top:1rem"><a class="btn" href="/canli">← Canlı Tespit'e dön</a></p>
+</section>
+{% endblock %}
