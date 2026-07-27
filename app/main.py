@@ -25,7 +25,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import config
-from app.database import Analiz, Kamera, SessionLocal, Tespit, get_db, init_db
+from app.database import (Analiz, Kamera, Sera, SessionLocal, Tespit, Uretici,
+                          get_db, init_db)
 from app.detector import detector
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -75,12 +76,14 @@ templates.env.filters['yerel'] = _yerel
 
 
 def _kaydet(sonuc, db: Session, kaynak_tip: str, kaynak_ad: str,
-            dosya_yolu: str, kamera_id: Optional[int] = None) -> Analiz:
+            dosya_yolu: str, kamera_id: Optional[int] = None,
+            sera_id: Optional[int] = None) -> Analiz:
     """Detector sonucunu veritabanına yazar."""
     a = Analiz(
         kaynak_tip=kaynak_tip,
         kaynak_ad=kaynak_ad,
         kamera_id=kamera_id,
+        sera_id=sera_id,
         dosya_yolu=dosya_yolu,
         # URL'de kullanildigi icin daima ileri bolu: Windows'ta '\' URL ayraci degildir
         sonuc_yolu=Path(sonuc.sonuc_yolu).relative_to(config.STORAGE_DIR).as_posix() if sonuc.sonuc_yolu else '',
@@ -105,15 +108,17 @@ def _kaydet(sonuc, db: Session, kaynak_tip: str, kaynak_ad: str,
 @app.get('/', response_class=HTMLResponse)
 def anasayfa(request: Request, db: Session = Depends(get_db)):
     kameralar = db.query(Kamera).filter(Kamera.aktif == True).all()  # noqa: E712
+    seralar = db.query(Sera).filter(Sera.aktif == True).all()  # noqa: E712
     son = db.query(Analiz).order_by(Analiz.zaman.desc()).limit(6).all()
     return templates.TemplateResponse(request, 'index.html', {
-        'request': request, 'kameralar': kameralar, 'son': son,
+        'request': request, 'kameralar': kameralar, 'seralar': seralar, 'son': son,
         'model_hazir': detector.hazir, 'model_yolu': config.MODEL_PATH,
     })
 
 
 @app.post('/analiz/dosya')
 async def analiz_dosya(request: Request, dosyalar: List[UploadFile] = File(...),
+                       sera_id: Optional[int] = Form(None),
                        db: Session = Depends(get_db)):
     """Telefondan/bilgisayardan yüklenen fotoğraf ve videoları işler."""
     if not detector.hazir:
@@ -145,7 +150,8 @@ async def analiz_dosya(request: Request, dosyalar: List[UploadFile] = File(...),
             raise HTTPException(500, f'{up.filename}: {e}')
 
         kayitlar.append(_kaydet(sonuc, db, tip, up.filename,
-                                hedef.relative_to(config.STORAGE_DIR).as_posix()))
+                                hedef.relative_to(config.STORAGE_DIR).as_posix(),
+                                sera_id=sera_id))
 
     if not kayitlar:
         raise HTTPException(400, 'İşlenebilir dosya bulunamadı.')
@@ -174,9 +180,10 @@ def analiz_kamera(kamera_id: Optional[int] = Form(None), url: str = Form(''),
     except Exception as e:
         raise HTTPException(502, str(e))
 
-    a = _kaydet(sonuc, db, 'kamera', kam.ad if kam else hedef_url,
+    a = _kaydet(sonuc, db, 'kamera', kam.tam_ad if kam else hedef_url,
                 kaynak.relative_to(config.STORAGE_DIR).as_posix(),
-                kamera_id=kam.id if kam else None)
+                kamera_id=kam.id if kam else None,
+                sera_id=kam.sera_id if kam else None)
     return RedirectResponse(f'/kayit/{a.id}', status_code=303)
 
 
@@ -203,6 +210,7 @@ def kayit(analiz_id: int, request: Request, db: Session = Depends(get_db)):
 
 @app.get('/gecmis', response_class=HTMLResponse)
 def gecmis(request: Request, sinif: str = '', tip: str = '', gun: int = 0,
+           sera_id: int = 0, uretici_id: int = 0,
            db: Session = Depends(get_db)):
     q = db.query(Analiz)
     if sinif:
@@ -211,12 +219,21 @@ def gecmis(request: Request, sinif: str = '', tip: str = '', gun: int = 0,
         q = q.filter(Analiz.kaynak_tip == tip)
     if gun:
         q = q.filter(Analiz.zaman >= datetime.now(timezone.utc) - timedelta(days=gun))
+    if sera_id:
+        q = q.filter(Analiz.sera_id == sera_id)
+    if uretici_id:
+        # Üreticinin tüm seralarındaki kayıtlar
+        sera_idler = [s.id for s in db.query(Sera).filter(Sera.uretici_id == uretici_id)]
+        q = q.filter(Analiz.sera_id.in_(sera_idler or [0]))
     kayitlar = q.order_by(Analiz.zaman.desc()).limit(200).all()
 
     siniflar = [r[0] for r in db.query(Tespit.sinif_adi).distinct().all()]
     return templates.TemplateResponse(request, 'gecmis.html', {
         'request': request, 'kayitlar': kayitlar, 'siniflar': sorted(siniflar),
-        'secili': {'sinif': sinif, 'tip': tip, 'gun': gun},
+        'seralar': db.query(Sera).filter(Sera.aktif == True).all(),  # noqa: E712
+        'ureticiler': db.query(Uretici).filter(Uretici.aktif == True).all(),  # noqa: E712
+        'secili': {'sinif': sinif, 'tip': tip, 'gun': gun,
+                   'sera_id': sera_id, 'uretici_id': uretici_id},
     })
 
 
@@ -236,9 +253,31 @@ def panel(request: Request, db: Session = Depends(get_db)):
               .group_by(func.date(Analiz.zaman))
               .order_by(func.date(Analiz.zaman)).all())
 
+    # Sera bazlı özet: hangi serada kaç analiz, kaç tespit, kaç bekleyen
+    sera_ozet = []
+    for sera in db.query(Sera).filter(Sera.aktif == True).all():  # noqa: E712
+        analizler = db.query(Analiz).filter(Analiz.sera_id == sera.id)
+        n = analizler.count()
+        if not n:
+            sera_ozet.append({'sera': sera, 'analiz': 0, 'tespit': 0,
+                              'bekleyen': 0, 'en_sik': '—'})
+            continue
+        tespitler = (db.query(Tespit.sinif_adi, func.count(Tespit.id))
+                     .join(Analiz).filter(Analiz.sera_id == sera.id)
+                     .group_by(Tespit.sinif_adi)
+                     .order_by(func.count(Tespit.id).desc()).all())
+        sera_ozet.append({
+            'sera': sera, 'analiz': n,
+            'tespit': sum(a for _, a in tespitler),
+            'bekleyen': analizler.filter(Analiz.inceleme_gerekli == True,  # noqa: E712
+                                         Analiz.incelendi == False).count(),  # noqa: E712
+            'en_sik': tespitler[0][0] if tespitler else '—',
+        })
+
     return templates.TemplateResponse(request, 'panel.html', {
         'request': request, 'toplam': toplam, 'bekleyen': bekleyen,
         'sinif_dagilim': sinif_dagilim, 'gunluk': gunluk,
+        'sera_ozet': sorted(sera_ozet, key=lambda x: -x['analiz']),
         'en_yuksek': max((s for _, s in gunluk), default=1),
     })
 
@@ -304,13 +343,15 @@ def inceleme_disa_aktar(db: Session = Depends(get_db)):
 def kameralar(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(request, 'kameralar.html', {
         'request': request, 'kameralar': db.query(Kamera).all(),
+        'seralar': db.query(Sera).filter(Sera.aktif == True).all(),  # noqa: E712
     })
 
 
 @app.post('/kameralar/ekle')
 def kamera_ekle(ad: str = Form(...), url: str = Form(...), konum: str = Form(''),
+                sera_id: Optional[int] = Form(None),
                 db: Session = Depends(get_db)):
-    db.add(Kamera(ad=ad.strip(), url=url.strip(), konum=konum.strip()))
+    db.add(Kamera(ad=ad.strip(), url=url.strip(), konum=konum.strip(), sera_id=sera_id))
     db.commit()
     return RedirectResponse('/kameralar', status_code=303)
 
@@ -322,6 +363,52 @@ def kamera_sil(kamera_id: int, db: Session = Depends(get_db)):
         kam.aktif = False        # kayıtlar bozulmasın diye pasife alınır
         db.commit()
     return RedirectResponse('/kameralar', status_code=303)
+
+
+# ──────────────────────────────────────────────── üretici ve sera yönetimi
+@app.get('/isletmeler', response_class=HTMLResponse)
+def isletmeler(request: Request, db: Session = Depends(get_db)):
+    """Üretici → Sera → Kamera hiyerarşisini tek sayfada yönetir."""
+    return templates.TemplateResponse(request, 'isletmeler.html', {
+        'request': request,
+        'ureticiler': db.query(Uretici).filter(Uretici.aktif == True).all(),  # noqa: E712
+    })
+
+
+@app.post('/ureticiler/ekle')
+def uretici_ekle(ad: str = Form(...), telefon: str = Form(''), eposta: str = Form(''),
+                 notlar: str = Form(''), db: Session = Depends(get_db)):
+    db.add(Uretici(ad=ad.strip(), telefon=telefon.strip(),
+                   eposta=eposta.strip(), notlar=notlar.strip()))
+    db.commit()
+    return RedirectResponse('/isletmeler', status_code=303)
+
+
+@app.post('/ureticiler/{uretici_id}/sil')
+def uretici_sil(uretici_id: int, db: Session = Depends(get_db)):
+    u = db.get(Uretici, uretici_id)
+    if u:
+        u.aktif = False          # geçmiş kayıtlar sahipsiz kalmasın diye pasife alınır
+        db.commit()
+    return RedirectResponse('/isletmeler', status_code=303)
+
+
+@app.post('/seralar/ekle')
+def sera_ekle(uretici_id: int = Form(...), ad: str = Form(...), konum: str = Form(''),
+              urun: str = Form('Çilek'), db: Session = Depends(get_db)):
+    db.add(Sera(uretici_id=uretici_id, ad=ad.strip(),
+                konum=konum.strip(), urun=urun.strip() or 'Çilek'))
+    db.commit()
+    return RedirectResponse('/isletmeler', status_code=303)
+
+
+@app.post('/seralar/{sera_id}/sil')
+def sera_sil(sera_id: int, db: Session = Depends(get_db)):
+    s = db.get(Sera, sera_id)
+    if s:
+        s.aktif = False
+        db.commit()
+    return RedirectResponse('/isletmeler', status_code=303)
 
 
 if __name__ == '__main__':

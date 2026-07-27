@@ -190,3 +190,92 @@ def test_gorseller_tarayicidan_acilabilir(client):
     for y in yollar:
         assert '\\' not in y, f'yolda ters bölü var: {y}'
         assert client.get(y).status_code == 200, f'görsel açılamadı: {y}'
+
+
+# ─────────────────────────────────── Üretici → Sera → Kamera hiyerarşisi
+def _isletme_kur(client, uretici='Ahmet Yılmaz', sera='Sera 1'):
+    client.post('/ureticiler/ekle', data={'ad': uretici, 'telefon': '0532'},
+                follow_redirects=True)
+    from app.database import SessionLocal, Uretici
+    with SessionLocal() as db:
+        u = db.query(Uretici).filter(Uretici.ad == uretici).first()
+    client.post('/seralar/ekle',
+                data={'uretici_id': str(u.id), 'ad': sera, 'konum': 'Kuzey'},
+                follow_redirects=True)
+    from app.database import Sera
+    with SessionLocal() as db:
+        srr = db.query(Sera).filter(Sera.ad == sera, Sera.uretici_id == u.id).first()
+    return u.id, srr.id
+
+
+def test_uretici_sera_ekleme(client):
+    uid, sid = _isletme_kur(client, 'Mehmet Demir', 'Batı Serası')
+    r = client.get('/isletmeler')
+    assert 'Mehmet Demir' in r.text
+    assert 'Batı Serası' in r.text
+
+
+def test_kamera_seraya_baglanir(client):
+    uid, sid = _isletme_kur(client, 'Veli Kaya', 'Sera A')
+    client.post('/kameralar/ekle',
+                data={'ad': 'Giriş', 'url': 'rtsp://1.2.3.4/s',
+                      'konum': '3. sıra', 'sera_id': str(sid)},
+                follow_redirects=True)
+    liste = client.get('/kameralar')
+    # Kamera hangi serada, sera kime ait — hepsi görünmeli
+    assert 'Veli Kaya — Sera A' in liste.text
+    assert 'Giriş' in liste.text
+
+
+def test_kamera_analizi_sera_bilgisi_tasir(client):
+    uid, sid = _isletme_kur(client, 'Ayşe Şahin', 'Sera 2')
+    client.post('/kameralar/ekle',
+                data={'ad': 'Kuzey kamera', 'url': 'rtsp://5.6.7.8/s', 'sera_id': str(sid)},
+                follow_redirects=True)
+    from app.database import SessionLocal, Kamera
+    with SessionLocal() as db:
+        kid = db.query(Kamera).filter(Kamera.ad == 'Kuzey kamera').first().id
+
+    r = client.post('/analiz/kamera', data={'kamera_id': str(kid)}, follow_redirects=True)
+    assert r.status_code == 200
+    assert 'Ayşe Şahin — Sera 2 / Kuzey kamera' in r.text
+
+    with SessionLocal() as db:
+        from app.database import Analiz
+        a = db.query(Analiz).order_by(Analiz.id.desc()).first()
+        assert a.sera_id == sid, 'kamera analizinde sera_id kameradan türetilmeli'
+
+
+def test_telefon_yuklemesinde_sera_secilebilir(client):
+    uid, sid = _isletme_kur(client, 'Fatma Öz', 'Sera 3')
+    r = client.post('/analiz/dosya',
+                    data={'sera_id': str(sid)},
+                    files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')},
+                    follow_redirects=True)
+    assert 'Fatma Öz — Sera 3' in r.text
+
+
+def test_gecmis_sera_filtresi(client):
+    uid1, sid1 = _isletme_kur(client, 'Üretici A', 'A-Sera')
+    uid2, sid2 = _isletme_kur(client, 'Üretici B', 'B-Sera')
+    client.post('/analiz/dosya', data={'sera_id': str(sid1)},
+                files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')}, follow_redirects=True)
+
+    sadece_a = client.get(f'/gecmis?sera_id={sid1}')
+    assert 'A-Sera' in sadece_a.text
+    sadece_b = client.get(f'/gecmis?sera_id={sid2}')
+    assert 'Kayıt bulunamadı' in sadece_b.text
+
+    uretici_a = client.get(f'/gecmis?uretici_id={uid1}')
+    assert 'A-Sera' in uretici_a.text
+    uretici_b = client.get(f'/gecmis?uretici_id={uid2}')
+    assert 'Kayıt bulunamadı' in uretici_b.text
+
+
+def test_panel_sera_bazli_ozet(client):
+    uid, sid = _isletme_kur(client, 'Panel Üretici', 'Panel Sera')
+    client.post('/analiz/dosya', data={'sera_id': str(sid)},
+                files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')}, follow_redirects=True)
+    p = client.get('/panel')
+    assert 'Sera Bazlı Özet' in p.text
+    assert 'Panel Üretici — Panel Sera' in p.text

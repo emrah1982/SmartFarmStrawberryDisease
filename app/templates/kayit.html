@@ -11,6 +11,7 @@
     {% if a.kaynak_tip == 'video' %} · {{ a.islenen_kare }} kare örneklendi{% endif %}
     · {{ a.sure_ms }} ms
   </p>
+  <p><span class="rozet">📍 {{ a.yer }}</span></p>
 
   {% if a.sonuc_yolu %}
   <img class="buyuk" src="/media/{{ a.sonuc_yolu }}" alt="Tespit sonucu">

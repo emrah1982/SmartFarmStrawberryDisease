@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block baslik %}İşletmeler{% endblock %}
+{% block icerik %}
+
+<section class="kart">
+  <h2>🏢 Üretici Ekle</h2>
+  <p class="ipucu">Sera sahibi / müşteri. Her üreticinin birden çok serası olabilir.</p>
+  <form action="/ureticiler/ekle" method="post">
+    <label>Ad / Firma<input type="text" name="ad" required placeholder="Ahmet Yılmaz"></label>
+    <div class="satir">
+      <label style="flex:1">Telefon<input type="text" name="telefon" placeholder="0532 ..."></label>
+      <label style="flex:1">E-posta<input type="text" name="eposta" placeholder="ornek@mail.com"></label>
+    </div>
+    <label>Not<input type="text" name="notlar" placeholder="isteğe bağlı"></label>
+    <button class="btn btn-birincil" type="submit">Üretici Ekle</button>
+  </form>
+</section>
+
+{% for u in ureticiler %}
+<section class="kart">
+  <h2>👤 {{ u.ad }}</h2>
+  <p class="ipucu">
+    {% if u.telefon %}📞 {{ u.telefon }}{% endif %}
+    {% if u.eposta %} · ✉️ {{ u.eposta }}{% endif %}
+    {% if u.notlar %} · {{ u.notlar }}{% endif %}
+    · {{ u.aktif_seralar|length }} sera
+  </p>
+
+  {% if u.aktif_seralar %}
+  <table>
+    <tr><th>Sera</th><th>Konum</th><th>Ürün</th><th>Kamera</th><th></th></tr>
+    {% for s in u.aktif_seralar %}
+    <tr>
+      <td><strong>{{ s.ad }}</strong></td>
+      <td>{{ s.konum or '—' }}</td>
+      <td>{{ s.urun }}</td>
+      <td>
+        {% if s.aktif_kameralar %}
+          {% for k in s.aktif_kameralar %}
+            <span class="rozet">{{ k.ad }}</span>
+          {% endfor %}
+        {% else %}
+          <a href="/kameralar">kamera ekle</a>
+        {% endif %}
+      </td>
+      <td>
+        <form action="/seralar/{{ s.id }}/sil" method="post">
+          <button class="btn kucuk" type="submit">Pasife al</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="ipucu">Bu üreticiye ait sera yok.</p>
+  {% endif %}
+
+  <details style="margin-top:.8rem">
+    <summary>➕ {{ u.ad }} için sera ekle</summary>
+    <form action="/seralar/ekle" method="post" style="margin-top:.6rem">
+      <input type="hidden" name="uretici_id" value="{{ u.id }}">
+      <div class="satir">
+        <label style="flex:1">Sera adı<input type="text" name="ad" required placeholder="Sera 1"></label>
+        <label style="flex:1">Konum<input type="text" name="konum" placeholder="Kuzey blok / parsel no"></label>
+        <label style="flex:1">Ürün<input type="text" name="urun" value="Çilek"></label>
+      </div>
+      <button class="btn" type="submit">Sera Ekle</button>
+    </form>
+  </details>
+
+  <details style="margin-top:.4rem">
+    <summary>Üreticiyi pasife al</summary>
+    <form action="/ureticiler/{{ u.id }}/sil" method="post" style="margin-top:.5rem">
+      <button class="btn kucuk" type="submit">Pasife al</button>
+      <span class="ipucu">Geçmiş kayıtlar silinmez, yalnızca listelerden kaldırılır.</span>
+    </form>
+  </details>
+</section>
+{% else %}
+<section class="kart">
+  <p class="ipucu">
+    Henüz üretici eklenmedi. Önce üretici, sonra sera, en son kamera ekleyin —
+    böylece her analiz "kimin serasında, hangi kamerada" bilgisiyle kaydedilir.
+  </p>
+</section>
+{% endfor %}
+{% endblock %}

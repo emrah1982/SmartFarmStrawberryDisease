@@ -484,6 +484,30 @@ Açılan adresler:
 - **Telefondan** (aynı Wi-Fi): `http://<bilgisayarın-IP-adresi>:8000`
   (IP'yi öğrenmek için Windows'ta `ipconfig`)
 
+#### İşletme yapısı: Üretici → Sera → Kamera
+
+Birden çok sera ve müşteriyle çalışırken "hangi hastalık, kimin serasında, hangi
+kamerada" sorusunun cevabı kayıtlarda tutulur:
+
+```
+Üretici (Ahmet Yılmaz)
+└── Sera 1 (Kuzey blok, Çilek)
+    ├── Kamera: Giriş
+    └── Kamera: 3. sıra
+└── Sera 2 (Güney blok)
+    └── Kamera: Orta koridor
+```
+
+- **Kamera analizleri** sera bilgisini kameradan otomatik alır.
+- **Telefon yüklemelerinde** hangi seraya ait olduğu açılır listeden seçilir.
+- `sera_id` analiz kaydında **ayrıca saklanır**: kamera silinse veya başka seraya
+  taşınsa bile geçmiş kaydın hangi seraya ait olduğu kaybolmaz.
+- Üretici/sera/kamera silinmez, **pasife alınır** — geçmiş kayıtlar sahipsiz kalmasın.
+
+Yönetim: **İşletmeler** sayfası (üretici + sera), **Kameralar** sayfası (kamera → sera).
+Geçmiş sayfasında üretici ve sera filtreleri, Panel'de sera bazlı özet tablosu
+(analiz, tespit, en sık hastalık, bekleyen inceleme) bulunur.
+
 ### 🐳 Docker ile çalıştırma (önerilen)
 
 Docker, Python/CUDA sürüm karmaşasını ortadan kaldırır: aynı imaj sizin

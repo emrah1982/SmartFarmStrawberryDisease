@@ -5,6 +5,18 @@
 <section class="kart">
   <h2>Geçmiş Analizler</h2>
   <form class="satir" method="get">
+    <select name="uretici_id">
+      <option value="0">Tüm üreticiler</option>
+      {% for u in ureticiler %}
+      <option value="{{ u.id }}" {% if secili.uretici_id == u.id %}selected{% endif %}>{{ u.ad }}</option>
+      {% endfor %}
+    </select>
+    <select name="sera_id">
+      <option value="0">Tüm seralar</option>
+      {% for s in seralar %}
+      <option value="{{ s.id }}" {% if secili.sera_id == s.id %}selected{% endif %}>{{ s.tam_ad }}</option>
+      {% endfor %}
+    </select>
     <select name="sinif">
       <option value="">Tüm sınıflar</option>
       {% for s in siniflar %}
@@ -34,6 +46,7 @@
     {% if a.sonuc_yolu %}<img src="/media/{{ a.sonuc_yolu }}" alt="">{% else %}<div class="bos">görsel yok</div>{% endif %}
     <span class="etiket {% if a.tespit_sayisi %}var{% endif %}">{{ a.ozet }}</span>
     <small>
+      {{ a.yer }}<br>
       {{ a.zaman|yerel }} ·
       {{ {'foto':'📷','video':'🎞️','kamera':'📹'}.get(a.kaynak_tip, '') }}
       {% if a.inceleme_gerekli and not a.incelendi %} · ⚠️{% endif %}

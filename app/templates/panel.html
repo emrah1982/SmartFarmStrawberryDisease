@@ -21,6 +21,26 @@
 </section>
 
 <section class="kart">
+  <h2>Sera Bazlı Özet</h2>
+  {% if sera_ozet %}
+  <table>
+    <tr><th>Üretici / Sera</th><th>Analiz</th><th>Tespit</th><th>En sık</th><th>Bekleyen</th></tr>
+    {% for r in sera_ozet %}
+    <tr>
+      <td>{{ r.sera.tam_ad }}</td>
+      <td>{{ r.analiz }}</td>
+      <td>{{ r.tespit }}</td>
+      <td>{{ r.en_sik }}</td>
+      <td>{% if r.bekleyen %}<span class="rozet orta">{{ r.bekleyen }}</span>{% else %}—{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="ipucu">Sera tanımlı değil — <a href="/isletmeler">üretici ve sera ekleyin</a>.</p>
+  {% endif %}
+</section>
+
+<section class="kart">
   <h2>Sınıf Dağılımı</h2>
   {% if sinif_dagilim %}
   {% set enbuyuk = sinif_dagilim[0][1] %}

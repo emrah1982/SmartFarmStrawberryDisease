@@ -1,13 +1,18 @@
 """Veritabanı modelleri ve oturum yönetimi.
 
-SQLAlchemy kullanılır; böylece SQLite → PostgreSQL geçişi yalnızca
-DATABASE_URL değişikliğiyle yapılır, kod değişmez.
+Hiyerarşi:  Üretici → Sera → Kamera → Analiz
+
+Bu ayrım baştan kurulur: "hangi hastalık, kimin serasında, hangi kamerada"
+sorusunu sonradan eklemek tüm geçmiş kayıtları sahipsiz bırakırdı.
+
+SQLAlchemy kullanılır; SQLite → PostgreSQL geçişi yalnızca DATABASE_URL
+değişikliğidir, kod değişmez.
 """
 
 from datetime import datetime, timezone
 
 from sqlalchemy import (Boolean, Column, DateTime, Float, ForeignKey, Integer,
-                        String, Text, create_engine, func)
+                        String, Text, create_engine, inspect, text)
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 from app import config
@@ -26,18 +31,73 @@ def simdi():
     return datetime.now(timezone.utc)
 
 
-class Kamera(Base):
-    """Kayıtlı IP kamera. İsteğe bağlı anlık çekim için kullanılır."""
-    __tablename__ = 'kameralar'
+class Uretici(Base):
+    """Sera sahibi / müşteri. Birden çok serası olabilir."""
+    __tablename__ = 'ureticiler'
 
     id = Column(Integer, primary_key=True)
-    ad = Column(String(120), nullable=False)
-    url = Column(Text, nullable=False)          # rtsp://... veya http://.../snapshot
-    konum = Column(String(200), default='')     # "Sera 1 - Kuzey blok"
+    ad = Column(String(160), nullable=False)
+    telefon = Column(String(40), default='')
+    eposta = Column(String(160), default='')
+    notlar = Column(Text, default='')
     aktif = Column(Boolean, default=True)
     olusturma = Column(DateTime, default=simdi)
 
+    seralar = relationship('Sera', back_populates='uretici',
+                           order_by='Sera.ad')
+
+    @property
+    def aktif_seralar(self):
+        return [s for s in self.seralar if s.aktif]
+
+
+class Sera(Base):
+    """Tek bir sera/tarla birimi. Bir üreticiye aittir, birden çok kamerası olabilir."""
+    __tablename__ = 'seralar'
+
+    id = Column(Integer, primary_key=True)
+    uretici_id = Column(Integer, ForeignKey('ureticiler.id'), index=True)
+
+    ad = Column(String(160), nullable=False)          # "Sera 1", "Kuzey blok"
+    konum = Column(String(240), default='')           # adres / parsel
+    urun = Column(String(120), default='Çilek')
+    aktif = Column(Boolean, default=True)
+    olusturma = Column(DateTime, default=simdi)
+
+    uretici = relationship('Uretici', back_populates='seralar')
+    kameralar = relationship('Kamera', back_populates='sera', order_by='Kamera.ad')
+    analizler = relationship('Analiz', back_populates='sera')
+
+    @property
+    def tam_ad(self):
+        """'Ahmet Yılmaz — Sera 1' biçiminde, listelerde kullanılır."""
+        return f'{self.uretici.ad} — {self.ad}' if self.uretici else self.ad
+
+    @property
+    def aktif_kameralar(self):
+        return [k for k in self.kameralar if k.aktif]
+
+
+class Kamera(Base):
+    """Bir seraya bağlı IP kamera."""
+    __tablename__ = 'kameralar'
+
+    id = Column(Integer, primary_key=True)
+    sera_id = Column(Integer, ForeignKey('seralar.id'), index=True, nullable=True)
+
+    ad = Column(String(120), nullable=False)          # "Giriş", "3. sıra"
+    url = Column(Text, nullable=False)                # rtsp://... veya http://.../snapshot
+    konum = Column(String(200), default='')           # sera içindeki yer: "A blok, 3. sıra"
+    aktif = Column(Boolean, default=True)
+    olusturma = Column(DateTime, default=simdi)
+
+    sera = relationship('Sera', back_populates='kameralar')
     analizler = relationship('Analiz', back_populates='kamera')
+
+    @property
+    def tam_ad(self):
+        """'Ahmet Yılmaz — Sera 1 / Giriş' — hangi kamera, hangi serada, kime ait."""
+        return f'{self.sera.tam_ad} / {self.ad}' if self.sera else self.ad
 
 
 class Analiz(Base):
@@ -49,7 +109,12 @@ class Analiz(Base):
 
     kaynak_tip = Column(String(20), index=True)   # foto | video | kamera
     kaynak_ad = Column(String(255), default='')   # dosya adı veya kamera adı
-    kamera_id = Column(Integer, ForeignKey('kameralar.id'), nullable=True)
+
+    # Kamera analizlerinde kameradan türetilir; telefon yüklemelerinde kullanıcı seçer.
+    # sera_id ayrıca saklanır: kamera silinse/değişse bile kaydın hangi seraya ait
+    # olduğu kaybolmasın.
+    kamera_id = Column(Integer, ForeignKey('kameralar.id'), nullable=True, index=True)
+    sera_id = Column(Integer, ForeignKey('seralar.id'), nullable=True, index=True)
 
     dosya_yolu = Column(Text, default='')         # yüklenen orijinal (göreli)
     sonuc_yolu = Column(Text, default='')         # kutulanmış görsel (göreli)
@@ -69,6 +134,7 @@ class Analiz(Base):
     tespitler = relationship('Tespit', back_populates='analiz',
                              cascade='all, delete-orphan')
     kamera = relationship('Kamera', back_populates='analizler')
+    sera = relationship('Sera', back_populates='analizler')
 
     @property
     def ozet(self):
@@ -79,6 +145,15 @@ class Analiz(Base):
         if not sayac:
             return 'tespit yok'
         return ', '.join(f'{k} x{v}' for k, v in sorted(sayac.items(), key=lambda x: -x[1]))
+
+    @property
+    def yer(self):
+        """Kaydın nereye ait olduğu: 'Ahmet Yılmaz — Sera 1 / Giriş'."""
+        if self.kamera:
+            return self.kamera.tam_ad
+        if self.sera:
+            return self.sera.tam_ad
+        return 'atanmamış'
 
 
 class Tespit(Base):
@@ -102,8 +177,30 @@ class Tespit(Base):
     analiz = relationship('Analiz', back_populates='tespitler')
 
 
+def _eksik_sutunlari_ekle():
+    """Mevcut veritabanına sonradan eklenen sütunları ekler.
+
+    Hiyerarşi (üretici/sera) sonradan geldiği için eski kayıt dosyalarında bu
+    sütunlar yoktur. Veritabanını silmeye gerek kalmadan güncellenir.
+    """
+    denetci = inspect(engine)
+    if 'kameralar' not in denetci.get_table_names():
+        return
+    yeni = {
+        'kameralar': {'sera_id': 'INTEGER'},
+        'analizler': {'sera_id': 'INTEGER'},
+    }
+    with engine.begin() as baglanti:
+        for tablo, sutunlar in yeni.items():
+            mevcut = {s['name'] for s in denetci.get_columns(tablo)}
+            for ad, tip in sutunlar.items():
+                if ad not in mevcut:
+                    baglanti.execute(text(f'ALTER TABLE {tablo} ADD COLUMN {ad} {tip}'))
+
+
 def init_db():
     Base.metadata.create_all(engine)
+    _eksik_sutunlari_ekle()
 
 
 def get_db():

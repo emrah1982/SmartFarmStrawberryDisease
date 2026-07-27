@@ -36,6 +36,7 @@
     </a>
     <span class="etiket {% if a.tespit_sayisi %}var{% endif %}">{{ a.ozet }}</span>
     <small>
+      {{ a.yer }}<br>
       {{ a.zaman|yerel }} ·
       {% if a.tespit_sayisi %}en düşük güven %{{ (a.min_guven*100)|round|int }}{% else %}tespit yok{% endif %}
     </small>

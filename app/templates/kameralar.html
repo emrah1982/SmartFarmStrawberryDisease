@@ -5,7 +5,17 @@
 <section class="kart">
   <h2>📹 Kamera Ekle</h2>
   <form action="/kameralar/ekle" method="post">
-    <label>Ad<input type="text" name="ad" required placeholder="Sera 1 - Kuzey"></label>
+    {% if seralar %}
+    <label>Sera
+      <select name="sera_id" required>
+        {% for s in seralar %}<option value="{{ s.id }}">{{ s.tam_ad }}</option>{% endfor %}
+      </select>
+    </label>
+    {% else %}
+    <p class="uyari">Önce <a href="/isletmeler">üretici ve sera tanımlayın</a> —
+      kameranın hangi seraya ait olduğu bilinmeli.</p>
+    {% endif %}
+    <label>Kamera adı<input type="text" name="ad" required placeholder="Giriş / 3. sıra"></label>
     <label>URL<input type="text" name="url" required
       placeholder="rtsp://kullanici:parola@192.168.1.50:554/stream1"></label>
     <label>Konum (isteğe bağlı)<input type="text" name="konum" placeholder="A blok, 3. sıra"></label>
@@ -31,10 +41,11 @@
   <h2>Kayıtlı Kameralar</h2>
   {% if kameralar %}
   <table>
-    <tr><th>Ad</th><th>Konum</th><th>Durum</th><th></th></tr>
+    <tr><th>Kamera</th><th>Sera / Üretici</th><th>Konum</th><th>Durum</th><th></th></tr>
     {% for k in kameralar %}
     <tr>
       <td>{{ k.ad }}<br><small class="ipucu">{{ k.url }}</small></td>
+      <td>{% if k.sera %}{{ k.sera.tam_ad }}{% else %}<span class="ipucu">atanmamış</span>{% endif %}</td>
       <td>{{ k.konum }}</td>
       <td>{% if k.aktif %}aktif{% else %}pasif{% endif %}</td>
       <td>

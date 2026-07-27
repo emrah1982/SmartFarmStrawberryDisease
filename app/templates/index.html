@@ -15,6 +15,19 @@
   <p class="ipucu">Telefondan çekim yapabilir veya galeriden seçebilirsiniz. Birden fazla dosya seçilebilir.</p>
 
   <form action="/analiz/dosya" method="post" enctype="multipart/form-data" id="yuklemeForm">
+    {% if seralar %}
+    <label>Hangi sera? <small class="ipucu">(kaydın kime/nereye ait olduğu için)</small>
+      <select name="sera_id">
+        <option value="">— seçilmedi —</option>
+        {% for s in seralar %}
+        <option value="{{ s.id }}">{{ s.tam_ad }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% else %}
+    <p class="ipucu">💡 <a href="/isletmeler">Üretici ve sera tanımlarsanız</a>
+      her analiz hangi seraya ait olduğuyla birlikte kaydedilir.</p>
+    {% endif %}
     <div class="butonlar">
       <label class="btn btn-birincil">
         📷 Kamerayla Çek
@@ -35,7 +48,7 @@
   <form action="/analiz/kamera" method="post" class="satir">
     <select name="kamera_id" required>
       {% for k in kameralar %}
-      <option value="{{ k.id }}">{{ k.ad }}{% if k.konum %} — {{ k.konum }}{% endif %}</option>
+      <option value="{{ k.id }}">{{ k.tam_ad }}{% if k.konum %} ({{ k.konum }}){% endif %}</option>
       {% endfor %}
     </select>
     <button class="btn btn-birincil" type="submit">Görüntü Al ve Analiz Et</button>
@@ -61,7 +74,7 @@
     <a class="onizleme" href="/kayit/{{ a.id }}">
       {% if a.sonuc_yolu %}<img src="/media/{{ a.sonuc_yolu }}" alt="">{% else %}<div class="bos">görsel yok</div>{% endif %}
       <span class="etiket {% if a.tespit_sayisi %}var{% endif %}">{{ a.ozet }}</span>
-      <small>{{ a.zaman|yerel }}</small>
+      <small>{{ a.zaman|yerel }}<br>{{ a.yer }}</small>
     </a>
     {% endfor %}
   </div>
