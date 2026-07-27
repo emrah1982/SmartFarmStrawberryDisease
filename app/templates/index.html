@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block icerik %}
+
+{% if not model_hazir %}
+<div class="uyari">
+  <strong>⚠️ Model bulunamadı.</strong>
+  Eğitilmiş <code>best.pt</code> dosyasını şu konuma koyun:<br>
+  <code>{{ model_yolu }}</code><br>
+  Model olmadan analiz yapılamaz.
+</div>
+{% endif %}
+
+<section class="kart">
+  <h2>📱 Fotoğraf / Video Yükle</h2>
+  <p class="ipucu">Telefondan çekim yapabilir veya galeriden seçebilirsiniz. Birden fazla dosya seçilebilir.</p>
+
+  <form action="/analiz/dosya" method="post" enctype="multipart/form-data" id="yuklemeForm">
+    <div class="butonlar">
+      <label class="btn btn-birincil">
+        📷 Kamerayla Çek
+        <input type="file" name="dosyalar" accept="image/*" capture="environment" hidden onchange="gonder(this)">
+      </label>
+      <label class="btn">
+        🖼️ Galeriden Seç
+        <input type="file" name="dosyalar" accept="image/*,video/*" multiple hidden onchange="gonder(this)">
+      </label>
+    </div>
+    <p class="durum" id="durum"></p>
+  </form>
+</section>
+
+<section class="kart">
+  <h2>📹 IP Kameradan Anlık Görüntü</h2>
+  {% if kameralar %}
+  <form action="/analiz/kamera" method="post" class="satir">
+    <select name="kamera_id" required>
+      {% for k in kameralar %}
+      <option value="{{ k.id }}">{{ k.ad }}{% if k.konum %} — {{ k.konum }}{% endif %}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-birincil" type="submit">Görüntü Al ve Analiz Et</button>
+  </form>
+  {% else %}
+  <p class="ipucu">Kayıtlı kamera yok. <a href="/kameralar">Kamera ekleyin</a> veya aşağıya doğrudan URL girin.</p>
+  {% endif %}
+
+  <details>
+    <summary>Tek seferlik URL ile dene</summary>
+    <form action="/analiz/kamera" method="post" class="satir" style="margin-top:.6rem">
+      <input type="text" name="url" placeholder="rtsp://kullanici:parola@192.168.1.50:554/stream1">
+      <button class="btn" type="submit">Analiz Et</button>
+    </form>
+  </details>
+</section>
+
+{% if son %}
+<section class="kart">
+  <h2>Son Analizler</h2>
+  <div class="izgara">
+    {% for a in son %}
+    <a class="onizleme" href="/kayit/{{ a.id }}">
+      {% if a.sonuc_yolu %}<img src="/media/{{ a.sonuc_yolu }}" alt="">{% else %}<div class="bos">görsel yok</div>{% endif %}
+      <span class="etiket {% if a.tespit_sayisi %}var{% endif %}">{{ a.ozet }}</span>
+      <small>{{ a.zaman|yerel }}</small>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<script>
+function gonder(input) {
+  if (!input.files.length) return;
+  document.getElementById('durum').textContent =
+    input.files.length + ' dosya işleniyor, lütfen bekleyin...';
+  // Seçilen input'u forma taşı ve gönder
+  const form = document.getElementById('yuklemeForm');
+  Array.from(form.querySelectorAll('input[type=file]')).forEach(i => {
+    if (i !== input) i.disabled = true;
+  });
+  form.submit();
+}
+</script>
+{% endblock %}

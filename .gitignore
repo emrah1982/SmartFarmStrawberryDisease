@@ -54,3 +54,6 @@ htmlcov/
 
 # Node (olası örnekler)
 node_modules/
+
+# Uygulama verileri (yuklenen gorseller, sonuclar, SQLite)
+storage/

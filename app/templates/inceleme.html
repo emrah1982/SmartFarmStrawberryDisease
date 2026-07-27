@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block baslik %}İnceleme Kuyruğu{% endblock %}
+{% block icerik %}
+
+<section class="kart">
+  <h2>🔍 İnceleme Kuyruğu</h2>
+  <p>
+    Modelin <strong>zorlandığı</strong> kayıtlar burada toplanır: güveni %{{ (esik*100)|round|int }}
+    altında kalan tespitler ve hiç tespit üretilemeyen görüntüler.
+  </p>
+  <p class="ipucu">
+    Neden önemli: modelin zaten emin olduğu kareyi etiketlemek ona yeni bir şey öğretmez.
+    Asıl kazanım, kararsız kaldığı örneklerin düzeltilip eğitime katılmasındadır.
+  </p>
+
+  {% if kayitlar %}
+  <form action="/inceleme/disa-aktar" method="post">
+    <button class="btn btn-birincil" type="submit">
+      ⬇️ {{ kayitlar|length }} kaydı ön-etiketleriyle dışa aktar
+    </button>
+  </form>
+  <p class="ipucu">
+    Çıktı <code>storage/exports/</code> altına yazılır (görüntüler + YOLO ön-etiketleri).
+    Bu klasörü Roboflow'a yükleyip etiketleri düzeltin, sonra
+    <code>merge_datasets.py</code> ile ana dataset'e katın.
+  </p>
+  {% endif %}
+</section>
+
+{% if kayitlar %}
+<div class="izgara">
+  {% for a in kayitlar %}
+  <div class="onizleme">
+    <a href="/kayit/{{ a.id }}">
+      {% if a.sonuc_yolu %}<img src="/media/{{ a.sonuc_yolu }}" alt="">{% else %}<div class="bos">görsel yok</div>{% endif %}
+    </a>
+    <span class="etiket {% if a.tespit_sayisi %}var{% endif %}">{{ a.ozet }}</span>
+    <small>
+      {{ a.zaman|yerel }} ·
+      {% if a.tespit_sayisi %}en düşük güven %{{ (a.min_guven*100)|round|int }}{% else %}tespit yok{% endif %}
+    </small>
+    <form action="/inceleme/{{ a.id }}/tamam" method="post">
+      <button class="btn kucuk" type="submit">✓ İncelendi</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="ipucu">Kuyruk boş — inceleme bekleyen kayıt yok.</p>
+{% endif %}
+{% endblock %}

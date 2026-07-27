@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block baslik %}Analiz #{{ a.id }}{% endblock %}
+{% block icerik %}
+
+<section class="kart">
+  <h2>Analiz #{{ a.id }}</h2>
+  <p class="ipucu">
+    {{ a.zaman|yerel }} ·
+    {{ {'foto':'📷 Fotoğraf','video':'🎞️ Video','kamera':'📹 Kamera'}.get(a.kaynak_tip, a.kaynak_tip) }}
+    {% if a.kaynak_ad %} · {{ a.kaynak_ad }}{% endif %}
+    {% if a.kaynak_tip == 'video' %} · {{ a.islenen_kare }} kare örneklendi{% endif %}
+    · {{ a.sure_ms }} ms
+  </p>
+
+  {% if a.sonuc_yolu %}
+  <img class="buyuk" src="/media/{{ a.sonuc_yolu }}" alt="Tespit sonucu">
+  {% else %}
+  <p class="ipucu">Görsel çıktı üretilemedi.</p>
+  {% endif %}
+</section>
+
+{% if a.tespit_sayisi == 0 %}
+<section class="kart">
+  <h3>⬜ Tespit yok</h3>
+  <p>Model bu görüntüde hastalık veya meyve tespit etmedi. İki olasılık var:</p>
+  <ul>
+    <li><strong>Bitki sağlıklı</strong> — bu görüntü eğitim için değerli bir "background" örneğidir.</li>
+    <li><strong>Model kaçırmış olabilir</strong> — gözle kontrol edin; hastalık varsa bu kayıt
+      etiketlenip eğitime katıldığında model belirgin şekilde iyileşir.</li>
+  </ul>
+  <p class="ipucu">Bu kayıt otomatik olarak <a href="/inceleme">inceleme kuyruğuna</a> alındı.</p>
+</section>
+{% else %}
+
+<section class="kart">
+  <h3>Tespit Özeti</h3>
+  <table>
+    <tr><th>Sınıf</th><th>Adet</th><th>En yüksek güven</th></tr>
+    {% for ad, g in gruplar %}
+    <tr>
+      <td>{% if g.tedavi.ad %}{{ g.tedavi.ad }} <small>({{ ad }})</small>{% else %}{{ ad }}{% endif %}</td>
+      <td>{{ g.adet }}</td>
+      <td>
+        <span class="rozet {% if g.max_guven >= 0.75 %}yuksek{% elif g.max_guven >= 0.5 %}orta{% else %}dusuk{% endif %}">
+          %{{ (g.max_guven * 100)|round|int }}
+        </span>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% if a.inceleme_gerekli %}
+  <p class="ipucu">⚠️ Düşük güvenli tespit içerdiği için <a href="/inceleme">inceleme kuyruğunda</a>.</p>
+  {% endif %}
+</section>
+
+{% for ad, g in gruplar %}
+{% if g.tedavi %}
+<section class="kart oneri {{ g.tedavi.aciliyet }}">
+  <h3>
+    {{ g.tedavi.ad or ad }}
+    {% if g.tedavi.aciliyet == 'yuksek' %}<span class="rozet dusuk">acil</span>
+    {% elif g.tedavi.aciliyet == 'orta' %}<span class="rozet orta">takip</span>
+    {% elif g.tedavi.aciliyet == 'bilgi' %}<span class="rozet">bilgi</span>{% endif %}
+  </h3>
+  {% if g.tedavi.etken and g.tedavi.etken != '-' %}
+  <p><strong>Etken:</strong> {{ g.tedavi.etken }}</p>
+  {% endif %}
+  {% if g.tedavi.belirti %}<p><strong>Belirti:</strong> {{ g.tedavi.belirti }}</p>{% endif %}
+  {% if g.tedavi.onlem %}
+  <p><strong>Yapılacaklar:</strong></p>
+  <ul>{% for o in g.tedavi.onlem %}<li>{{ o }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if g.tedavi.uzman %}<p class="ipucu">👨‍🌾 {{ g.tedavi.uzman }}</p>{% endif %}
+</section>
+{% endif %}
+{% endfor %}
+
+<section class="kart">
+  <details>
+    <summary>Tüm tespitler ({{ a.tespit_sayisi }})</summary>
+    <table style="margin-top:.6rem">
+      <tr><th>#</th><th>Sınıf</th><th>Güven</th>{% if a.kaynak_tip == 'video' %}<th>Kare</th>{% endif %}</tr>
+      {% for t in a.tespitler %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ t.sinif_adi }}</td>
+        <td>%{{ (t.guven * 100)|round|int }}</td>
+        {% if a.kaynak_tip == 'video' %}<td>{{ t.kare }}</td>{% endif %}
+      </tr>
+      {% endfor %}
+    </table>
+  </details>
+</section>
+{% endif %}
+
+<p><a href="/gecmis">← Geçmişe dön</a></p>
+{% endblock %}

@@ -462,6 +462,95 @@ hsv_s: 0.5         # Renk hastalık sinyalidir; agresif augmentasyon ipuçların
 - `hsv_s: 0.5`, `hsv_h: 0.02` — Hastalık teşhisinde renk (kahverengi leke, gri küf, beyaz külleme) ayırt edici özelliktir; agresif renk augmentasyonu sınıflar arası renk ipuçlarını yok eder.
 - Not: YOLO26 DFL-free ve NMS-free olduğu için config'deki `dfl` ve inference `iou` eşiği YOLO26'da etkisizdir; YOLOv8'e dönerseniz tekrar geçerli olurlar.
 
+## 🖥️ Web Arayüzü (Sahada Kullanım)
+
+Eğitilmiş modeli günlük kullanıma açan yerel web uygulaması. Telefondan fotoğraf/video
+yükleyin veya IP kameradan anlık görüntü alın; sonuçlar veritabanına kaydedilsin.
+
+### Kurulum ve çalıştırma
+
+```bash
+pip install -r requirements-app.txt
+
+# Eğitilmiş modeli yerleştirin
+#   Drive: MyDrive/SmartFarmStrawberryDisease/best_models/best_*.pt
+#   →      models/best.pt
+
+python -m app.main
+```
+
+Açılan adresler:
+- Bu bilgisayarda: `http://localhost:8000`
+- **Telefondan** (aynı Wi-Fi): `http://<bilgisayarın-IP-adresi>:8000`
+  (IP'yi öğrenmek için Windows'ta `ipconfig`)
+
+### Neler yapabilir
+
+| Sayfa | İşlev |
+|---|---|
+| **Analiz** | Telefon kamerasıyla çekim, galeriden fotoğraf/video yükleme, IP kameradan anlık görüntü |
+| **Kayıt** | Kutulanmış sonuç + sınıf bazlı özet + **hastalığa özel yönetim önerisi** |
+| **Geçmiş** | Tüm analizler; sınıfa, kaynağa ve tarihe göre filtreleme |
+| **İnceleme** | Modelin zorlandığı kayıtlar — ön-etiketleriyle dışa aktarılır |
+| **Panel** | Toplam analiz, sınıf dağılımı, 30 günlük trend |
+| **Kameralar** | RTSP/HTTP kamera tanımlama |
+
+### Sürekli iyileştirme ile bağlantısı
+
+Güveni `REVIEW_THRESHOLD` (varsayılan %55) altında kalan veya hiç tespit üretmeyen her
+analiz **otomatik olarak inceleme kuyruğuna** düşer. Kuyruktaki kayıtları tek tuşla
+ön-etiketleriyle dışa aktarır (`storage/exports/`), Roboflow'da düzeltir ve
+`merge_datasets.py` ile ana dataset'e katarsınız. Böylece sahadaki her kullanım
+bir sonraki modeli besler — bkz. [Sürekli İyileştirme](#-sahadan-gelen-veriyle-sürekli-iyileştirme).
+
+### Teşhisin yanında eylem önerisi
+
+Çiftçi "Gray Mold %87" değil **"ne yapmalıyım?"** cevabını ister. Her tespitin yanında
+[configs/tedavi_onerileri.yaml](configs/tedavi_onerileri.yaml)'dan gelen etken bilgisi,
+belirti ve kültürel önlem listesi gösterilir.
+
+> ⚠️ Bu dosyada **ilaç adı ve dozu bilinçli olarak yoktur.** Ruhsatlı ilaçlar ülkeye,
+> ürüne ve döneme göre değişir; yanlış tavsiye hem yasal sorumluluk hem ürün kaybı
+> doğurur. Metinler kültürel önlem ve izleme tavsiyesidir; kimyasal müdahale kararı
+> için ziraat mühendisine danışılmalıdır. Kendi bölgenize göre düzenleyebilirsiniz.
+
+### Yapılandırma
+
+Ortam değişkenleriyle ayarlanır (bkz. [app/config.py](app/config.py)):
+
+| Değişken | Varsayılan | Açıklama |
+|---|---|---|
+| `MODEL_PATH` | `models/best.pt` | Model dosyası |
+| `CONF_THRESHOLD` | `0.25` | Tespit güven eşiği |
+| `REVIEW_THRESHOLD` | `0.55` | Altındaki tespitler inceleme kuyruğuna düşer |
+| `IMGSZ` | `1024` | Inference çözünürlüğü |
+| `PORT` | `8000` | Sunucu portu |
+| `DATABASE_URL` | `sqlite:///storage/kayitlar.db` | PostgreSQL'e geçmek için değiştirin |
+
+### Mimari
+
+```
+app/
+├── config.py      # ayarlar (ortam değişkenleriyle geçersiz kılınır)
+├── database.py    # SQLAlchemy modelleri: Analiz, Tespit, Kamera
+├── detector.py    # model yükleme + görüntü/video/kamera tahmini
+├── main.py        # FastAPI rotaları
+├── templates/     # Jinja2 sayfaları (mobil uyumlu)
+└── static/        # CSS
+storage/           # yüklenenler, sonuçlar, dışa aktarımlar, SQLite (git'e girmez)
+```
+
+**Neden bu yapı:** Tahmin katmanı (`detector.py`) arayüzden bağımsızdır; ileride mobil
+uygulama veya başka bir istemci eklenirse aynı API kullanılır. SQLite tek dosyadır,
+kurulum gerektirmez; SQLAlchemy sayesinde PostgreSQL'e geçiş yalnızca `DATABASE_URL`
+değişikliğidir.
+
+**Testler:** `pytest tests/test_app.py` — sahte bir detector kullanır, yani ultralytics
+ve eğitilmiş model olmadan da uygulama mantığı sınanabilir.
+
+> 🔒 **Güvenlik notu:** Uygulamada kullanıcı girişi yoktur; yerel ağda kullanım için
+> tasarlanmıştır. İnternete açacaksanız önce kimlik doğrulama ve HTTPS ekleyin.
+
 ## 🔄 Sahadan Gelen Veriyle Sürekli İyileştirme
 
 Model eğitildikten sonra asıl değer burada başlar: sahada çekilen gerçek görüntüleri

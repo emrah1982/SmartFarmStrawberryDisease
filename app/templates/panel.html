@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block baslik %}Panel{% endblock %}
+{% block icerik %}
+
+<section class="kart">
+  <h2>Genel Durum</h2>
+  <div class="kutucuklar">
+    <div class="kutucuk"><strong>{{ toplam }}</strong><span>toplam analiz</span></div>
+    <div class="kutucuk"><strong>{{ sinif_dagilim|sum(attribute=1) }}</strong><span>toplam tespit</span></div>
+    <div class="kutucuk {% if bekleyen %}vurgu{% endif %}">
+      <strong>{{ bekleyen }}</strong><span>inceleme bekliyor</span>
+    </div>
+  </div>
+  {% if bekleyen %}
+  <p class="ipucu">
+    ⚠️ {{ bekleyen }} kayıt uzman incelemesi bekliyor —
+    <a href="/inceleme">kuyruğu aç</a>. Bu kayıtlar etiketlenip eğitime katıldığında
+    model en çok bunlardan öğrenir.
+  </p>
+  {% endif %}
+</section>
+
+<section class="kart">
+  <h2>Sınıf Dağılımı</h2>
+  {% if sinif_dagilim %}
+  {% set enbuyuk = sinif_dagilim[0][1] %}
+  <table class="cubuk">
+    {% for ad, adet in sinif_dagilim %}
+    <tr>
+      <td class="ad">{{ ad }}</td>
+      <td class="cizgi"><span style="width: {{ (adet / enbuyuk * 100)|round|int }}%"></span></td>
+      <td class="sayi">{{ adet }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="ipucu">Henüz tespit yok.</p>
+  {% endif %}
+</section>
+
+<section class="kart">
+  <h2>Son 30 Gün</h2>
+  {% if gunluk %}
+  <div class="trend">
+    {% for tarih, adet in gunluk %}
+    <div class="sutun" title="{{ tarih }}: {{ adet }} analiz">
+      <span style="height: {{ (adet / en_yuksek * 100)|round|int }}%"></span>
+    </div>
+    {% endfor %}
+  </div>
+  <p class="ipucu">{{ gunluk|length }} günde toplam {{ gunluk|sum(attribute=1) }} analiz.</p>
+  {% else %}
+  <p class="ipucu">Son 30 günde kayıt yok.</p>
+  {% endif %}
+</section>
+{% endblock %}

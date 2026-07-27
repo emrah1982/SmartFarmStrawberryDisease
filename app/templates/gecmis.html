@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block baslik %}Geçmiş{% endblock %}
+{% block icerik %}
+
+<section class="kart">
+  <h2>Geçmiş Analizler</h2>
+  <form class="satir" method="get">
+    <select name="sinif">
+      <option value="">Tüm sınıflar</option>
+      {% for s in siniflar %}
+      <option value="{{ s }}" {% if secili.sinif == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+    <select name="tip">
+      <option value="">Tüm kaynaklar</option>
+      <option value="foto" {% if secili.tip == 'foto' %}selected{% endif %}>Fotoğraf</option>
+      <option value="video" {% if secili.tip == 'video' %}selected{% endif %}>Video</option>
+      <option value="kamera" {% if secili.tip == 'kamera' %}selected{% endif %}>Kamera</option>
+    </select>
+    <select name="gun">
+      <option value="0">Tüm zamanlar</option>
+      <option value="1" {% if secili.gun == 1 %}selected{% endif %}>Son 24 saat</option>
+      <option value="7" {% if secili.gun == 7 %}selected{% endif %}>Son 7 gün</option>
+      <option value="30" {% if secili.gun == 30 %}selected{% endif %}>Son 30 gün</option>
+    </select>
+    <button class="btn" type="submit">Filtrele</button>
+  </form>
+</section>
+
+{% if kayitlar %}
+<div class="izgara">
+  {% for a in kayitlar %}
+  <a class="onizleme" href="/kayit/{{ a.id }}">
+    {% if a.sonuc_yolu %}<img src="/media/{{ a.sonuc_yolu }}" alt="">{% else %}<div class="bos">görsel yok</div>{% endif %}
+    <span class="etiket {% if a.tespit_sayisi %}var{% endif %}">{{ a.ozet }}</span>
+    <small>
+      {{ a.zaman|yerel }} ·
+      {{ {'foto':'📷','video':'🎞️','kamera':'📹'}.get(a.kaynak_tip, '') }}
+      {% if a.inceleme_gerekli and not a.incelendi %} · ⚠️{% endif %}
+    </small>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<p class="ipucu">Kayıt bulunamadı.</p>
+{% endif %}
+{% endblock %}

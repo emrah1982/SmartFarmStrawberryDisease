@@ -1,0 +1,100 @@
+Angular Leafspot:
+  ad: Köşeli Yaprak Lekesi
+  etken: Bakteriyel (Xanthomonas fragariae)
+  aciliyet: orta
+  belirti: Yaprak altında yağ lekesi görünümlü, damarlarla sınırlı köşeli lekeler.
+  onlem:
+  - 'Yaprak ıslaklık süresini kısaltın: üstten sulamayı bırakıp damla sulamaya geçin.'
+  - Sabah erken sulayın, akşam sulamasından kaçının.
+  - Hastalıklı yaprakları toplayıp seradan uzaklaştırın (kompost yapmayın).
+  - Aletleri ve eldivenleri sıralar arası geçişte dezenfekte edin.
+  uzman: Bakteriyel hastalıklarda kimyasal seçenek sınırlıdır; yayılım hızlıysa uzman
+    görüşü alın.
+Anthracnose Fruit Rot:
+  ad: Antraknoz Meyve Çürüklüğü
+  etken: Fungal (Colletotrichum spp.)
+  aciliyet: yuksek
+  belirti: Meyvede çöküntülü, koyu kahverengi-siyah lekeler; nemde somon rengi spor
+    kütlesi.
+  onlem:
+  - Enfekte meyveleri hemen toplayıp imha edin — spor kaynağıdır.
+  - Sıcak ve nemli dönemde hasat sıklığını artırın, olgun meyveyi bekletmeyin.
+  - Sıra arası havalanmayı artırın; yaprak yoğunluğunu seyreltin.
+  - Hasat sonrası meyveyi hızla soğutun.
+  uzman: Hızlı yayılır; koruyucu program için uzmana danışın.
+Blossom Blight:
+  ad: Çiçek Yanıklığı
+  etken: Fungal (çoğunlukla Botrytis kaynaklı)
+  aciliyet: yuksek
+  belirti: Çiçeklerde kahverengileşme ve kuruma; meyve tutumu düşer.
+  onlem:
+  - Çiçeklenme döneminde nemi düşürün, sabah havalandırmasını artırın.
+  - Kuruyan çiçek ve bitki artıklarını temizleyin.
+  - Bitki sıklığını azaltıp hava sirkülasyonunu iyileştirin.
+  uzman: Çiçeklenme kritik dönemdir; koruyucu uygulama zamanlaması için uzman görüşü
+    önemlidir.
+Gray Mold:
+  ad: Kurşuni Küf (Botrytis)
+  etken: Fungal (Botrytis cinerea)
+  aciliyet: yuksek
+  belirti: Meyvede gri, tozlu küf tabakası; yumuşama ve hızlı çürüme.
+  onlem:
+  - Enfekte meyve ve yaprakları seradan uzaklaştırın.
+  - Nem oranını düşürün; gece nem yoğunlaşmasını önleyin.
+  - Yaprak ıslaklığını azaltın, damla sulama kullanın.
+  - Hasadı geciktirmeyin; zedelenmiş meyveyi ayırın.
+  uzman: Depoda da ilerler; hasat sonrası soğuk zincir ve uzman önerisi önemlidir.
+Leaf Spot:
+  ad: Yaprak Lekesi
+  etken: Fungal (Mycosphaerella fragariae vb.)
+  aciliyet: dusuk
+  belirti: Yapraklarda mor kenarlı, merkezi açık renkli yuvarlak lekeler.
+  onlem:
+  - Yaşlı ve enfekte yaprakları temizleyin.
+  - Üstten sulamadan kaçının.
+  - Azot fazlalığından kaçının; dengeli gübreleme yapın.
+  uzman: Yaygınlık artarsa ve verim etkileniyorsa uzmana danışın.
+Powdery Mildew Fruit:
+  ad: Külleme (Meyve)
+  etken: Fungal (Podosphaera aphanis)
+  aciliyet: orta
+  belirti: Meyve yüzeyinde beyaz pudramsı tabaka; tat ve görünüm bozulur.
+  onlem:
+  - Nem ve sıcaklık dalgalanmasını azaltın.
+  - Hava sirkülasyonunu artırın.
+  - Etkilenen meyveleri ayırın.
+  uzman: Külleme hızlı yayılır; program için uzman görüşü alın.
+Powdery Mildew Leaf:
+  ad: Külleme (Yaprak)
+  etken: Fungal (Podosphaera aphanis)
+  aciliyet: orta
+  belirti: Yaprak altında beyaz pudramsı tabaka, yaprak kenarlarında yukarı kıvrılma.
+  onlem:
+  - Yaprak kıvrılması erken belirtidir; düzenli kontrol edin.
+  - Sera nemini ve sıcaklığını dengeleyin.
+  - Aşırı gölgelenmeyi önleyin.
+  uzman: Yaprakta başlar, meyveye geçer; erken müdahale için uzmana danışın.
+strawberry_ripe:
+  ad: Olgun Çilek
+  etken: '-'
+  aciliyet: bilgi
+  belirti: Hasada hazır.
+  onlem:
+  - Hasat zamanı geldi; bekletmek çürüme riskini artırır.
+  uzman: ''
+strawberry_semi_ripe:
+  ad: Yarı Olgun Çilek
+  etken: '-'
+  aciliyet: bilgi
+  belirti: Kısmen renklenmiş.
+  onlem:
+  - 1-3 gün içinde hasat edilebilir; takip edin.
+  uzman: ''
+strawberry_unripe:
+  ad: Olgunlaşmamış Çilek
+  etken: '-'
+  aciliyet: bilgi
+  belirti: Yeşil/beyaz.
+  onlem:
+  - Hasat için erken; olgunluk takibine devam edin.
+  uzman: ''
