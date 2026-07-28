@@ -1,0 +1,91 @@
+# Model kütüğü — hiyerarşik (çok modelli) mimari
+#
+# NEDEN TEK MODEL DEĞİL?
+#     Tek modelde bütün sınıflar birbirine karışır. Yaşanan somut örnek:
+#     olgunluk sınıfları (yeşil meyve) yaprakları "olgunlaşmamış çilek"
+#     sanıyordu, çünkü model her ikisini de aynı görüntüde ayırt etmek
+#     zorundaydı. Eşik yükseltmek gerçek meyveleri de eledi.
+#
+#     Hiyerarşik yapıda olgunluk modeli YALNIZCA meyve kırpıntısı görür;
+#     bir yaprağı olgunlaşmamış meyve diye işaretlemesi yapısal olarak
+#     imkânsız hale gelir. Sorun eşikle bastırılmaz, ortadan kalkar.
+#
+# AKIŞ
+#     görüntü → organ → ROI kırpma → ilgili uzman model → birleştirme
+#
+# ALANLAR
+#   dosya      : models/ altındaki ağırlık dosyası
+#   rol        : organ | yaprak_hastalik | meyve_hastalik | olgunluk | zararli
+#   tetik      : bu model hangi organ bulunduğunda çalışır (organ modeli için boş)
+#   siniflar   : modelin öğrendiği sınıflar (eğitim adları)
+#   esik       : bu modelin genel güven eşiği (sınıf bazlı ezme: siniflar.yaml)
+#   aktif      : false ise hiç çalıştırılmaz
+#   zorunlu    : true ise model yoksa uyarı verilir
+#
+# MODEL YOKSA NE OLUR?
+#     Uzman model eksikse boru hattı ÇÖKMEZ: eldeki tek modelle (miras)
+#     çalışmaya devam eder. Böylece mimariye kademeli geçilir — her model
+#     eğitildikçe devreye girer.
+
+organ:
+  dosya: organ.pt
+  rol: organ
+  siniflar: [leaf, fruit, flower, stem, runner]
+  esik: 0.35
+  aktif: true
+  zorunlu: false
+  aciklama: >
+    Bitkinin hangi kısmının görüldüğünü bulur. Hastalık/olgunluk bilmez;
+    yalnızca organ kutuları üretir ve akışı yönlendirir.
+
+yaprak_hastalik:
+  dosya: leaf_disease.pt
+  rol: yaprak_hastalik
+  tetik: [leaf]
+  siniflar: [Angular Leafspot, Leaf Spot, Gray Mold, Powdery Mildew Leaf]
+  esik: 0.20
+  aktif: true
+  aciklama: Yalnızca yaprak ROI'lerinde çalışır. Meyveyi hiç öğrenmez.
+
+meyve_hastalik:
+  dosya: fruit_disease.pt
+  rol: meyve_hastalik
+  tetik: [fruit]
+  siniflar: [Anthracnose Fruit Rot, Gray Mold, Powdery Mildew Fruit, Blossom Blight]
+  esik: 0.20
+  aktif: true
+  aciklama: Yalnızca meyve ROI'lerinde çalışır.
+
+olgunluk:
+  dosya: fruit_ripeness.pt
+  rol: olgunluk
+  tetik: [fruit]
+  siniflar: [strawberry_unripe, strawberry_semi_ripe, strawberry_ripe]
+  esik: 0.30
+  aktif: true
+  aciklama: >
+    Yalnızca meyve ROI'lerinde çalışır. Yaprakları asla göremeyeceği için
+    "yaprağı olgunlaşmamış çilek sanma" hatası yapısal olarak imkânsızdır.
+
+zararli:
+  dosya: pest_detection.pt
+  rol: zararli
+  tetik: [leaf, fruit, stem]
+  siniflar: [Thrips, Spider Mites, Aphids, Whiteflies, Slug, Weevil]
+  esik: 0.25
+  aktif: true
+  aciklama: >
+    Zararlılar küçük olduğu için ROI üzerinde çalışması avantajlıdır.
+    Henüz eğitim verisi toplanmadı.
+
+# Uzman modeller hazır olana kadar kullanılan mevcut 10 sınıflı model.
+# Boru hattı, uzman model bulamadığı her adımda buna düşer.
+miras:
+  dosya: best.pt
+  rol: miras
+  esik: 0.20
+  aktif: true
+  zorunlu: true
+  aciklama: >
+    Tek modelli eski mimari. Uzman modeller eğitildikçe rolü azalır;
+    hepsi hazır olduğunda aktif: false yapılabilir.

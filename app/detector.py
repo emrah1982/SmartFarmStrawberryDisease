@@ -135,7 +135,17 @@ class Detector:
 
     # ---------------------------------------------------------------- görüntü
     def goruntu(self, kaynak_yol: str, cikti_yol: str) -> Sonuc:
-        """Tek görüntüyü işler, kutulanmış görseli kaydeder."""
+        """Tek görüntüyü işler, kutulanmış görseli kaydeder.
+
+        Hiyerarşik mimari (organ → ROI → uzman model) kuruluysa oraya
+        yönlendirilir; değilse tek modelle çalışır. Çıktı biçimi aynıdır,
+        bu yüzden çağıranların hiçbiri değişmez.
+        """
+        from app import modeller as model_kutugu
+        if model_kutugu.hiyerarsik_hazir():
+            from app import pipeline
+            return pipeline.goruntu(kaynak_yol, cikti_yol)
+
         model = self.yukle()
         t0 = time.time()
         r = model(kaynak_yol, conf=siniflar.en_dusuk_esik(), imgsz=config.IMGSZ,
@@ -337,6 +347,11 @@ class Detector:
         imgsz: canlıda küçük tutulur (hız); tek kare analizindeki değerden
         bağımsızdır.
         """
+        from app import modeller as model_kutugu
+        if model_kutugu.hiyerarsik_hazir():
+            from app import pipeline
+            return pipeline.kare(frame, imgsz=imgsz)
+
         model = self.yukle()
         t0 = time.time()
         r = model(frame, conf=siniflar.en_dusuk_esik(),
