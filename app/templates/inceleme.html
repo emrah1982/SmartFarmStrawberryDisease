@@ -81,6 +81,12 @@ python scripts/split_dataset.py --input dataset_v2 --output dataset_v2_split</co
     </small>
     <div class="butonlar" style="padding:0 .55rem .55rem">
       <a class="btn kucuk btn-birincil" href="/kayit/{{ a.id }}/etiketle">✏️ Etiketle</a>
+      {% if a.tespit_sayisi %}
+      <form action="/kayit/{{ a.id }}/yanlis-tespit" method="post" style="display:inline"
+            onsubmit="return confirm('Bu görüntüde hiçbir tespit yok mu? Negatif örnek olarak eğitime katılacak.')">
+        <button class="btn kucuk" type="submit" title="Yanlış pozitif — kutuları sil, negatif örnek yap">❌ Yanlış</button>
+      </form>
+      {% endif %}
       <form action="/inceleme/{{ a.id }}/tamam" method="post">
         <button class="btn kucuk" type="submit">✓ İncelendi</button>
       </form>

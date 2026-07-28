@@ -766,3 +766,53 @@ def test_menu_bekleyen_is_sayaci(client):
 def test_menu_bulundugun_sayfayi_isaretler(client):
     assert 'etkin' in client.get('/').text
     assert 'etkin' in client.get('/panel').text
+
+
+# ────────────────────────────────────── yanlis pozitif -> negatif ornek
+def test_yanlis_tespit_negatif_ornege_cevirir(client):
+    """Yanlış pozitif tek tıkla background örneğine dönüşmeli."""
+    from app.database import Analiz, SessionLocal, Tespit
+
+    client.post('/analiz/dosya', files={'dosyalar': ('yp.jpg', b'yanlis', 'image/jpeg')},
+                follow_redirects=True)
+    with SessionLocal() as db:
+        a = db.query(Analiz).order_by(Analiz.id.desc()).first()
+        kayit_id = a.id
+        assert a.tespit_sayisi > 0        # sahte detector kutu üretir
+
+    r = client.post(f'/kayit/{kayit_id}/yanlis-tespit', follow_redirects=True)
+    assert r.status_code == 200
+
+    with SessionLocal() as db:
+        a = db.get(Analiz, kayit_id)
+        assert a.tespit_sayisi == 0
+        assert a.elle_etiketlendi is True       # eğitime gitmeli
+        assert a.incelendi is True              # kuyruktan çıkmalı
+        assert a.disa_aktarildi is False        # havuza yeniden yazılmalı
+        assert db.query(Tespit).filter(Tespit.analiz_id == kayit_id).count() == 0
+
+
+def test_negatif_ornek_bos_etiketle_disa_aktarilir(client):
+    """YOLO'da background örneği = boş .txt. Eğitim havuzunda öyle olmalı."""
+    from app import config
+    from app.database import Analiz, SessionLocal
+
+    client.post('/analiz/dosya', files={'dosyalar': ('neg.jpg', b'negatif', 'image/jpeg')},
+                follow_redirects=True)
+    with SessionLocal() as db:
+        kayit_id = db.query(Analiz).order_by(Analiz.id.desc()).first().id
+    client.post(f'/kayit/{kayit_id}/yanlis-tespit', follow_redirects=True)
+    client.post('/inceleme/egitime-hazirla', data={'yeniden': '1'}, follow_redirects=True)
+
+    with SessionLocal() as db:
+        a = db.get(Analiz, kayit_id)
+    damga = a.dosya_hash or f'id{a.id}'
+    etiketler = list((config.EGITIM_DIR / 'labels').glob(f'*{damga}*.txt'))
+    assert etiketler, 'negatif örnek havuza yazılmalı'
+    assert etiketler[0].read_text(encoding='utf-8').strip() == '',         'background örneğinin etiket dosyası BOŞ olmalı'
+    gorseller = list((config.EGITIM_DIR / 'images').glob(f'*{damga}*'))
+    assert gorseller, 'negatif örneğin görüntüsü de havuzda olmalı'
+
+
+def test_yanlis_tespit_olmayan_kayit_404(client):
+    assert client.post('/kayit/99999/yanlis-tespit').status_code == 404

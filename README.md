@@ -1097,6 +1097,54 @@ Roboflow bunları hazır kutular olarak gösterir; uzman yanlışları düzeltip
 etiketleri bir ziraat mühendisi/fitopatoloji uzmanına doğrulatın. Yanlış etiketli veri,
 az veriden daha zararlıdır.
 
+### 2b) ❌ Yanlış tespitleri (false positive) düzeltme — en sık ihtiyaç
+
+**Belirti:** Model, çilekle ilgisi olmayan bir şeyi hastalık/meyve sanıyor. Tipik örnek:
+**sarı yapışkan tuzağı `strawberry_unripe`** olarak işaretlemek; ya da saksı kenarını,
+kuru yaprağı, etiket kartını lezyon sanmak.
+
+**Sebebi:** Model eğitimde yalnızca çilek gördü. Nesne dedektörü "bu ne değil" diye
+düşünmez; gördüğü renk/doku desenine en yakın sınıfı verir. Sarı-yeşil küçük bir dikdörtgen
+onun için olgunlaşmamış çileğe benziyor — çünkü **eğitimde "sarı tuzak" diye bir şey hiç
+görmedi.**
+
+**Kalıcı çözüm: negatif (background) örnek.** O görüntüyü **boş etiketle** eğitime katın.
+YOLO'da etiket dosyası boş olan görüntü "burada hiçbir sınıf yok" demektir; yanlış
+pozitifleri azaltmanın standart ve en etkili yoludur.
+
+```
+Kayıt sayfası veya onay kuyruğu → ❌ Yanlış tespit — burada yok
+        ↓  (kutular silinir, kayıt negatif örnek olur)
+🎓 Etiketlenmiş kayıtları dışa aktar   → storage/egitim_verisi/labels/<ad>.txt  BOŞ dosya
+        ↓
+merge_datasets.py → yeniden eğitim
+```
+
+Etiketleme ekranından kutuları tek tek silmek de aynı sonucu verir; düğme bu sık işi tek
+adıma indirir.
+
+**Ne kadar negatif gerekir?**
+
+| Durum | Öneri |
+|-------|-------|
+| Belirli bir nesneye takılıyor (sarı tuzak gibi) | O nesneden **20-50 görüntü**: farklı açı, mesafe, ışık, arka plan |
+| Genel yanlış pozitif fazlalığı | Dataset'in **%5-10'u** kadar background görüntü |
+
+Aynı tuzağın tek bir fotoğrafı yetmez — model o tek kareyi ezberler, yandan çekildiğinde
+yine yanılır. **Canlı tespitte 🗃️ "Her kare" modu** bu iş için birebirdir: tuzağın etrafında
+yarım dakika gezinip 30-40 kare toplayın, hepsi tespitsiz kayıt olarak birikir.
+
+Toplu ekleme için betik de var:
+
+```bash
+python scripts/add_background_images.py --kaynak yeni_negatifler/ --hedef dataset/
+```
+
+**Geçici çözüm (kalıcı değil):** Güven eşiğini yükseltin —
+`CONF_THRESHOLD=0.45` (varsayılan 0.25). Zayıf yanlış pozitifler kaybolur, **ama zayıf
+gerçek tespitler de kaybolur.** Erken evre hastalık genelde düşük güvenle bulunur; bu yüzden
+eşiği kalıcı çözüm sanmayın, yalnızca yeni model eğitilene kadar kullanın.
+
 ### 3) Ana dataset'e kat
 
 ```bash

@@ -528,6 +528,40 @@ def etiketleri_kaydet(analiz_id: int, veri: dict = Body(...),
     return {'durum': 'ok', 'kutu': len(kutular)}
 
 
+@app.post('/kayit/{analiz_id}/yanlis-tespit')
+def yanlis_tespit(analiz_id: int, db: Session = Depends(get_db)):
+    """Kaydı tek tıkla NEGATİF ÖRNEK yapar (tüm kutular silinir).
+
+    NEDEN GEREKLİ?
+        Modelin en can sıkıcı hatası yanlış pozitiftir: sarı yapışkan tuzağı
+        olgunlaşmamış çilek, saksı kenarını lezyon sanmak gibi. Bu hatayı eşik
+        yükselterek "gizlemek" gerçek tespitleri de kaybettirir.
+
+        Kalıcı çözüm, o görüntüyü BOŞ ETİKETLE eğitime katmaktır. YOLO'da
+        etiketi boş olan görüntü "background" örneğidir: model o görünümde
+        hiçbir sınıfın olmadığını öğrenir. Yanlış pozitifleri azaltmanın
+        standart ve en etkili yolu budur.
+
+        Etiketleme ekranından kutuları tek tek silmek de aynı sonucu verir;
+        bu düğme sık yapılan bu işi tek adıma indirir.
+    """
+    a = db.get(Analiz, analiz_id)
+    if not a:
+        raise HTTPException(404, 'Kayıt bulunamadı')
+    if not yetki.erisebilir_mi(db, yetki.aktif_kullanici(db), a):
+        raise HTTPException(403, 'Bu kayda erişim yetkiniz yok')
+
+    db.query(Tespit).filter(Tespit.analiz_id == a.id).delete()
+    a.tespit_sayisi = 0
+    a.min_guven = a.ort_guven = 0.0
+    a.elle_etiketlendi = True       # elle onaylanmış negatif → eğitime gider
+    a.incelendi = True
+    a.disa_aktarildi = False        # havuza yeniden yazılmalı
+    db.commit()
+    logger.info(f'Kayıt #{a.id} negatif örnek olarak işaretlendi')
+    return RedirectResponse(f'/kayit/{a.id}', status_code=303)
+
+
 @app.post('/inceleme/egitime-hazirla')
 def egitime_hazirla(yeniden: int = Form(0), db: Session = Depends(get_db)):
     """Elle etiketlenmiş kayıtları TEK birikimli eğitim klasörüne yazar.
