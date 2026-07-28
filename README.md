@@ -441,6 +441,30 @@ Sıfırdan eğitim ayarlarıyla ince ayar yapmak öğrenilmiş ağırlıkları b
 > kırpıldı). Mevcut model eski/kaymış hedeflerle eğitilmişti; eski önyargının silinmesi
 > için yeterli epoch gerekir.
 
+#### İnce ayar yarım kalırsa
+
+Colab oturumu kopabilir (RAM, zaman aşımı, tarayıcı kapanması). Hücre yeniden
+çalıştırıldığında yarım kalmış ince ayar koşusu bulunup **kaldığı yerden devam edilir**;
+Ultralytics optimizer durumunu ve öğrenme oranı takvimini checkpoint'ten okur.
+
+```
+🔄 YARIM KALMIŞ İNCE AYAR BULUNDU: strawberry_exp_ince_ayar-2
+   18/60 epoch tamamlanmış → kaldığı yerden devam ediliyor
+```
+
+Bunun çalışması için checkpoint'lerin Drive'da olması şarttır (bkz. aşağıdaki tablo) —
+yerel diske yazan bir koşu, oturumla birlikte kaybolur.
+
+**Sıfırdan ve ince ayar koşuları ayrı değerlendirilir.** Ayrılmasaydı iki hata çıkardı:
+
+| Hata | Sonuç |
+|------|-------|
+| `strawberry_exp*` deseni ince ayar koşusunu da yakalar | Sıfırdan eğitim, ince ayarın üstüne devam eder |
+| Hedef epoch tek yerden okunur (200) | 60 epochta biten ince ayar "yarım" sanılıp sürdürülür |
+
+Her koşunun hedefi kendi `args.yaml` dosyasından okunur; koşu türü ad ekinden
+(`_ince_ayar`) anlaşılır. Bu davranış `tests/test_notebook_kosu.py` ile sabitlenmiştir.
+
 #### İnce ayar çıktıları nereye kaydedilir?
 
 Colab'de her şey **Drive'a** yazılır; oturum kopsa da kaybolmaz:
