@@ -687,10 +687,42 @@ Tasarım kararları ve sebepleri:
   aynı `_isle()` fonksiyonunu kullanır.
 - **Sekme arkaya alınınca kamera kapanır** — pil ve mobil veri boşa gitmesin.
 
-#### Kayıt nasıl açılır? (her kare kaydedilmez)
+#### Ne kaydediliyor? (video kaydı YOK)
 
-Saniyede birkaç kare gelirken her tespiti kaydetmek veritabanını doldurur ve tek karelik
-yanlış tespitler de kayda geçerdi. Bir bulgu ancak **kararlı** hale gelince kaydedilir:
+Canlı akışta **video dosyası oluşmaz**. Kareler bellekte işlenir, kutular JSON olarak
+tarayıcıya döner ve kare atılır. Diske yalnızca **kaydedilen anlar** yazılır:
+
+| Nereye | Ne |
+|--------|-----|
+| `storage/uploads/canli_<id>.jpg` | ham kare (etiketleme/eğitim için asıl kaynak) |
+| `storage/results/canli_<id>.jpg` | kutuları çizilmiş görsel (geçmişte önizleme) |
+| `storage/kayitlar.db` | `analizler` + `tespitler` satırları, `kaynak_tip='canli'` |
+
+Docker'da bu klasör `./storage` olarak dışarı bağlıdır; konteyner silinse de kayıtlar
+kalır. Canlı kayıtlar fotoğraf yüklemeyle **aynı biçimdedir**: geçmiş, onay kuyruğu,
+etiketleme ve haritada diğerleriyle birlikte görünürler.
+
+#### Kayıt modu — ne kadarı saklansın?
+
+Sayfadaki **Kayıt modu** seçimi, akışın ne kadarının kaydedileceğini belirler:
+
+| Mod | Ne kaydeder | Ne zaman |
+|-----|-------------|----------|
+| 🎯 **Akıllı** (varsayılan) | yalnızca kararlı bulgular | Günlük kullanım; depolama dostu |
+| 📋 **Tespit olan her kare** | tespit içeren tüm kareler (1 sn'de en çok bir tane) | Turun dökümünü çıkarmak |
+| 🗃️ **Her kare** | tespit olmayanlar dahil hepsi | **Eğitim verisi toplamak** — modelin kaçırdığı kareler de birikir |
+
+Her modda oturum başına en fazla `CANLI_OTURUM_AZAMI_KARE` (varsayılan **300**) kayıt
+açılır; sınıra gelince kayıt durur ama canlı tespit devam eder. 2 kare/sn ile 10 dakikalık
+bir tur ~1200 kare eder — sınır olmasa disk de geçmiş sayfası da kullanılamaz hale gelirdi.
+
+> **Modelin kaçırdıklarını toplamak** en hızlı iyileştirme yoludur: 🗃️ modunda tur atın,
+> sonra [onay kuyruğundan](#-sahadan-gelen-veriyle-sürekli-i̇yileştirme) tespitsiz kareleri
+> etiketleyip eğitime katın. Tespit içermeyen kayıtlar zaten kuyruğa düşer.
+
+#### Akıllı modda kayıt kuralı
+
+Bir bulgu ancak **kararlı** hale gelince kaydedilir:
 
 | Kural | Varsayılan | Ortam değişkeni |
 |-------|-----------|-----------------|
@@ -700,11 +732,8 @@ yanlış tespitler de kayda geçerdi. Bir bulgu ancak **kararlı** hale gelince 
 | Otomatik kaydı kapat | açık | `CANLI_OTOMATIK_KAYIT=0` |
 
 "Üst üste" gerçekten ardışık kareleri ifade eder: bulgu bir karede kaybolursa sayaç
-sıfırlanır. **💾 Bu Kareyi Kaydet** düğmesiyle istediğiniz anı elle de saklarsınız.
-
-Kayıtlar `kaynak_tip='canli'` ile **çekirdekle aynı biçimde** açılır: geçmişte, inceleme
-kuyruğunda, etiketleme ekranında ve haritada diğerleriyle birlikte görünür — ayrı bir
-"canlı kayıt" kavramı yoktur.
+sıfırlanır. **💾 Bu Kareyi Kaydet** düğmesi her modda çalışır ve tespit olmasa da kaydeder —
+"model bunu göremedi" örneklerini yakalamanın en doğrudan yolu budur.
 
 #### ⚠️ Telefonda kamera açılmıyorsa: HTTPS gerekir
 

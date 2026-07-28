@@ -14,7 +14,18 @@ const cizim = new Cizim(tuval, video);
 const akis = new Akis({ onSonuc: sonucGeldi, onDurum: m => (durum.textContent = m) });
 
 const durum = $('durum'), sayac = $('sayac'), liste = $('liste'), kayitlar = $('kayitlar');
+const modSecim = $('mod'), modNotu = $('modNotu');
 let calisiyor = false, sonKare = 0, fpsGecmisi = [];
+
+// Kullanıcı ne kadar kayıt açacağını baştan bilsin — 'hepsi' modu diski hızla doldurur.
+const MOD_NOTU = {
+  akilli: '🎯 Yalnızca kararlı bulgular kaydedilir. Akış kaydedilmez.',
+  tespitli: `📋 Tespit içeren her kare kaydedilir (${A.mod_aralik} sn'de en fazla bir tane).`,
+  hepsi: `🗃️ Tespit olmayanlar dahil her kare kaydedilir — modelin kaçırdıklarını ` +
+         `toplamak için. Oturum sınırı: ${A.azami} kayıt.`,
+};
+function modNotuYaz() { modNotu.textContent = MOD_NOTU[modSecim.value] || ''; }
+modNotuYaz();
 
 function sonucGeldi(s) {
   if (s.tip === 'hata') { durum.textContent = s.mesaj; return; }
@@ -25,9 +36,12 @@ function sonucGeldi(s) {
   const ort = fpsGecmisi.reduce((a, b) => a + b, 0) / fpsGecmisi.length;
   sayac.textContent = `${(1000 / ort).toFixed(1)} kare/sn · model ${s.ms} ms`;
 
-  durum.textContent = s.bulanik
+  const kayitBilgi = s.doldu
+    ? ` · ⛔ oturum sınırı doldu (${s.sayac}) — kayıt durdu, tespit sürüyor`
+    : (s.sayac ? ` · 💾 ${s.sayac}/${A.azami} kayıt` : '');
+  durum.textContent = (s.bulanik
     ? '⚠️ Görüntü bulanık — sabit tutun, bu kare atlandı.'
-    : (s.kutular.length ? `${s.kutular.length} tespit` : 'Tespit yok');
+    : (s.kutular.length ? `${s.kutular.length} tespit` : 'Tespit yok')) + kayitBilgi;
 
   liste.innerHTML = s.kutular.length
     ? s.kutular.map(k => `<span class="rozet">${k.ad} %${(k.guven * 100).toFixed(0)}</span>`).join(' ')
@@ -42,7 +56,8 @@ function kayitEkle(id, tip, kutular) {
   const el = document.createElement('a');
   el.href = `/kayit/${id}`;
   el.className = 'rozet kayit-rozet';
-  el.textContent = `${tip === 'elle' ? '💾' : '⚡'} #${id} ${ad}`;
+  const simge = { elle: '💾', akilli: '⚡', tespitli: '📋', hepsi: '🗃️' }[tip] || '⚡';
+  el.textContent = `${simge} #${id} ${ad}`;
   kayitlar.prepend(el);
 }
 
@@ -63,6 +78,8 @@ async function basla() {
     $('sahne').hidden = false;
     await akis.baglan();
     akis.seraSec($('sera') ? $('sera').value : null);
+    akis.modSec(modSecim.value);
+    modSecim.disabled = true;       // oturum ortasında mod değişimi kafa karıştırır
     calisiyor = true;
     cizim.baslat();
     $('baslaBtn').hidden = true;
@@ -82,6 +99,7 @@ function durdur() {
   akis.kapat();
   kamera.kapat();
   $('sahne').hidden = true;
+  modSecim.disabled = false;
   $('baslaBtn').hidden = false;
   $('durdurBtn').hidden = true;
   $('kaydetBtn').hidden = true;
@@ -94,6 +112,7 @@ $('durdurBtn').onclick = durdur;
 $('kaydetBtn').onclick = () => { akis.kaydetIste(); durum.textContent = 'Bu kare kaydediliyor...'; };
 $('cevirBtn').onclick = () => kamera.cevir();
 if ($('sera')) $('sera').onchange = e => akis.seraSec(e.target.value);
+modSecim.onchange = modNotuYaz;
 
 // Sekme arkaya alınınca kamerayı ve akışı boşuna çalıştırma (pil/veri).
 document.addEventListener('visibilitychange', () => {

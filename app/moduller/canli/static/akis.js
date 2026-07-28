@@ -15,6 +15,7 @@ export class Akis {
     this.bekleyen = false;          // uçuşta kare var mı (geri basınç)
     this.oturum = Math.random().toString(36).slice(2, 10);
     this.seraId = null;
+    this.mod = null;
   }
 
   bagli() { return this.restModu || (this.ws && this.ws.readyState === WebSocket.OPEN); }
@@ -49,9 +50,14 @@ export class Akis {
     this._ayarGonder();
   }
 
+  modSec(mod) {
+    this.mod = mod || null;
+    this._ayarGonder();
+  }
+
   _ayarGonder() {
     if (!this.restModu && this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ tip: 'ayar', sera_id: this.seraId }));
+      this.ws.send(JSON.stringify({ tip: 'ayar', sera_id: this.seraId, mod: this.mod }));
     }
   }
 
@@ -79,6 +85,7 @@ export class Akis {
       fd.append('kare', blob, 'kare.jpg');
       fd.append('oturum', this.oturum);
       if (this.seraId) fd.append('sera_id', this.seraId);
+      if (this.mod) fd.append('mod', this.mod);
       if (this._kaydet) { fd.append('kaydet', '1'); this._kaydet = false; }
       const y = await fetch('/canli/kare', { method: 'POST', body: fd });
       this.onSonuc(await y.json());

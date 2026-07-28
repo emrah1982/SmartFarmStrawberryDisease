@@ -131,7 +131,8 @@ def test_websocket_kararli_bulgu_otomatik_kaydedilir(client):
             ws.send_bytes(_jpeg())
             kayit = ws.receive_json()
     assert kayit['kayit_id'], 'üst üste görülen bulgu otomatik kaydedilmeli'
-    assert kayit['kayit_tipi'] == 'otomatik'
+    # kayit_tipi hangi kuralın kaydettiğini söyler (kaynak_ad'a da yazılır)
+    assert kayit['kayit_tipi'] == 'akilli'
 
 
 def test_bulanik_kare_modele_verilmez(client):
@@ -212,3 +213,121 @@ def test_ozel_anahtar_asla_sunulmaz(client):
     """Özel anahtar hiçbir yoldan indirilememeli."""
     for yol in ('/canli/sertifika.key', '/canli/sunucu.key', '/statik/canli/sunucu.key'):
         assert client.get(yol).status_code == 404, yol
+
+
+# ──────────────────────────────────────────────── neyin kaydedildigi
+def test_tespit_edilemeyen_kare_elle_kaydedilebilir(client, monkeypatch):
+    """Modelin KACIRDIGI kare de saklanabilmeli.
+
+    Bunlar sürekli iyileştirme için en değerli örneklerdir: kullanıcı hastalığı
+    görüyor ama model göremiyorsa, o kare etiketlenip eğitime katılmalı.
+    """
+    from app import main
+    monkeypatch.setattr(main, 'detector', SahteCanliDetector(kutular=[]))
+
+    with client.websocket_connect('/canli/ws') as ws:
+        ws.send_json({'tip': 'kaydet'})
+        ws.send_bytes(_jpeg())
+        yanit = ws.receive_json()
+
+    assert yanit['kutular'] == []
+    assert yanit['kayit_id'], 'tespit yokken de elle kayıt açılabilmeli'
+
+    # Tespit içermeyen kayıt inceleme kuyruğuna düşmeli
+    from app.database import Analiz, SessionLocal
+    with SessionLocal() as db:
+        a = db.get(Analiz, yanit['kayit_id'])
+        assert a.tespit_sayisi == 0
+        assert a.inceleme_gerekli is True
+
+
+def test_tespit_edilemeyen_kare_otomatik_kaydedilmez(client, monkeypatch):
+    """Boş kareler kendiliğinden kaydedilmemeli — depolama dolar."""
+    from app import main
+    monkeypatch.setattr(main, 'detector', SahteCanliDetector(kutular=[]))
+    with client.websocket_connect('/canli/ws') as ws:
+        for _ in range(6):
+            ws.send_bytes(_jpeg())
+            assert ws.receive_json()['kayit_id'] is None
+
+
+def test_kaydedilen_kare_dosyalari_diske_yazilir(client):
+    """Kayıt varsa hem orijinal hem kutulanmış görsel diskte olmalı."""
+    from app import config
+    from app.database import Analiz, SessionLocal
+
+    with client.websocket_connect('/canli/ws') as ws:
+        ws.send_json({'tip': 'kaydet'})
+        ws.send_bytes(_jpeg())
+        kayit_id = ws.receive_json()['kayit_id']
+
+    with SessionLocal() as db:
+        a = db.get(Analiz, kayit_id)
+    assert (config.STORAGE_DIR / a.dosya_yolu).exists(), 'orijinal kare yok'
+    assert (config.STORAGE_DIR / a.sonuc_yolu).exists(), 'kutulanmış görsel yok'
+    assert a.kaynak_tip == 'canli'
+
+
+def test_kaydedilmeyen_kareler_diske_yazilmaz(client):
+    """Canlı akış video/kare biriktirmemeli — yalnızca kaydedilen anlar kalır."""
+    from app import config
+    once = len(list((config.STORAGE_DIR / 'uploads').glob('*')))
+    with client.websocket_connect('/canli/ws') as ws:
+        for _ in range(2):                      # kararlılık eşiğinin altında
+            ws.send_bytes(_jpeg())
+            ws.receive_json()
+    sonra = len(list((config.STORAGE_DIR / 'uploads').glob('*')))
+    assert sonra == once, 'kaydedilmeyen kareler diske yazılmamalı'
+
+
+# ──────────────────────────────────────────────────────── kayit modlari
+def test_tespitli_mod_her_tespitli_kareyi_kaydeder():
+    o = servis.OturumKaydi(mod='tespitli', azami=100, aralik=0)
+    assert o.kaydedilsin_mi([_kutu()], simdi=0) is True
+    assert o.kaydedilsin_mi([_kutu()], simdi=1) is True     # kararlılık beklemez
+    assert o.kaydedilsin_mi([], simdi=2) is False           # tespit yoksa kaydetmez
+
+
+def test_hepsi_modu_tespit_olmayani_da_kaydeder():
+    """Modelin kaçırdığı kareler eğitim için en değerli örneklerdir."""
+    o = servis.OturumKaydi(mod='hepsi', azami=100, aralik=0)
+    assert o.kaydedilsin_mi([], simdi=0) is True
+
+
+def test_mod_araligi_ayni_saniyede_yigilmayi_onler():
+    o = servis.OturumKaydi(mod='hepsi', azami=100, aralik=1.0)
+    assert o.kaydedilsin_mi([], simdi=10.0) is True
+    assert o.kaydedilsin_mi([], simdi=10.5) is False        # aralık dolmadı
+    assert o.kaydedilsin_mi([], simdi=11.1) is True
+
+
+def test_oturum_siniri_diski_korur():
+    o = servis.OturumKaydi(mod='hepsi', azami=3, aralik=0)
+    for i in range(3):
+        assert o.kaydedilsin_mi([], simdi=i) is True
+    assert o.doldu is True
+    assert o.kaydedilsin_mi([], simdi=9) is False, 'sınırdan sonra kayıt olmamalı'
+    assert o.elle() is False, 'sınır elle kayıt için de geçerli'
+
+
+def test_gecersiz_mod_varsayilana_duser():
+    from app.moduller.canli import ayarlar
+    assert servis.OturumKaydi(mod='saçma').mod == ayarlar.VARSAYILAN_MOD
+
+
+def test_websocket_mod_degistirilebilir(client):
+    """Kullanıcı arayüzden modu seçince sunucu ona göre kaydetmeli."""
+    with client.websocket_connect('/canli/ws') as ws:
+        ws.send_json({'tip': 'ayar', 'mod': 'tespitli'})
+        ws.send_bytes(_jpeg())
+        yanit = ws.receive_json()
+    assert yanit['kayit_id'], 'tespitli modda ilk kare kaydedilmeli'
+    assert yanit['kayit_tipi'] == 'tespitli'
+    assert yanit['sayac'] == 1
+
+
+def test_websocket_sayaci_bildirir(client):
+    with client.websocket_connect('/canli/ws') as ws:
+        ws.send_bytes(_jpeg())
+        yanit = ws.receive_json()
+    assert 'sayac' in yanit and 'doldu' in yanit    # arayüz sınırı gösterebilsin

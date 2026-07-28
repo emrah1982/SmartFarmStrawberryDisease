@@ -22,6 +22,18 @@
   </label>
   {% endif %}
 
+  <label>Kayıt modu <small class="ipucu">(canlı akışta ne saklanacak)</small>
+    <select id="mod">
+      <option value="akilli" {% if ayar.mod == 'akilli' %}selected{% endif %}>
+        🎯 Akıllı — yalnızca kararlı bulgular (önerilen)</option>
+      <option value="tespitli" {% if ayar.mod == 'tespitli' %}selected{% endif %}>
+        📋 Tespit olan her kare — turun dökümü</option>
+      <option value="hepsi" {% if ayar.mod == 'hepsi' %}selected{% endif %}>
+        🗃️ Her kare — eğitim verisi topla (çok yer kaplar)</option>
+    </select>
+  </label>
+  <p class="ipucu" id="modNotu"></p>
+
   <div class="butonlar">
     <button class="btn btn-birincil" id="baslaBtn">▶️ Kamerayı Başlat</button>
     <button class="btn" id="kaydetBtn" hidden>💾 Bu Kareyi Kaydet</button>
@@ -41,7 +53,8 @@
   <div id="uyumsuz" class="uyari" hidden></div>
 
   <h3 style="margin-top:1rem">Bu oturumda kaydedilenler</h3>
-  <p class="ipucu">⚡ otomatik · 💾 elle. Kayda tıklayınca ayrıntısı açılır.</p>
+  <p class="ipucu">💾 elle · ⚡ akıllı · 📋 tespitli · 🗃️ her kare.
+    Kayda tıklayınca ayrıntısı açılır.</p>
   <div id="kayitlar" class="rozet-satir"></div>
 </section>
 
@@ -53,9 +66,25 @@
       çizimi tarayıcıda yapılır — ağdan resim taşınmaz, akış akıcı kalır.</li>
     <li><strong>Geri basınç:</strong> Bir sonraki kare, öncekinin sonucu gelmeden
       gönderilmez. Sunucu yavaşsa kuyruk birikmez, kare/sn kendiliğinden düşer.</li>
-    <li><strong>Otomatik kayıt:</strong> Aynı hastalık üst üste {{ ayar.kararlilik }} karede
-      ve en az %{{ (ayar.kayit_guven * 100)|round|int }} güvenle görülürse kayıt açılır.
-      Tek karelik yanlış tespitler böylece kayda geçmez.</li>
+    <li><strong>Video kaydedilmez.</strong> Kareler bellekte işlenir, sonuç döndükten
+      sonra atılır. Diske yalnızca <em>kaydedilen anlar</em> yazılır — akışın tamamı
+      değil.</li>
+    <li><strong>Kayıt modu ne yapar?</strong>
+      <ul>
+        <li><em>Akıllı</em>: aynı hastalık üst üste {{ ayar.kararlilik }} karede ve en az
+          %{{ (ayar.kayit_guven * 100)|round|int }} güvenle görülürse kaydedilir. Tek
+          karelik yanlış tespitler kayda geçmez.</li>
+        <li><em>Tespit olan her kare</em>: turun dökümünü çıkarır
+          ({{ ayar.mod_aralik }} sn'de en fazla bir kayıt).</li>
+        <li><em>Her kare</em>: modelin <strong>kaçırdığı</strong> kareler de birikir —
+          eğitim verisi toplamanın en hızlı yolu, ama en çok yer kaplayanı.</li>
+      </ul>
+      Her modda oturum başına en fazla <strong>{{ ayar.azami }}</strong> kayıt açılır;
+      sınıra gelince kayıt durur, canlı tespit devam eder.</li>
+    <li><strong>Kaydedilenler nereye gider?</strong> Fotoğraf yüklemeyle birebir aynı
+      yere: <code>storage/uploads</code> (ham kare), <code>storage/results</code>
+      (kutulanmış görsel) ve veritabanı. <a href="/gecmis">Kayıtlar</a>,
+      <a href="/inceleme">onay kuyruğu</a>, etiketleme ve haritada görünürler.</li>
     <li><strong>Bulanık kareler atlanır</strong> — yürürken hareket bulanıklığı en sık
       doğruluk kaybı sebebidir. "Bulanık" uyarısı görürseniz bir an durun.</li>
     <li><strong>Canlıda hız için düşük çözünürlük</strong> kullanılır. Şüpheli bir bölge
@@ -68,7 +97,10 @@
   window.CANLI_AYAR = {
     genislik: {{ ayar.genislik }},
     kalite: {{ ayar.kalite }},
-    en_az_aralik: {{ ayar.en_az_aralik }}
+    en_az_aralik: {{ ayar.en_az_aralik }},
+    mod: '{{ ayar.mod }}',
+    azami: {{ ayar.azami }},
+    mod_aralik: {{ ayar.mod_aralik }}
   };
 </script>
 <script type="module" src="/statik/canli/izle.js"></script>

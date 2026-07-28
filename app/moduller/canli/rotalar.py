@@ -58,6 +58,9 @@ def izle(request: Request):
             'otomatik': ayarlar.OTOMATIK_KAYIT,
             'kararlilik': ayarlar.KARARLILIK_KARE,
             'kayit_guven': ayarlar.KAYIT_GUVEN,
+            'mod': ayarlar.VARSAYILAN_MOD,
+            'azami': ayarlar.OTURUM_AZAMI_KARE,
+            'mod_aralik': ayarlar.MOD_ARALIK_SN,
         },
     })
 
@@ -91,7 +94,7 @@ def sertifika_dosyasi():
 
 
 # ───────────────────────────────────────────────────────── ortak kare işleme
-def _isle(veri: bytes, karar: Optional[servis.KayitKarari],
+def _isle(veri: bytes, oturum: Optional[servis.OturumKaydi],
           sera_id: Optional[int], kaydet: bool) -> dict:
     """Bir kareyi işler ve tarayıcıya dönecek sözlüğü üretir.
 
@@ -110,15 +113,16 @@ def _isle(veri: bytes, karar: Optional[servis.KayitKarari],
         'bulanik': sonuc.kalite_notu == 'bulanik',
         'keskinlik': round(sonuc.keskinlik, 1),
         'kayit_id': None,
+        'sayac': oturum.sayac if oturum else 0,
+        'doldu': bool(oturum and oturum.doldu),
     }
 
     hedef = None
-    if kaydet and sonuc.kutular is not None:
+    if kaydet and oturum is not None and oturum.elle():
         hedef = 'elle'
-    elif karar is not None and ayarlar.OTOMATIK_KAYIT:
-        secilen = karar.degerlendir(sonuc.kutular, time.monotonic())
-        if secilen is not None:
-            hedef = 'otomatik'
+    elif (oturum is not None and ayarlar.OTOMATIK_KAYIT
+          and oturum.kaydedilsin_mi(sonuc.kutular, time.monotonic())):
+        hedef = oturum.mod              # akilli | tespitli | hepsi
 
     if hedef:
         kayit_id = depo.kare_kaydet(frame, sonuc.kutular, sera_id=sera_id,
@@ -126,6 +130,8 @@ def _isle(veri: bytes, karar: Optional[servis.KayitKarari],
         if kayit_id:
             yanit['kayit_id'] = kayit_id
             yanit['kayit_tipi'] = hedef
+            yanit['sayac'] = oturum.sayac
+            yanit['doldu'] = oturum.doldu
     return yanit
 
 
@@ -133,7 +139,7 @@ def _isle(veri: bytes, karar: Optional[servis.KayitKarari],
 @router.websocket('/ws')
 async def akis(websocket: WebSocket):
     await websocket.accept()
-    karar = servis.KayitKarari()
+    oturum = servis.OturumKaydi()          # her bağlantı = bir sera turu
     sera_id: Optional[int] = None
     kaydet_istegi = False
 
@@ -151,6 +157,8 @@ async def akis(websocket: WebSocket):
                     continue
                 if veri.get('sera_id'):
                     sera_id = int(veri['sera_id'])
+                if veri.get('mod'):
+                    oturum.mod_ayarla(veri['mod'])
                 if veri.get('tip') == 'kaydet':
                     kaydet_istegi = True        # sıradaki kare kaydedilsin
                 continue
@@ -160,7 +168,7 @@ async def akis(websocket: WebSocket):
                 continue
 
             # Model çağrısı bloklayıcıdır → olay döngüsünü kilitlemesin
-            yanit = await run_in_threadpool(_isle, kare, karar, sera_id, kaydet_istegi)
+            yanit = await run_in_threadpool(_isle, kare, oturum, sera_id, kaydet_istegi)
             kaydet_istegi = False
             await websocket.send_text(json.dumps(yanit))
 
@@ -177,22 +185,26 @@ async def akis(websocket: WebSocket):
 # ────────────────────────────────────────────────────────── REST yedeği
 # Bazı ağlarda/vekil sunucularda WebSocket engellidir. O durumda tarayıcı
 # aynı kareyi buraya POST eder; protokol dışında hiçbir şey değişmez.
-_oturumlar: Dict[str, servis.KayitKarari] = {}
+_oturumlar: Dict[str, servis.OturumKaydi] = {}
 
 
-def _oturum(anahtar: str) -> servis.KayitKarari:
+def _oturum(anahtar: str, mod: Optional[str] = None) -> servis.OturumKaydi:
     if anahtar not in _oturumlar:
         if len(_oturumlar) > 20:            # sızıntı olmasın
             _oturumlar.clear()
-        _oturumlar[anahtar] = servis.KayitKarari()
-    return _oturumlar[anahtar]
+        _oturumlar[anahtar] = servis.OturumKaydi(mod)
+    o = _oturumlar[anahtar]
+    if mod and mod != o.mod:
+        o.mod_ayarla(mod)
+    return o
 
 
 @router.post('/kare')
 async def kare(kare: UploadFile, oturum: str = Form('varsayilan'),
-               sera_id: Optional[str] = Form(None), kaydet: Optional[str] = Form(None)):
+               sera_id: Optional[str] = Form(None), kaydet: Optional[str] = Form(None),
+               mod: Optional[str] = Form(None)):
     veri = await kare.read()
     yanit = await run_in_threadpool(
-        _isle, veri, _oturum(oturum),
+        _isle, veri, _oturum(oturum, mod),
         int(sera_id) if sera_id else None, bool(kaydet))
     return JSONResponse(yanit)

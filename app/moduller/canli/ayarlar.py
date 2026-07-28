@@ -29,6 +29,23 @@ KAYIT_GUVEN = float(os.environ.get('CANLI_KAYIT_GUVEN', '0.60'))
 # onlarca kayıt oluşmasın.
 BEKLEME_SN = float(os.environ.get('CANLI_BEKLEME_SN', '20'))
 
+# --- Kayıt modları -----------------------------------------------------------
+# Kullanıcı canlı akışta ne kadarının saklanacağını seçebilir:
+#   akilli   : yalnızca kararlı bulgular (varsayılan) — depolama dostu
+#   tespitli : tespit içeren HER kare — sera turunun tam dökümü
+#   hepsi    : tespit olsun olmasın her kare — eğitim verisi toplamak için
+MODLAR = ('akilli', 'tespitli', 'hepsi')
+VARSAYILAN_MOD = os.environ.get('CANLI_MOD', 'akilli')
+
+# Tek oturumda açılabilecek azami kayıt. Depolamayı ve geçmiş sayfasını
+# korur: 2 kare/sn ile 10 dakikalık tur ~1200 kare eder, hepsi kaydedilirse
+# hem disk hem arayüz taşar. Sınıra gelince kayıt durur, akış devam eder.
+OTURUM_AZAMI_KARE = int(os.environ.get('CANLI_OTURUM_AZAMI_KARE', '300'))
+
+# 'tespitli'/'hepsi' modunda aynı kareyi saniyede birkaç kez kaydetmemek için
+# en az aralık (saniye). 0 = sınırsız.
+MOD_ARALIK_SN = float(os.environ.get('CANLI_MOD_ARALIK_SN', '1.0'))
+
 # Bu değerin altındaki keskinlikte kare modele verilmez (hareket bulanıklığı).
 # 0 = kapalı. Canlıda eşik, video işlemedekinden gevşektir: yürürken çekimde
 # çok sert eşik akışı tamamen durdurur.

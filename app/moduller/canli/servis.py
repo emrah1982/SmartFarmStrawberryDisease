@@ -101,6 +101,65 @@ class KayitKarari:
         return aday
 
 
+class OturumKaydi:
+    """Canlı oturumda ne kadarının saklanacağını yöneten karar birimi.
+
+    Üç mod (kullanıcı arayüzden seçer):
+      akilli   → KayitKarari: yalnızca kararlı bulgular. Depolama dostu.
+      tespitli → tespit içeren her kare. Sera turunun dökümü çıkar.
+      hepsi    → tespit olmayanlar dahil her kare. Modelin KAÇIRDIĞI kareler
+                 de birikir; eğitim verisi toplamanın en hızlı yolu budur.
+
+    'tespitli'/'hepsi' modlarında iki koruma var: kareler arası en az aralık
+    ve oturum başına azami kayıt. İkisi de olmasa 10 dakikalık bir tur binlerce
+    kayıt açar, hem disk hem geçmiş sayfası kullanılamaz hale gelir.
+    """
+
+    def __init__(self, mod: str = None, azami: int = None, aralik: float = None):
+        self.mod = mod if mod in ayarlar.MODLAR else ayarlar.VARSAYILAN_MOD
+        self.azami = ayarlar.OTURUM_AZAMI_KARE if azami is None else azami
+        self.aralik = ayarlar.MOD_ARALIK_SN if aralik is None else aralik
+        self.karar = KayitKarari()
+        self.sayac = 0
+        self._son = None
+
+    @property
+    def doldu(self) -> bool:
+        return self.azami > 0 and self.sayac >= self.azami
+
+    def mod_ayarla(self, mod: str):
+        if mod in ayarlar.MODLAR:
+            self.mod = mod
+            self.karar = KayitKarari()      # sayaçlar sıfırlansın
+
+    def kaydedilsin_mi(self, kutular: List[Kutu], simdi: float) -> bool:
+        """Bu kare saklanmalı mı?"""
+        if self.doldu:
+            return False
+
+        if self.mod == 'akilli':
+            secilen = self.karar.degerlendir(kutular, simdi)
+            if secilen is None:
+                return False
+        else:
+            if self.mod == 'tespitli' and not kutular:
+                return False
+            if self._son is not None and simdi - self._son < self.aralik:
+                return False
+
+        self._son = simdi
+        self.sayac += 1
+        return True
+
+    def elle(self) -> bool:
+        """Kullanıcının 'Bu Kareyi Kaydet' isteği — sınır dışında tutulmaz."""
+        if self.doldu:
+            return False
+        self.sayac += 1
+        self._son = None            # elle kayıt, mod aralığını sıfırlamasın
+        return True
+
+
 def ciz(frame, kutular: List[Kutu]):
     """Kaydedilecek kareye kutuları çizer (arşiv görseli için).
 
