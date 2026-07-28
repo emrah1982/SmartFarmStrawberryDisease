@@ -811,6 +811,39 @@ app/moduller/canli/
 sunucusuz** test edilir — kayıt kuralının doğruluğu `tests/test_canli.py` içinde 5 testle
 sabitlenmiştir.
 
+### 🌐 Arayüz dili ve sınıf adları
+
+Menüdeki dil seçiminden (🇹🇷 / 🇬🇧) sınıf adlarının **ekranda** hangi dilde görüneceği
+belirlenir. Seçim çerezde saklanır, bir yıl hatırlanır.
+
+**Kritik ayrım:** Model sınıf adlarını İngilizce üretir (`Gray Mold`, `strawberry_unripe`)
+ve bunlar **eğitimdeki adlardır — değiştirilemez**. Etiket dosyaları, dışa aktarım ve
+yeniden eğitim bu adlara bağlıdır.
+
+| Nerede | Hangi ad |
+|--------|----------|
+| Ekran (tablo, canlı akış etiketi, filtre, etiketleme listesi) | Seçilen dil |
+| Veritabanı, `storage/egitim_verisi/labels/*.txt`, `data.yaml` | **Her zaman İngilizce** |
+
+Bu sayede dil değiştirmek eğitim verisini hiç etkilemez; bir test bunu sabitliyor
+(`test_dil_egitim_verisini_etkilemez`).
+
+Çeviriler `configs/sinif_adlari.yaml` dosyasındadır:
+
+```yaml
+Gray Mold:
+  tr: Kurşuni Küf (Botrytis)
+  en: Gray Mold (Botrytis)
+```
+
+**Yeni dil eklemek:** her sınıfa kodu ekleyin (`de: ...`) ve `app/dil.py` içindeki
+`DILLER` sözlüğüne dili tanıtın. Çevirisi olmayan sınıf İngilizce görünür — eksik çeviri
+ekranda boşluk bırakmaz.
+
+> Şu an dil seçimi **sınıf adlarını** kapsar; sayfa metinleri Türkçedir. Altyapı hazır:
+> `app/dil.py` içindeki bağlam değişkeni ve `|sinif` süzgeci aynı biçimde metinlere de
+> genişletilebilir.
+
 ### 🗺️ Konum ve Yaygınlık Modülü
 
 "Hastalık **nerede** yoğunlaşmış?" sorusunu yanıtlar. Menüdeki **Yaygınlık** sayfası.

@@ -22,7 +22,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
-from app import config
+from app import config, dil
 from app.moduller.canli import ayarlar, depo, servis
 
 logger = logging.getLogger(__name__)
@@ -51,6 +51,9 @@ def izle(request: Request):
         # Sayfa http'den açıldıysa kullanıcıyı güvenli adrese yönlendirebilmek için
         'https_port': config.HTTPS_PORT,
         'guvenli_hazir': bool(config.SSL_CERT and config.SSL_KEY),
+        # Sınıf adları ekranda seçili dilde yazılsın; WebSocket eğitimdeki
+        # (İngilizce) adı gönderir, çeviriyi tarayıcı bu haritayla yapar
+        'adlar': {ad: dil.sinif_adi(ad) for ad in cekirdek.SINIFLAR.values()},
         'ayar': {
             'genislik': ayarlar.GONDERIM_GENISLIK,
             'kalite': ayarlar.GONDERIM_KALITE,

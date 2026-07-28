@@ -57,7 +57,7 @@
     <tr><th>Sınıf</th><th>Adet</th><th>En yüksek güven</th></tr>
     {% for ad, g in gruplar %}
     <tr>
-      <td>{% if g.tedavi.ad %}{{ g.tedavi.ad }} <small>({{ ad }})</small>{% else %}{{ ad }}{% endif %}</td>
+      <td>{{ ad|sinif }} <small>({{ ad }})</small></td>
       <td>{{ g.adet }}</td>
       <td>
         <span class="rozet {% if g.max_guven >= 0.75 %}yuksek{% elif g.max_guven >= 0.5 %}orta{% else %}dusuk{% endif %}">
@@ -76,7 +76,7 @@
 {% if g.tedavi %}
 <section class="kart oneri {{ g.tedavi.aciliyet }}">
   <h3>
-    {{ g.tedavi.ad or ad }}
+    {{ ad|sinif }}
     {% if g.tedavi.aciliyet == 'yuksek' %}<span class="rozet dusuk">acil</span>
     {% elif g.tedavi.aciliyet == 'orta' %}<span class="rozet orta">takip</span>
     {% elif g.tedavi.aciliyet == 'bilgi' %}<span class="rozet">bilgi</span>{% endif %}
@@ -102,7 +102,7 @@
       {% for t in a.tespitler %}
       <tr>
         <td>{{ loop.index }}</td>
-        <td>{{ t.sinif_adi }}</td>
+        <td>{{ t.sinif_adi|sinif }}</td>
         <td>%{{ (t.guven * 100)|round|int }}</td>
         {% if a.kaynak_tip == 'video' %}<td>{{ t.kare }}</td>{% endif %}
       </tr>
@@ -123,18 +123,22 @@
     <a class="btn btn-birincil" href="/kayit/{{ a.id }}/etiketle">✏️ Etiketleme ekranını aç</a>
     {% if a.tespit_sayisi %}
     <form action="/kayit/{{ a.id }}/yanlis-tespit" method="post"
-          onsubmit="return confirm('Bu görüntüde gerçekten hiçbir tespit yok mu?\n\nTüm kutular silinip görüntü NEGATİF ÖRNEK olarak eğitime katılacak.')">
-      <button class="btn" type="submit">❌ Yanlış tespit — burada yok</button>
+          onsubmit="return confirm('DİKKAT: Bu düğme, görüntüde HİÇBİR hastalık/meyve olmadığını söyler.\n\nGörüntüde hastalık VARSA kullanmayın — kutuları silmek modele \'burada hastalık yok\' diye ÖĞRETİR. Onun yerine Etiketleme ekranından doğru kutuyu çizin.\n\nDevam edilsin mi?')">
+      <button class="btn" type="submit">❌ Tamamen yanlış — burada hiçbir şey yok</button>
     </form>
     {% endif %}
   </div>
   {% if a.tespit_sayisi %}
-  <p class="ipucu" style="margin-top:.5rem">
-    <strong>Yanlış tespit</strong> düğmesi kutuları siler ve bu görüntüyü
-    <em>negatif örnek</em> yapar. Modele "burada çilek/hastalık YOK" demenin yolu budur;
-    aynı yanlışı tekrarlamamayı ancak böyle öğrenir. Sarı tuzak, saksı, etiket kartı gibi
-    şeylere takılan tespitler için en etkili düzeltmedir.
-  </p>
+  <p class="ipucu" style="margin-top:.5rem"><strong>Hangi düğme ne zaman?</strong></p>
+  <ul class="ipucu">
+    <li><strong>Kutu yanlış ama görüntüde hastalık VAR</strong> → ✏️ <em>Etiketleme
+      ekranı</em>: yanlış kutuyu silin, doğru yere doğru sınıfla yeni kutu çizin. Model hem
+      yanlışı bırakmayı hem doğruyu bulmayı öğrenir — asıl düzeltme budur.</li>
+    <li><strong>Görüntüde gerçekten hiçbir şey yok</strong> (sarı tuzak, saksı, etiket kartı
+      hastalık sanılmış) → ❌ <em>Tamamen yanlış</em>: görüntü negatif örnek olur.</li>
+  </ul>
+  <p class="ipucu">⚠️ Hastalıklı bir görüntüde ❌ kullanmak <strong>zararlıdır</strong>:
+    modele o hastalığın orada olmadığını öğretir.</p>
   {% endif %}
 </section>
 

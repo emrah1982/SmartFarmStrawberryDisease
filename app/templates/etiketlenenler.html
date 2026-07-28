@@ -22,7 +22,7 @@
   <h3 style="margin-top:1rem">Etiketlediğiniz sınıflar</h3>
   <table class="cubuk">
     {% set enbuyuk = dagilim[0][1] %}
-    {% for ad, adet in dagilim %}
+    {% for ad, adet in dagilim %}{% set gorunen = ad|sinif %}
     <tr>
       <td class="ad">{{ ad }}</td>
       <td class="cizgi"><span style="width: {{ (adet / enbuyuk * 100)|round|int }}%"></span></td>

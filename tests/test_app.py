@@ -816,3 +816,52 @@ def test_negatif_ornek_bos_etiketle_disa_aktarilir(client):
 
 def test_yanlis_tespit_olmayan_kayit_404(client):
     assert client.post('/kayit/99999/yanlis-tespit').status_code == 404
+
+
+# ─────────────────────────────────────────────────────────── dil secimi
+def test_varsayilan_dil_turkce_sinif_adi_gosterir(client):
+    """Sahadaki kullanıcı 'Gray Mold' değil 'Kurşuni Küf' görmeli."""
+    r = client.post('/analiz/dosya', files={'dosyalar': ('d.jpg', b'x', 'image/jpeg')},
+                    follow_redirects=True)
+    assert 'Kurşuni Küf' in r.text
+
+
+def test_dil_ingilizceye_cevrilebilir(client):
+    client.post('/analiz/dosya', files={'dosyalar': ('d2.jpg', b'x', 'image/jpeg')},
+                follow_redirects=True)
+    client.get('/dil/en', follow_redirects=False)          # çerez kurulur
+    r = client.get('/gecmis')
+    assert 'Gray Mold' in r.text
+    assert 'Kurşuni Küf' not in r.text
+
+
+def test_dil_cerezi_kurulur_ve_geri_donulur(client):
+    r = client.get('/dil/en', headers={'referer': '/panel'}, follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers['location'] == '/panel'
+    assert 'dil=en' in r.headers.get('set-cookie', '')
+
+
+def test_gecersiz_dil_varsayilana_duser(client):
+    from app import dil as dil_modulu
+    r = client.get('/dil/klingon', follow_redirects=False)
+    assert f'dil={dil_modulu.VARSAYILAN}' in r.headers.get('set-cookie', '')
+
+
+def test_dil_egitim_verisini_etkilemez(client):
+    """Ekran dili ne olursa olsun veritabanı/dışa aktarım İngilizce ad saklamalı."""
+    from app.database import Analiz, SessionLocal
+
+    client.get('/dil/tr')
+    client.post('/analiz/dosya', files={'dosyalar': ('d3.jpg', b'x', 'image/jpeg')},
+                follow_redirects=True)
+    with SessionLocal() as db:
+        a = db.query(Analiz).order_by(Analiz.id.desc()).first()
+        adlar = {t.sinif_adi for t in a.tespitler}
+    assert 'Gray Mold' in adlar, 'veritabanı eğitimdeki İngilizce adı saklamalı'
+    assert 'Kurşuni Küf' not in adlar
+
+
+def test_dil_secici_menude(client):
+    r = client.get('/')
+    assert '/dil/tr' in r.text and '/dil/en' in r.text

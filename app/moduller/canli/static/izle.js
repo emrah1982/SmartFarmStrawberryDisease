@@ -44,7 +44,10 @@ function sonucGeldi(s) {
     : (s.kutular.length ? `${s.kutular.length} tespit` : 'Tespit yok')) + kayitBilgi;
 
   liste.innerHTML = s.kutular.length
-    ? s.kutular.map(k => `<span class="rozet">${k.ad} %${(k.guven * 100).toFixed(0)}</span>`).join(' ')
+    ? s.kutular.map(k => {
+        const ad = (window.CANLI_ADLAR || {})[k.ad] || k.ad;
+        return `<span class="rozet">${ad} %${(k.guven * 100).toFixed(0)}</span>`;
+      }).join(' ')
     : '';
 
   if (s.kayit_id) kayitEkle(s.kayit_id, s.kayit_tipi, s.kutular);
@@ -52,7 +55,8 @@ function sonucGeldi(s) {
 }
 
 function kayitEkle(id, tip, kutular) {
-  const ad = kutular.length ? kutular[0].ad : 'kayıt';
+  const ad = kutular.length
+    ? ((window.CANLI_ADLAR || {})[kutular[0].ad] || kutular[0].ad) : 'kayıt';
   const el = document.createElement('a');
   el.href = `/kayit/${id}`;
   el.className = 'rozet kayit-rozet';

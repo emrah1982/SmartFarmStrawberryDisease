@@ -51,6 +51,16 @@
         {% endfor %}
       </div>
     </details>
+
+    <!-- Dil: sınıf adları seçilen dilde gösterilir; veritabanı İngilizce kalır -->
+    <details class="grup" id="dilGrup">
+      <summary>{{ diller[aktif_dil()] }}</summary>
+      <div class="grup-icerik">
+        {% for kod, ad in diller.items() %}
+        <a href="/dil/{{ kod }}" class="{% if kod == aktif_dil() %}etkin{% endif %}">{{ ad }}</a>
+        {% endfor %}
+      </div>
+    </details>
   </nav>
 </header>
 

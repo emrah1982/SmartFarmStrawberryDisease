@@ -26,7 +26,7 @@
       <span class="ipucu">1️⃣ Çizilecek sınıf:</span>
       <select id="sinifSecim">
         {% for id, ad in siniflar.items() %}
-        <option value="{{ id }}">{{ id }} — {{ ad }}</option>
+        <option value="{{ id }}">{{ id }} — {{ ad|sinif }}</option>
         {% endfor %}
       </select>
     </label>

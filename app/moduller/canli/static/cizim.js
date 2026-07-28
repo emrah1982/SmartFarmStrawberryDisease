@@ -58,7 +58,8 @@ export class Cizim {
       c.strokeStyle = renk;
       c.strokeRect(x1, y1, gw, gy);
 
-      const etiket = `${k.ad} ${(k.guven * 100).toFixed(0)}%`;
+      const ad = (window.CANLI_ADLAR || {})[k.ad] || k.ad;   // seçili dildeki karşılık
+      const etiket = `${ad} ${(k.guven * 100).toFixed(0)}%`;
       const genislik = c.measureText(etiket).width + 8;
       const yukseklik = parseInt(c.font, 10) + 6;
       const etiketY = y1 > yukseklik ? y1 - yukseklik : y1;   // ekran dışına taşmasın

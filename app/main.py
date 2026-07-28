@@ -30,7 +30,7 @@ from app import config
 from app.database import (Analiz, Kamera, Sera, SessionLocal, Tespit, Uretici,
                           engine, get_db, init_db)
 from app.detector import detector
-from app import moduller, yetki
+from app import dil, moduller, yetki
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
@@ -40,6 +40,13 @@ app = FastAPI(title='Çilek Hastalık Tespit')
 templates = Jinja2Templates(directory=str(BASE_DIR / 'app' / 'templates'))
 app.mount('/static', StaticFiles(directory=str(BASE_DIR / 'app' / 'static')), name='static')
 app.mount('/media', StaticFiles(directory=str(config.STORAGE_DIR)), name='media')
+
+@app.middleware('http')
+async def dil_ara_katmani(request: Request, call_next):
+    """Her istekte seçili dili bağlama koyar (şablon süzgeçleri buradan okur)."""
+    dil.ayarla(dil.istekten_oku(request))
+    return await call_next(request)
+
 
 GORUNTU_UZANTI = {'.jpg', '.jpeg', '.png', '.bmp', '.webp'}
 VIDEO_UZANTI = {'.mp4', '.mov', '.avi', '.mkv', '.webm'}
@@ -128,6 +135,11 @@ def bekleyen_sayisi() -> int:
         return 0
 
 
+# Sınıf adları ekranda seçili dile göre yazılır; veritabanı/dışa aktarım
+# İngilizce adı korur (eğitimle tutarlılık için — bkz. app/dil.py)
+templates.env.filters['sinif'] = dil.sinif_adi
+templates.env.globals['diller'] = dil.DILLER
+templates.env.globals['aktif_dil'] = dil.aktif
 templates.env.globals['menu_moduller'] = _menu_moduller
 templates.env.globals['bekleyen_sayisi'] = bekleyen_sayisi
 
@@ -484,7 +496,8 @@ def etiketle(analiz_id: int, request: Request, db: Session = Depends(get_db)):
     if not yetki.erisebilir_mi(db, yetki.aktif_kullanici(db), a):
         raise HTTPException(403, 'Bu kayda erişim yetkiniz yok')
 
-    kutular = [{'sinif_id': t.sinif_id, 'sinif_adi': t.sinif_adi, 'guven': t.guven,
+    kutular = [{'sinif_id': t.sinif_id, 'sinif_adi': dil.sinif_adi(t.sinif_adi),
+                'guven': t.guven,
                 'x': t.x, 'y': t.y, 'w': t.w, 'h': t.h} for t in a.tespitler]
     return templates.TemplateResponse(request, 'etiketle.html', {
         'request': request, 'a': a, 'kutular': kutular, 'siniflar': SINIFLAR,
@@ -845,6 +858,17 @@ def sera_sil(sera_id: int, db: Session = Depends(get_db)):
         s.aktif = False
         db.commit()
     return RedirectResponse('/isletmeler', status_code=303)
+
+
+@app.get('/dil/{kod}')
+def dil_sec(kod: str, request: Request):
+    """Arayüz dilini değiştirir ve gelinen sayfaya döner."""
+    kod = kod if kod in dil.DILLER else dil.VARSAYILAN
+    geri = request.headers.get('referer') or '/'
+    yanit = RedirectResponse(geri, status_code=303)
+    # 1 yıl: kullanıcı her açılışta tekrar seçmesin
+    yanit.set_cookie(dil.CEREZ, kod, max_age=31536000, samesite='lax')
+    return yanit
 
 
 if __name__ == '__main__':

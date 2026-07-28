@@ -20,7 +20,7 @@
     <select name="sinif">
       <option value="">Tüm sınıflar</option>
       {% for s in siniflar %}
-      <option value="{{ s }}" {% if secili.sinif == s %}selected{% endif %}>{{ s }}</option>
+      <option value="{{ s }}" {% if secili.sinif == s %}selected{% endif %}>{{ s|sinif }}</option>
       {% endfor %}
     </select>
     <select name="tip">
