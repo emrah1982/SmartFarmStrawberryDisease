@@ -16,15 +16,18 @@ def test_kapali_sinif_hic_gosterilmez(monkeypatch):
     assert siniflar.kabul_edilir_mi('Gray Mold', 0.99) is False
 
 
-def test_gurultulu_sinif_yuksek_esikle_sinirlanir():
-    """strawberry_unripe yaprakları çilek sanıyor; ölçüme göre eşiği yüksek.
+def test_gurultulu_sinif_esigi_olcume_dayali():
+    """strawberry_unripe yaprakları çilek sanabiliyor; eşiği ölçülmüş yanlış
+    pozitiflerin üstünde, gerçek meyvelerin medyanına yakın olmalı.
 
-    Yaprak yanlış pozitifleri 0.79'a kadar çıkıyordu — eşik onların üstünde
-    olmalı ki yalnızca belirgin meyveler geçsin.
+    İnce ayar sonrası ölçüm: yaprak yanlış pozitifleri en çok 0.37,
+    gerçek meyve medyanı 0.40. Eşik ikisinin arasında seçilir.
     """
-    assert siniflar.esik('strawberry_unripe') > 0.79
-    assert siniflar.kabul_edilir_mi('strawberry_unripe', 0.79) is False
-    assert siniflar.kabul_edilir_mi('strawberry_unripe', 0.95) is True
+    esik = siniflar.esik('strawberry_unripe')
+    assert esik > 0.37, 'ölçülen yaprak yanlış pozitiflerinin üstünde olmalı'
+    assert esik < 0.60, 'çok yüksek eşik gerçek meyveleri de eler'
+    assert siniflar.kabul_edilir_mi('strawberry_unripe', 0.37) is False
+    assert siniflar.kabul_edilir_mi('strawberry_unripe', 0.92) is True
 
 
 def test_hastalik_siniflari_dusuk_guvende_bile_gecer():
