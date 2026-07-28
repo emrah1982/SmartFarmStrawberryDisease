@@ -20,14 +20,28 @@ def test_gurultulu_sinif_esigi_olcume_dayali():
     """strawberry_unripe yaprakları çilek sanabiliyor; eşiği ÖLÇÜLMÜŞ yanlış
     pozitiflerin üstünde olmalı.
 
-    Üretimdeki modelde (exp-3) yaprak yanlış pozitifleri 0.79'a kadar
-    çıkıyordu. Eşik bunun üstünde olmalı ki yalnızca belirgin meyveler geçsin.
+    Üretimdeki modelde (ince ayar) yaprak yanlış pozitifleri en çok 0.37;
+    gerçek meyve medyanı 0.40. Eşik ikisinin arasında seçilir.
     Model değişirse bu ölçüm tekrarlanmalı — eşik modele bağlıdır.
     """
     esik = siniflar.esik('strawberry_unripe')
-    assert esik > 0.79, 'ölçülen yaprak yanlış pozitiflerinin üstünde olmalı'
-    assert siniflar.kabul_edilir_mi('strawberry_unripe', 0.79) is False
+    assert esik > 0.37, 'ölçülen yaprak yanlış pozitiflerinin üstünde olmalı'
+    assert esik < 0.60, 'çok yüksek eşik gerçek meyveleri de eler'
+    assert siniflar.kabul_edilir_mi('strawberry_unripe', 0.37) is False
     assert siniflar.kabul_edilir_mi('strawberry_unripe', 0.92) is True
+
+
+def test_hastalik_esikleri_olgunluktan_dusuk():
+    """Uygulamanın işi hastalık tespiti: hastalık sınıfları en düşük eşikte
+    kalmalı, olgunluk sınıfları gürültülü oldukları için daha sıkı olabilir.
+
+    Sahada antraknoz %20-24 güvenle bulunabiliyor; bu tespitler kaçırılmak
+    yerine inceleme kuyruğuna düşsün diye eşik düşük tutulur.
+    """
+    for hastalik in ('Anthracnose Fruit Rot', 'Gray Mold', 'Leaf Spot'):
+        for olgunluk in ('strawberry_ripe', 'strawberry_unripe'):
+            assert siniflar.esik(hastalik) <= siniflar.esik(olgunluk),                 f'{hastalik} eşiği {olgunluk} eşiğinden yüksek olmamalı'
+    assert siniflar.kabul_edilir_mi('Anthracnose Fruit Rot', 0.24) is True
 
 
 def test_hastalik_siniflari_dusuk_guvende_bile_gecer():

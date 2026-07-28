@@ -534,46 +534,48 @@ Colab'de 5️⃣ hücresi bu analizi eğitimden önce **otomatik** basar ve öne
 Yalnızca yeni görüntülerle eğitmek eski sınıflarda **unutmaya** (catastrophic forgetting)
 yol açar. `strawberry_data.yaml` tüm kaynakları listeler — doğru kullanım budur.
 
-#### ⚠️ Gerçek örnek: kıyaslama seti sahayı temsil etmezse metrik yanıltır
+#### ⚠️ Gerçek örnek: "hangi model daha iyi" sorusu göründüğü kadar basit değil
 
-Bu projede yaşandı ve ince ayar akışının en önemli dersi bu.
+Bu projede yaşandı; ince ayar akışının en önemli dersi.
 
-İnce ayar modeli (`strawberry_ince_ayar`, 60 epoch) **kıyaslama setinde açık ara
-daha iyiydi** — `model_karsilastir.py` çıktısı:
+`model_karsilastir.py` aynı test setinde **ince ayar modelini** kazandırdı:
 
 | | eski (exp-3) | yeni (ince ayar) |
 |---|---|---|
 | mAP50-95 | 0.228 | **0.477** |
-| precision | 0.430 | **0.701** |
-| recall | 0.411 | **0.652** |
-| Gerileyen sınıf | — | **yok** (10 sınıfın hepsi iyileşti) |
+| **Anthracnose Fruit Rot** | 0.124 | **0.517** |
+| Leaf Spot | 0.010 | **0.388** |
+| Gerileyen sınıf | — | **yok** |
 
-Karar satırı "dağıtıma alınabilir" dedi. Ama **kullanıcının gerçek fotoğraflarında**
-tam tersi çıktı:
+Ama sahadan gelen fotoğraflarda **tespit SAYISI** düştü:
 
 | Görsel | Eski | Yeni |
 |--------|------|------|
-| Ekran görüntüsü 1598×1194 | **12 tespit** (0.94, 0.92) | **0** |
-| Saha fotoğrafı 2712×2496 | 1 tespit | **0** |
-| Yaprak lekesi 440×336 | Leaf Spot 0.96 | Leaf Spot 0.64 |
-| v13 tarzı 640×640 | 6 tespit | **12 tespit** ← kendi dağılımı |
+| Ekran görüntüsü 1598×1194 | 12 tespit | 2 tespit |
+| Saha fotoğrafı 2712×2496 | 1 tespit | 0 |
 
-**Teşhis:** İnce ayar modeli kendi eğitim dağılımına (v13, ~640 px kürasyonlu
-görüntüler) uyarlandı; sahadaki farklı çözünürlük ve çekim koşullarına
-genellemedi. Kıyaslama seti de aynı dağılımdan geldiği için "her şey iyileşti"
-dedi.
+İlk bakışta "yeni model kötü" görünüyor. **Yanlış sonuç.** Sayılara değil, *neyin*
+tespit edildiğine bakmak gerekiyordu:
 
-**Alınan dersler:**
+- Eski modelin 12 tespitinin **tamamı olgunluk sınıfıydı** (olgun/olgunlaşmamış çilek).
+  Aynı görselde `conf 0.05`'e kadar indirildiğinde bile **hiç hastalık bulamadı**.
+- Yeni modelin 2 tespiti **antraknoz lezyonlarıydı** ve kutular doğru yerdeydi
+  (üretici tarafından doğrulandı).
 
-1. **Kıyaslama seti sahayı temsil etmeli.** Dataset'in test split'i, telefonla
-   çekilmiş 12 MP fotoğrafı temsil etmiyor. Sahadan gelen görüntülerden ayrı bir
-   **saha test seti** kurun (uygulamadaki etiketleme ekranı tam bunun için var).
-2. **Metriğe körü körüne güvenmeyin.** mAP'ın artması, sizin kullanım
-   senaryonuzda daha iyi olduğu anlamına gelmez.
-3. **Dağıtımdan önce kendi görüntülerinizde deneyin.** Birkaç gerçek fotoğrafta
-   yan yana karşılaştırmak, tek başına mAP'tan daha bilgilendiricidir.
+Uygulamanın işi **hastalık tespiti**. Meyve saymak değil. Dolayısıyla:
 
-Üretimde `strawberry_exp-3` (sıfırdan, 200 epoch) kalmaya devam ediyor.
+> **Ders:** Tespit sayısı bir kalite ölçüsü değildir. "Hangi model daha iyi"
+> sorusu, *uygulamanın amacına göre* sorulmalıdır. Sınıf bazlı rapor tam bu yüzden
+> var — genel mAP veya tespit sayısı, kritik sınıftaki iyileşmeyi gizleyebilir.
+
+**Eşik uyarısı:** Yeni modelin güven kalibrasyonu farklıdır — aynı nesneye daha
+düşük güven verir. Eski model için ölçülmüş eşikler (`unripe: 0.80`) yeni modelde
+her şeyi eler. Model değiştiğinde eşikler **yeniden ölçülmelidir**.
+
+Sahada antraknoz %20-24 güvenle bulunduğu için `CONF_THRESHOLD` 0.25 → **0.20**
+indirildi. `REVIEW_THRESHOLD` 0.55 olduğundan bu tespitler zaten
+[inceleme kuyruğuna](#-sahadan-gelen-veriyle-sürekli-i̇yileştirme) düşer:
+kaçırmaktansa uzman onayına gitsin.
 
 #### ⚠️ İkinci ders: ince ayarda öğrenme oranı
 

@@ -25,7 +25,10 @@ services:
       - ./certs:/app/certs:ro
     environment:
       MODEL_PATH: /app/models/best.pt
-      CONF_THRESHOLD: "0.25"
+      # 0.20: sahada hastalik lezyonlari dusuk guvenle bulunabiliyor (orn.
+      # antraknoz %20-24). REVIEW_THRESHOLD 0.55 oldugu icin bu tespitler
+      # zaten inceleme kuyruguna dusuyor — kacirmaktansa uzman onayina gitsin.
+      CONF_THRESHOLD: "0.20"
       REVIEW_THRESHOLD: "0.55"
       IMGSZ: "1024"
     restart: unless-stopped
