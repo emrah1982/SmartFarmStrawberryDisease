@@ -534,6 +534,45 @@ Colab'de 5️⃣ hücresi bu analizi eğitimden önce **otomatik** basar ve öne
 Yalnızca yeni görüntülerle eğitmek eski sınıflarda **unutmaya** (catastrophic forgetting)
 yol açar. `strawberry_data.yaml` tüm kaynakları listeler — doğru kullanım budur.
 
+#### ⚠️ Gerçek örnek: ilk ince ayar denemesi BAŞARISIZ oldu
+
+Bu bölüm teorik değil — bu projede yaşandı ve neden karşılaştırmadan dağıtım
+yapılmaması gerektiğini gösteriyor.
+
+**Ayarlar:** `lr0 0.0008` (AdamW), 60 epoch, `mosaic 1.0`
+**Sonuç:** model **genel olarak zayıfladı**. Aynı görsellerde ölçüm:
+
+| Görsel | Eski model (exp-3) | İnce ayar (60 epoch) |
+|--------|--------------------|----------------------|
+| Ekran görüntüsü (çilek) | ripe 0.94 · 0.92 · unripe 0.90 | **TESPİT YOK** |
+| Yaprak lekesi | Leaf 0.96 · 0.95 · 0.95 | Leaf 0.64 · 0.26 |
+| EC 4.4 bitki | unripe 0.79 · 0.75 · 0.69 | unripe 0.37 |
+| Sera fotoğrafı | unripe 0.42 | **TESPİT YOK** |
+
+Sınıf sırası doğruydu (etiket karışması değil). Eğitim eğrisi teşhisi verdi:
+
+```
+epoch  1 → val mAP50-95 = 0.298     ← ~0.75'ten ÇÖKÜŞ
+epoch 60 → val mAP50-95 = 0.532     ← hâlâ yükseliyor, toparlanamamış
+```
+
+**Teşhis:** `lr0 = 0.0008` yakınsamış bir model için çok yüksek. Ağırlıklar
+optimumdan koptu, 60 epoch geri gelmeye yetmedi.
+
+**En sinsi kısmı:** ilk bakışta "yaprak yanlış pozitifleri 0.79'dan 0.37'ye düştü,
+ince ayar işe yaradı" diye yorumlanabilirdi. Oysa model **her şeyde** daha az
+güvenli hale gelmişti; yanlış pozitiflerin azalması bir yan etkiydi. Tek yönlü
+ölçüm yanıltır — bu yüzden karşılaştırma iki yönlü ve sınıf bazlı yapılır.
+
+**Düzeltilen ayarlar** (`finetune_config.yaml`):
+
+| Ayar | Başarısız deneme | Düzeltilmiş |
+|------|------------------|-------------|
+| `lr0` | 0.0008 | **0.0001** (sıfırdanın ~1/20'si) |
+| `warmup_epochs` | 2.0 | **0.5** (ısınma LR'yi yükseltir, ağırlıkları dağıtır) |
+| `mosaic` | 1.0 | **0.5** (yakınsamış modeli bozacak kadar agresif) |
+| `freeze` | null | null — bozulma tekrarlarsa **10** (omurgayı dondur) |
+
 #### Karşılaştırma: gerçekten iyileşti mi?
 
 Eski modelin eğitim sonundaki mAP'ı ile yeninin mAP'ını kıyaslamak **yanlıştır**: veri

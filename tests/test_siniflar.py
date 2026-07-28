@@ -17,16 +17,16 @@ def test_kapali_sinif_hic_gosterilmez(monkeypatch):
 
 
 def test_gurultulu_sinif_esigi_olcume_dayali():
-    """strawberry_unripe yaprakları çilek sanabiliyor; eşiği ölçülmüş yanlış
-    pozitiflerin üstünde, gerçek meyvelerin medyanına yakın olmalı.
+    """strawberry_unripe yaprakları çilek sanabiliyor; eşiği ÖLÇÜLMÜŞ yanlış
+    pozitiflerin üstünde olmalı.
 
-    İnce ayar sonrası ölçüm: yaprak yanlış pozitifleri en çok 0.37,
-    gerçek meyve medyanı 0.40. Eşik ikisinin arasında seçilir.
+    Üretimdeki modelde (exp-3) yaprak yanlış pozitifleri 0.79'a kadar
+    çıkıyordu. Eşik bunun üstünde olmalı ki yalnızca belirgin meyveler geçsin.
+    Model değişirse bu ölçüm tekrarlanmalı — eşik modele bağlıdır.
     """
     esik = siniflar.esik('strawberry_unripe')
-    assert esik > 0.37, 'ölçülen yaprak yanlış pozitiflerinin üstünde olmalı'
-    assert esik < 0.60, 'çok yüksek eşik gerçek meyveleri de eler'
-    assert siniflar.kabul_edilir_mi('strawberry_unripe', 0.37) is False
+    assert esik > 0.79, 'ölçülen yaprak yanlış pozitiflerinin üstünde olmalı'
+    assert siniflar.kabul_edilir_mi('strawberry_unripe', 0.79) is False
     assert siniflar.kabul_edilir_mi('strawberry_unripe', 0.92) is True
 
 
