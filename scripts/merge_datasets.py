@@ -248,12 +248,82 @@ def merge_datasets(input_dirs: List[str], output_dir: str, master_yaml: str,
     return True
 
 
+def yerinde_uyarla(dataset_dir: str, master_yaml: str, alias_yaml, drop_classes,
+                   on_unknown: str = 'error', kuru: bool = False) -> bool:
+    """Bir kaynağın etiketlerini KOPYALAMADAN master şemaya çevirir.
+
+    NEDEN KOPYALAMA YOK?
+        configs/strawberry_data.yaml kaynak dizinleri doğrudan listeler
+        (Ultralytics çoklu dizin desteği). Birleşik bir kopya üretmek binlerce
+        görüntüyü ikinci kez diske yazardı; bunun yerine yalnızca .txt etiket
+        dosyalarındaki ID'ler yeniden yazılır — bu proje zaten böyle kuruldu.
+
+    GÜVENLİK
+        Etiketler değiştirilmeden önce aynı klasörün yanına
+        `labels_orijinal/` olarak yedeklenir; ikinci çalıştırmada YEDEK VARSA
+        kaynak olarak o kullanılır, böylece betik iki kez çalışsa da ID'ler
+        üst üste kaymaz (yeniden çalıştırılabilir).
+    """
+    kaynak = Path(dataset_dir)
+    src_yaml = kaynak / 'data.yaml'
+    if not src_yaml.exists():
+        logger.error(f'data.yaml bulunamadı: {src_yaml}')
+        return False
+
+    # Betik data.yaml'ı master şemaya çevirdiği için ORİJİNALİ ayrıca saklanır.
+    # Yoksa ikinci çalıştırmada yedekteki (kaynak şemasındaki) etiketler master
+    # şemaya aitmiş gibi okunur ve sessizce YANLIŞ SINIFA çevrilirdi.
+    yaml_yedek = kaynak / 'data_orijinal.yaml'
+    if not yaml_yedek.exists() and not kuru:
+        shutil.copy2(src_yaml, yaml_yedek)
+    source_names = load_names(yaml_yedek if yaml_yedek.exists() else src_yaml)
+    master_names = load_names(Path(master_yaml))
+    aliases = load_aliases(Path(alias_yaml) if alias_yaml else DEFAULT_ALIAS_YAML)
+    drop = {normalize(d) for d in (drop_classes or [])}
+
+    logger.info(f'Kaynak: {kaynak.name}  ({len(source_names)} sınıf)')
+    id_map = build_id_map(source_names, master_names, aliases, drop, on_unknown)
+
+    toplam_dosya = toplam_kutu = toplam_atilan = bosalan = 0
+    for bolum in ('train', 'valid', 'val', 'test', ''):
+        etiket_dizin = (kaynak / bolum / 'labels') if bolum else (kaynak / 'labels')
+        if not etiket_dizin.is_dir():
+            continue
+        yedek = etiket_dizin.parent / 'labels_orijinal'
+        if not yedek.exists() and not kuru:
+            shutil.copytree(etiket_dizin, yedek)
+            logger.info(f'  yedek: {yedek}')
+        okunacak = yedek if yedek.exists() else etiket_dizin
+
+        for f in sorted(okunacak.glob('*.txt')):
+            satirlar, atilan = remap_label_lines(f, id_map)
+            toplam_dosya += 1
+            toplam_kutu += len(satirlar)
+            toplam_atilan += atilan
+            if not satirlar:
+                bosalan += 1          # background örneği olur
+            if not kuru:
+                (etiket_dizin / f.name).write_text(''.join(satirlar), encoding='utf-8')
+
+    if not kuru:
+        veri = yaml.safe_load(src_yaml.read_text(encoding='utf-8')) or {}
+        veri['names'] = {i: a for i, a in enumerate(master_names)}
+        veri['nc'] = len(master_names)
+        src_yaml.write_text(yaml.dump(veri, allow_unicode=True, sort_keys=False),
+                            encoding='utf-8')
+
+    logger.info(f"{'[KURU] ' if kuru else ''}{toplam_dosya} etiket dosyası işlendi | "
+                f'{toplam_kutu} kutu korundu | {toplam_atilan} kutu atıldı | '
+                f'{bosalan} dosya boşaldı (background örneği)')
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Farklı kaynaklardan dataset'leri sınıf ID çakışması olmadan birleştir")
     parser.add_argument("--inputs", type=str, nargs='+', required=True,
                         help="Kaynak dataset dizinleri (her birinde data.yaml olmalı)")
-    parser.add_argument("--output", type=str, required=True, help="Birleşik dataset dizini")
+    parser.add_argument("--output", type=str, default="", help="Birleşik dataset dizini (--in-place ile gerekmez)")
     parser.add_argument("--master-yaml", type=str, default=str(DEFAULT_MASTER_YAML),
                         help="Ana sınıf listesini içeren yaml (varsayılan: configs/strawberry_data.yaml)")
     parser.add_argument("--alias-yaml", type=str, default=None,
@@ -263,8 +333,19 @@ def main():
                         help="Master listede olmayan sınıf için davranış (varsayılan: error)")
     parser.add_argument("--drop-classes", type=str, nargs='*', default=[],
                         help="Kutuları atılacak sınıf adları (örn. 'healthy leaf' → görüntü background olur)")
+    parser.add_argument("--in-place", action="store_true",
+                        help="Kopyalamadan kaynağın etiketlerini master şemaya çevirir "
+                             "(yedek: labels_orijinal/). --output gerekmez.")
+    parser.add_argument("--kuru", action="store_true",
+                        help="Hiçbir dosyaya yazmadan ne olacağını raporlar")
 
     args = parser.parse_args()
+
+    if args.in_place:
+        tamam = all(yerinde_uyarla(g, args.master_yaml, args.alias_yaml,
+                                   args.drop_classes, args.on_unknown, args.kuru)
+                    for g in args.inputs)
+        return 0 if tamam else 1
 
     success = merge_datasets(args.inputs, args.output, args.master_yaml,
                              args.alias_yaml, args.on_unknown, args.drop_classes)

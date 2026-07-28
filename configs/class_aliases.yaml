@@ -55,3 +55,10 @@
 "saglikli": "healthy"
 "saglikli yaprak": "healthy"
 "normal": "healthy"
+
+# --- Strawberry Disease.v13i (marstrawberry) kaynağı ---
+# Bu kaynak meyveyi "edible/non-edible" olarak ayırıyor; bizim şemamızda
+# karşılığı olgunluktur. Kutular incelendi: non-edible örnekleri yeşil/beyaz
+# olgunlaşmamış meyve, healthy örnekleri kızarmış meyve.
+"non edible strawberry": "strawberry_unripe"
+"healthy strawberry": "strawberry_ripe"

@@ -110,6 +110,61 @@ MyDrive/SmartFarmStrawberryDisease/
 
 ### 1. Dataset Hazırlama
 
+#### 🔀 Yeni bir Roboflow kaynağını mevcut şemaya katma (kopyalamadan)
+
+Her kaynak sınıflarını kendi sırasına göre numaralar. Örnek: `marstrawberry v13` setinde
+**Leaf Spot id 6**, bizim şemamızda **id 4**. Etiketler olduğu gibi bırakılırsa model
+`Leaf Spot` kutularını `Powdery Mildew Leaf` sanarak öğrenir — ve bu ancak eğitim
+bittikten sonra fark edilir.
+
+```bash
+# 1) Önce KURU çalıştır: hiçbir dosyaya yazmadan eşlemeyi gör
+python scripts/merge_datasets.py --in-place --kuru   --inputs "dataset/Strawberry Disease.v13i.yolo26"   --drop-classes "healthy leaf strawberry" "mulch"
+
+# 2) Doğruysa gerçek çalıştır
+python scripts/merge_datasets.py --in-place   --inputs "dataset/Strawberry Disease.v13i.yolo26"   --drop-classes "healthy leaf strawberry" "mulch"
+```
+
+`--in-place` **görüntüleri kopyalamaz**, yalnızca `.txt` etiketlerindeki ID'leri yeniden
+yazar. `configs/strawberry_data.yaml` kaynak dizinleri doğrudan listelediği için
+(Ultralytics çoklu dizin desteği) binlerce görüntüyü ikinci kez diske yazmaya gerek yoktur.
+
+**Güvenlik ağları:**
+
+| Ne | Nerede |
+|----|--------|
+| Orijinal etiketler | `<bölüm>/labels_orijinal/` |
+| Orijinal sınıf listesi | `data_orijinal.yaml` |
+| Eşlenemeyen sınıf | **hata verir**, sessizce yanlış ID'ye düşmez |
+
+İkisi birden saklandığı için betik **yeniden çalıştırılabilir**: ikinci çalıştırma
+ID'leri üst üste kaydırmaz. (Yalnızca etiketler yedeklenip `data.yaml` yedeklenmeseydi,
+ikinci çalıştırma kaynak şemasındaki etiketleri master şemaya aitmiş gibi okuyup sessizce
+bozardı — bu davranış testle sabitlenmiştir.)
+
+#### Sınıf eşleme kararları nasıl verilir?
+
+Adı birebir tutmayan sınıflar `configs/class_aliases.yaml` ile eşlenir. **Kutuları gözle
+inceleyin**, ada güvenmeyin. v13 kaynağında yapılan inceleme:
+
+| Kaynak sınıfı | Karar | Gerekçe |
+|---------------|-------|---------|
+| `non-edible-Strawberry` | → `strawberry_unripe` | Kutular yeşil/beyaz olgunlaşmamış meyve |
+| `Healthy-Strawberry` | → `strawberry_ripe` | Kutular kızarmış meyve (bir kısmı yarı olgun — kabul edilen gürültü) |
+| `Healthy-Leaf -Strawberry` | **atıldı** | Sağlıklı yaprak *sınıf değil*, **background** örneğidir |
+| `Mulch` | **atıldı** | Malç/saman zemin; hastalık değil. Atılınca "kahverengi saman ≠ lezyon" öğretir |
+
+> **Sağlıklı neden sınıf değil?** Bir nesne dedektöründe "sağlıklı" etiketi, modele
+> sağlıklı görünümü *aramayı* öğretir ve hastalıkla yarışır. Doğru yöntem o bölgeyi
+> etiketsiz bırakmaktır: model orada hiçbir sınıf olmadığını öğrenir. Bu proje baştan
+> böyle kurulmuştur.
+
+> ⚠️ **Bir kutuyu atmak ile görüntüyü atmak farklıdır.** Yalnızca atılan sınıfları içeren
+> görüntülerin etiket dosyası boşalır ve görüntü **background örneği** olur — silinmez.
+> v13'te 96 görüntü böyle oldu; bunlar yanlış pozitifleri azaltır.
+
+
+
 ```bash
 # Roboflow'dan dataset indir
 python scripts/download_dataset.py --api-key YOUR_KEY --workspace strawberry --project ripeness

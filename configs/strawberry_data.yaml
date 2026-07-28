@@ -4,6 +4,10 @@
 #   - Olgunluk ripe/unripe        : aliazz/strawberry-fowax v1        (0→7, 1→9 olarak dönüştürüldü)
 #   - Olgunluk 3 seviye           : ibsp-u8x8i/maturity-hehap v7      (0→7, 1→8, 2→9 olarak dönüştürüldü)
 #   - Sağlıklı bitki (background) : test-ydoer/strawberry-healthy-r0op7 (etiketler boşaltıldı — sınıf DEĞİL)
+#   - Hastalık v13 (11 sınıf)     : marstrawberry/strawberry-disease-uudgf v13
+#       Leaf Spot kaynakta id 6, bizde id 4 → ID'ler yeniden yazıldı (çakışma önlendi).
+#       Healthy-Strawberry→strawberry_ripe, non-edible-Strawberry→strawberry_unripe
+#       Healthy-Leaf ve Mulch → kutular atıldı (background örneği olurlar)
 #
 # Ultralytics çoklu dizin desteği: train/val/test birden çok kaynağın dizinlerini
 # liste olarak alır — görüntü kopyalamaya gerek yoktur, dosya çakışması olmaz.
@@ -13,17 +17,23 @@ train:
   - "../dataset/Strawberry -ripe - unripe.yolo26/train/images"
   - "../dataset/Strawberry -ripe - unripe-r1.yolo26/train/images"
   - "../dataset/Strawberry - Healthy.yolo26/train/images"
+  # marstrawberry v13: 1944 gorsel. Etiketleri bu semaya cevrildi
+  # (merge_datasets.py --in-place). Healthy-Leaf ve Mulch kutulari atildi:
+  # saglikli yaprak ve mals BACKGROUND ornegidir, sinif degil.
+  - "../dataset/Strawberry Disease.v13i.yolo26/train/images"
 
   - "../dataset/augmented_train/images"
 val:
   - "../dataset/Strawberry Disease Detection Dataset.v4i.yolo26/valid/images"
   - "../dataset/Strawberry -ripe - unripe.yolo26/valid/images"
   - "../dataset/Strawberry -ripe - unripe-r1.yolo26/valid/images"
+  - "../dataset/Strawberry Disease.v13i.yolo26/valid/images"
 
 test:
   - "../dataset/Strawberry Disease Detection Dataset.v4i.yolo26/test/images"
   - "../dataset/Strawberry -ripe - unripe.yolo26/test/images"
   - "../dataset/Strawberry -ripe - unripe-r1.yolo26/test/images"
+  - "../dataset/Strawberry Disease.v13i.yolo26/test/images"
 
 nc: 10
 names:
