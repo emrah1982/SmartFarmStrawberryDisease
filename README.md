@@ -142,6 +142,43 @@ ID'leri üst üste kaydırmaz. (Yalnızca etiketler yedeklenip `data.yaml` yedek
 ikinci çalıştırma kaynak şemasındaki etiketleri master şemaya aitmiş gibi okuyup sessizce
 bozardı — bu davranış testle sabitlenmiştir.)
 
+#### 🩹 Etiket sağlığı kontrolü (eğitimden önce zorunlu)
+
+Roboflow dışa aktarımlarında kutuların bir kısmı **görüntü sınırının dışına taşar**.
+Etiket dosyasındaki her sayı 0-1 aralığında olduğu için hiçbir doğrulayıcı uyarmaz —
+hata ancak kutu çizilince görülür.
+
+```bash
+python scripts/etiket_temizle.py --kuru      # rapor
+python scripts/etiket_temizle.py             # onar
+```
+
+Bu projede yapılan ölçüm (33.512 kutu):
+
+| Kaynak | Taşan kutu |
+|--------|-----------|
+| Strawberry Disease Detection v4i | 5034 / 11.094 (%45) |
+| Strawberry Disease v13i | 1624 / 3749 (%43) |
+| Olgunluk kaynakları | 0 |
+| augmented_train | 0 (çoğaltma sırasında zaten kırpılmıştı) |
+
+Sınıf bazında en çok etkilenenler: `Leaf Spot` %55, `Powdery Mildew Leaf` %47,
+`Angular Leafspot` %43. Ayrıca **468 kutunun genişliği veya yüksekliği sıfırdı**.
+
+**Neden önemli:** Model, nesnenin görünen kısmına bakıp görüntü dışına taşan bir kutu
+tahmin etmeyi öğrenir. Merkez ve boyut hedefleri sistematik olarak kayar; en çok
+**mAP50-95** (konumlandırma hassasiyeti) zarar görür. Kırpma hedefi nesnenin gerçekten
+görünen kısmına oturtur. Sıfır boyutlu kutular hiçbir şey öğretmez ve bazı artırma
+kütüphanelerinde hata verir.
+
+Betik kutuyu [0,1] karesine kırpar ve **merkezi yeniden hesaplar** (yalnızca boyutu
+kısaltmak kutuyu nesneden kaydırırdı). Yedek: `labels_temizlik_oncesi/`. Kırpma
+kendi kendine tekrarlanabilir — betiği iki kez çalıştırmak veriyi bozmaz.
+
+> ⚠️ Bu betik **geometriyi** onarır, **etiket kalitesini** değil. Kutunun yanlış yerde
+> veya çok gevşek olması kaynak veri setinin sorunudur; onu ancak elle etiketleme
+> düzeltir.
+
 #### Sınıf eşleme kararları nasıl verilir?
 
 Adı birebir tutmayan sınıflar `configs/class_aliases.yaml` ile eşlenir. **Kutuları gözle
