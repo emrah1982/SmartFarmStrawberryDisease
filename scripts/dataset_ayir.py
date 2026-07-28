@@ -150,6 +150,30 @@ def ayir(kaynak: Path, hedef_kok: Path, master: dict, arka_plan_orani: float,
     return 0
 
 
+def paketle(hedef_kok: Path, adlar) -> None:
+    """Her dataset'i ayrı zip yapar — Colab'e yalnızca eğitilecek olan yüklenir.
+
+    NEDEN AYRI ZIP: tek büyük arşiv her eğitimde baştan yüklenir/açılır. Ayrı
+    paketlerde yaprak modelini eğitirken meyve verisi hiç taşınmaz; yükleme ve
+    açma süresi belirgin düşer.
+
+    compresslevel=1: JPEG zaten sıkıştırılmıştır, yüksek seviye yalnızca
+    süre harcar.
+    """
+    import zipfile
+    for ad in adlar:
+        d = hedef_kok / ad
+        if not d.is_dir():
+            continue
+        zip_yolu = hedef_kok / (ad + '.zip')
+        dosyalar = [f for f in d.rglob('*') if f.is_file()]
+        with zipfile.ZipFile(zip_yolu, 'w', zipfile.ZIP_DEFLATED, compresslevel=1) as z:
+            for f in dosyalar:
+                z.write(f, f.relative_to(hedef_kok))
+        mb = zip_yolu.stat().st_size / 1e6
+        print(f'   [paket] {zip_yolu.name}  {mb:.0f} MB  ({len(dosyalar)} dosya)')
+
+
 def main():
     ap = argparse.ArgumentParser(description='Birleşik dataset → uzman dataset\'ler')
     ap.add_argument('--kaynak', default=str(KOK / 'dataset'))
@@ -158,6 +182,8 @@ def main():
     ap.add_argument('--arka-plan-orani', type=float, default=0.15,
                     help='İçerikli görüntü sayısının kaçta kaçı kadar background alınsın')
     ap.add_argument('--kuru', action='store_true')
+    ap.add_argument('--paketle', action='store_true',
+                    help="Her dataset'i ayri zip yapar (Colab'e yuklemek icin)")
     a = ap.parse_args()
 
     kaynak = Path(a.kaynak)
@@ -172,7 +198,11 @@ def main():
     print(f'Kaynak : {kaynak}')
     print(f'Hedef  : {a.hedef}')
     print(f'Master : {len(master)} sınıf')
-    return ayir(kaynak, Path(a.hedef), master, a.arka_plan_orani, a.kuru)
+    sonuc = ayir(kaynak, Path(a.hedef), master, a.arka_plan_orani, a.kuru)
+    if a.paketle and not a.kuru:
+        print(chr(10) + 'Paketleniyor...')
+        paketle(Path(a.hedef), AYRIM.keys())
+    return sonuc
 
 
 if __name__ == '__main__':

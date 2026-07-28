@@ -82,9 +82,29 @@ görünsün (hata ayıklama ve güven için).
 | `fruit_ripeness` | 3.732 | 3.723 / 468 / 100 |
 
 ```bash
-python scripts/dataset_ayir.py --kuru     # rapor
-python scripts/dataset_ayir.py            # uygula
+python scripts/dataset_ayir.py --kuru                # rapor, hiçbir şey yazmaz
+python scripts/dataset_ayir.py --paketle             # ayır + her birini zip'le
 ```
+
+Üretilen paketler (Colab'e **yalnızca eğitilecek olan** yüklenir):
+
+| Paket | Boyut | Neden ayrı |
+|-------|-------|-----------|
+| `leaf_disease.zip` | 211 MB | Yaprak modelini eğitirken meyve verisi hiç taşınmaz |
+| `fruit_disease.zip` | 182 MB | |
+| `fruit_ripeness.zip` | 243 MB | |
+| (birleşik) `dataset_colab.zip` | 772 MB | Eski tek model için |
+
+**Colab'de kullanım:** dataset hücresindeki tek değişken belirler:
+
+```python
+EGITILECEK = 'leaf_disease'    # birlesik | leaf_disease | fruit_disease |
+                               # fruit_ripeness | organ_detection | pest_detection
+```
+
+Bu değişken hem hangi arşivin açılacağını hem hangi `data.yaml`'ın kullanılacağını
+hem de **koşu adını** belirler — farklı modeller birbirinin klasörünü ezmez ve
+"yarım kalan eğitim" mantığı doğru koşuyu bulur.
 
 Mevcut 10 sınıflı birleşik veriden **sınıf bazında ayırarak** üç dataset üretir:
 
