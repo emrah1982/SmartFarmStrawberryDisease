@@ -65,14 +65,8 @@ def siniflari_yukle() -> dict:
     Elle etiketleme yaparken kullanılan ID'ler EĞİTİMDEKİYLE aynı olmalı;
     aksi halde düzeltilen veri modele yanlış sınıfla döner.
     """
-    p = BASE_DIR / 'configs' / 'strawberry_data.yaml'
-    if not p.exists():
-        return {}
-    cfg = yaml.safe_load(p.read_text(encoding='utf-8')) or {}
-    isimler = cfg.get('names', {})
-    if isinstance(isimler, list):
-        return {i: ad for i, ad in enumerate(isimler)}
-    return {int(k): v for k, v in isimler.items()}
+    from app import siniflar
+    return siniflar.id_haritasi()
 
 
 SINIFLAR = siniflari_yukle()

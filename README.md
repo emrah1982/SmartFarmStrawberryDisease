@@ -811,6 +811,91 @@ app/moduller/canli/
 sunucusuz** test edilir — kayıt kuralının doğruluğu `tests/test_canli.py` içinde 5 testle
 sabitlenmiştir.
 
+### 🧬 Sınıf kütüğü — sınıf ekleme, eşik, açma/kapama
+
+`configs/siniflar.yaml` sınıfların **tek yetkili listesidir**: ID, görünen ad, grup,
+güven eşiği ve açık/kapalı durumu tek yerdedir. Docker'da dışarıdan bağlıdır — düzenleyip
+`docker compose restart` demek yeterli, yeniden derleme gerekmez.
+
+```yaml
+Gray Mold:
+  tr: Kurşuni Küf (Botrytis)
+  grup: hastalik
+strawberry_unripe:
+  tr: Olgunlaşmamış Çilek
+  grup: olgunluk
+  esik: 0.90
+  aktif: false        # yaprakları çilek sanıyor — yeniden eğitilene kadar kapalı
+```
+
+Üç kavram karıştırılmamalı:
+
+| Kavram | Nerede kullanılır | Değişebilir mi |
+|--------|-------------------|----------------|
+| **ID** (0,1,2…) | etiket dosyalarındaki sayı | ❌ asla — kayarsa geçmiş etiketler yanlış sınıfa döner |
+| **Eğitimdeki ad** (İngilizce) | model çıktısı, `data.yaml` | ❌ asla |
+| **Görünen ad** (tr/en) | ekran, sonuç görseli | ✅ serbest |
+
+#### Sınıf bazlı eşik ve kapatma — yanlış pozitifi anında susturmak
+
+Bazı sınıflar diğerlerinden çok daha gürültülüdür. Olgunluk sınıfları ayrı bir veri
+setinden geldi ve orada olgunlaşmamış çilek **yeşil** görünüyor; model "yeşil yuvarlak
+kütle" ile çilek **yaprağını** karıştırıp bütün bitki fotoğraflarında yaprakları
+`strawberry_unripe` işaretliyordu.
+
+Genel `CONF_THRESHOLD`'u yükseltmek bu sorunu çözerdi ama **erken evre hastalık
+tespitlerini de kaybettirirdi** — onlar zaten düşük güvenle bulunur. Sınıf bazlı eşik
+sorunlu sınıfı tek başına sıkılaştırır:
+
+```bash
+# Dosya düzenlemeden geçici kapatma (Docker):
+KAPALI_SINIFLAR="strawberry_unripe,strawberry_semi_ripe" docker compose up -d
+```
+
+Model yine de en düşük eşikle çalıştırılır, eleme sonradan yapılır: yüksek eşikli bir
+sınıf yüzünden diğerleri kaybolmaz.
+
+> ⚠️ Bu bir **görüntüleme filtresidir; modeli düzeltmez.** Kalıcı çözüm, yanlış tanınan
+> görüntüleri negatif örnek olarak toplayıp yeniden eğitmektir
+> ([2b bölümü](#2b--yanlış-tespitleri-false-positive-düzeltme--en-sık-ihtiyaç)).
+
+#### Yeni zararlı/hastalık ekleme (zamanla)
+
+```bash
+python scripts/sinif_ekle.py --listele                 # mevcut + planlanan liste
+python scripts/sinif_ekle.py "Spider Mites" --tr "Kırmızı Örümcek" --grup zararli
+```
+
+Betik bir sonraki boş ID'yi atar ve `configs/siniflar.yaml` ile
+`configs/strawberry_data.yaml`'ı **birlikte** günceller — ikisi elle düzenlenirse
+kaçınılmaz olarak birbirinden sapar ve etiketler yanlış sınıfa kayar.
+
+Kütükte hazır bekleyen planlanan sınıflar (yaygın çilek zararlıları — ID'si yok, yani
+etiketlemede henüz çıkmaz): Aphids, Spider Mites, Whiteflies, Thrips, Lygus Bugs,
+Lepidopterous Worms, Cercospora, Phytophthora, Rhizoctonia/Pythium, Birds, Mice, Weeds.
+
+**Sınıf eklemek modele öğretmez.** Sıra şudur:
+
+```
+1. sinif_ekle.py            → sınıf etiketleme ekranında görünür
+2. Saha verisi topla        → canlı 🗃️ "Her kare" modu bunun için hızlıdır
+3. 100-200 örnek etiketle   → tek örnek modele bir şey öğretmez
+4. Dışa aktar → merge_datasets.py → yeniden eğit
+5. Yeni best.pt             → kütükte `egitimde: true` yapın
+```
+
+#### Sonuç görselindeki etiketler
+
+Kutu etiketleri artık **seçili dilde** yazılır (`Kurşuni Küf %91`), İngilizce
+`Gray Mold 0.91` değil. Ultralytics'in `r.plot()` çizimi kullanılmıyor: o hem eğitimdeki
+İngilizce adı yazar hem de eşik altı/kapalı sınıfları da çizerdi — arayüzde elenen bir
+tespit görselde görünmeye devam ederdi.
+
+Türkçe karakter için TrueType yazı tipi şart (OpenCV'nin dahili yazı tipi yalnızca ASCII
+çizer, "Olgunlaşmamış" → "Olgunla?mam??"). Docker imajına `fonts-dejavu-core` eklendi;
+yazı tipi bulunamazsa etiketler ASCII'ye indirgenir (`Olgunlasmamis Cilek`) — hiç
+bozulmaz.
+
 ### 🌐 Arayüz dili ve sınıf adları
 
 Menüdeki dil seçiminden (🇹🇷 / 🇬🇧) sınıf adlarının **ekranda** hangi dilde görüneceği

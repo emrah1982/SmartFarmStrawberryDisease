@@ -1,0 +1,141 @@
+"""Sınıf kütüğü — tek yetkili liste.
+
+NE İŞE YARAR?
+    Hangi sınıflar var, ID'leri ne, ekranda hangi adla görünüyor, hangi güven
+    eşiğiyle kabul ediliyor ve açık mı — hepsi configs/siniflar.yaml'da tek
+    yerde durur. Yeni bir zararlı/hastalık eklemek KOD DEĞİŞTİRMEZ.
+
+ÜÇ AYRI KAVRAM, KARIŞTIRILMAMALI
+    1. Eğitimdeki ad (İngilizce)  → etiket dosyaları ve modelin ürettiği ad.
+       ASLA değişmez; değişirse eski eğitim verisi geçersiz olur.
+    2. Ekrandaki ad (tr/en)       → yalnızca görünüm.
+    3. ID                         → etiket dosyalarındaki sayı. Bir kez verilir,
+       BİR DAHA DEĞİŞTİRİLMEZ; değişirse geçmiş etiketler yanlış sınıfa kayar.
+
+SINIF BAZLI EŞİK — NEDEN?
+    Bazı sınıflar diğerlerinden çok daha gürültülüdür. Örnek: olgunluk
+    sınıfları ayrı bir veri setinden geldi ve orada olgunlaşmamış çilek yeşil
+    görünüyor; model "yeşil yuvarlak kütle" ile çilek yaprağını karıştırıyor.
+    Genel eşiği yükseltmek erken evre hastalık tespitlerini de kaybettirir.
+    Sınıf bazlı eşik, sorunlu sınıfı tek başına sıkılaştırır.
+
+    Bu bir GÖRÜNTÜLEME filtresidir: modeli düzeltmez, yanlış tespiti gizler.
+    Kalıcı çözüm negatif örneklerle yeniden eğitimdir (bkz. README).
+"""
+
+import logging
+import os
+from pathlib import Path
+
+import yaml
+
+from app import config
+
+logger = logging.getLogger(__name__)
+
+KUTUK_YOLU = config.BASE_DIR / 'configs' / 'siniflar.yaml'
+EGITIM_YAML = config.BASE_DIR / 'configs' / 'strawberry_data.yaml'
+
+# Ortam değişkeniyle tek seferlik kapatma (Docker'da dosya düzenlemeden):
+#   KAPALI_SINIFLAR="strawberry_unripe,strawberry_semi_ripe"
+_KAPALI_ENV = {a.strip() for a in os.environ.get('KAPALI_SINIFLAR', '').split(',') if a.strip()}
+
+
+def _yukle() -> dict:
+    if not KUTUK_YOLU.exists():
+        return {}
+    try:
+        return yaml.safe_load(KUTUK_YOLU.read_text(encoding='utf-8')) or {}
+    except yaml.YAMLError as e:
+        logger.error(f'configs/siniflar.yaml okunamadı: {e}')
+        return {}
+
+
+KUTUK = _yukle()
+
+
+def bilgi(ad: str) -> dict:
+    return KUTUK.get(ad) or {}
+
+
+def esik(ad: str) -> float:
+    """Bu sınıf için kabul eşiği. Tanımlı değilse genel CONF_THRESHOLD."""
+    d = bilgi(ad).get('esik')
+    try:
+        return float(d) if d is not None else config.CONF_THRESHOLD
+    except (TypeError, ValueError):
+        return config.CONF_THRESHOLD
+
+
+def aktif_mi(ad: str) -> bool:
+    """Kapalı sınıflar hiç gösterilmez (model yine üretir, arayüz eler)."""
+    if ad in _KAPALI_ENV:
+        return False
+    return bilgi(ad).get('aktif', True) is not False
+
+
+def en_dusuk_esik() -> float:
+    """Modele verilecek conf değeri.
+
+    Sınıf eşikleri elemeyi SONRADAN yapar; bu yüzden model en düşük eşikle
+    çalıştırılır, yoksa yüksek eşikli sınıf uğruna diğerleri kaybolurdu.
+    """
+    esikler = [esik(ad) for ad in KUTUK if aktif_mi(ad)]
+    return min(esikler + [config.CONF_THRESHOLD])
+
+
+def kabul_edilir_mi(ad: str, guven: float) -> bool:
+    return aktif_mi(ad) and guven >= esik(ad)
+
+
+def grup(ad: str) -> str:
+    """hastalik | zararli | olgunluk | diger — arayüzde gruplama için."""
+    return bilgi(ad).get('grup', 'diger')
+
+
+def egitimde_mi(ad: str) -> bool:
+    """Model bu sınıfı tanıyor mu?
+
+    Kütüğe yeni sınıf eklemek onu MODELE ÖĞRETMEZ; yalnızca etiketlemede
+    kullanılabilir hale getirir. Model ancak yeniden eğitimden sonra tanır.
+    """
+    return bilgi(ad).get('egitimde', True) is not False
+
+
+def id_haritasi() -> dict:
+    """{id: ad} — etiketleme ekranının kullandığı liste.
+
+    Eğitimdeki sınıflar strawberry_data.yaml'dan gelir (kaynak orasıdır).
+    Kütükte `id` verilmiş ama henüz eğitilmemiş sınıflar da eklenir: böylece
+    yeni bir zararlı için VERİ TOPLAMAYA hemen başlanabilir, model bir sonraki
+    eğitimde öğrenir.
+    """
+    harita = {}
+    if EGITIM_YAML.exists():
+        try:
+            cfg = yaml.safe_load(EGITIM_YAML.read_text(encoding='utf-8')) or {}
+            isimler = cfg.get('names', {})
+            if isinstance(isimler, list):
+                harita = {i: ad for i, ad in enumerate(isimler)}
+            else:
+                harita = {int(k): v for k, v in isimler.items()}
+        except (yaml.YAMLError, ValueError) as e:
+            logger.error(f'strawberry_data.yaml okunamadı: {e}')
+
+    for ad, d in KUTUK.items():
+        kimlik = (d or {}).get('id')
+        if kimlik is None:
+            continue
+        kimlik = int(kimlik)
+        if kimlik in harita and harita[kimlik] != ad:
+            logger.error(f'ID çakışması: {kimlik} hem {harita[kimlik]} hem {ad}. '
+                         'Etiketler yanlış sınıfa kayar — configs/siniflar.yaml düzeltin.')
+            continue
+        harita[kimlik] = ad
+    return dict(sorted(harita.items()))
+
+
+def yeni_id() -> int:
+    """Yeni sınıf için bir sonraki boş ID (kütüğe eklerken kullanılır)."""
+    mevcut = id_haritasi()
+    return (max(mevcut) + 1) if mevcut else 0

@@ -1,0 +1,125 @@
+# Sınıf kütüğü — tek yetkili liste.
+#
+# ANAHTAR = eğitimdeki İngilizce ad. Etiket dosyaları ve model çıktısı buna bağlıdır;
+# ASLA değiştirmeyin. Değiştirirseniz eski eğitim verisi geçersiz olur.
+#
+# ALANLAR
+#   tr / en    : ekranda görünecek ad (veritabanına yazılmaz)
+#   grup       : hastalik | zararli | olgunluk | diger  → arayüzde gruplama
+#   id         : etiket dosyalarındaki sayı. BİR KEZ verilir, BİR DAHA DEĞİŞMEZ.
+#                Yoksa sınıf "planlanan" sayılır: etiketlemede çıkmaz.
+#   egitimde   : model bu sınıfı tanıyor mu (false = yeniden eğitim bekliyor)
+#   esik       : bu sınıfa özel güven eşiği (boşsa CONF_THRESHOLD kullanılır)
+#   aktif      : false ise tespit hiç gösterilmez
+#
+# YENİ SINIF EKLEME (zararlı/hastalık):
+#   python scripts/sinif_ekle.py "Spider Mites" --tr "Kırmızı Örümcek" --grup zararli
+#   → boş ID atanır, strawberry_data.yaml ile eşitlenir, etiketlemede görünür.
+#   Model onu ancak veri toplanıp YENİDEN EĞİTİLDİKTEN sonra tanır.
+
+# ─────────────────────────────────────────────────────── hastalıklar (eğitimde)
+Angular Leafspot:
+  tr: Köşeli Yaprak Lekesi
+  en: Angular Leaf Spot
+  grup: hastalik
+Anthracnose Fruit Rot:
+  tr: Antraknoz Meyve Çürüklüğü
+  en: Anthracnose Fruit Rot
+  grup: hastalik
+Blossom Blight:
+  tr: Çiçek Yanıklığı
+  en: Blossom Blight
+  grup: hastalik
+Gray Mold:
+  tr: Kurşuni Küf (Botrytis)
+  en: Gray Mold (Botrytis)
+  grup: hastalik
+Leaf Spot:
+  tr: Yaprak Lekesi
+  en: Leaf Spot
+  grup: hastalik
+Powdery Mildew Fruit:
+  tr: Külleme (Meyve)
+  en: Powdery Mildew (Fruit)
+  grup: hastalik
+Powdery Mildew Leaf:
+  tr: Külleme (Yaprak)
+  en: Powdery Mildew (Leaf)
+  grup: hastalik
+
+# ─────────────────────────────────────────────────────── olgunluk (eğitimde)
+# Bu sınıflar ayrı bir veri setinden geldi ve orada olgunlaşmamış çilek YEŞİL
+# görünüyor. Model "yeşil yuvarlak kütle" ile çilek YAPRAĞINI karıştırıyor:
+# bütün bitki fotoğrafında yaprakları strawberry_unripe sanıyor.
+#
+# Bu yüzden eşik yükseltildi ve unripe KAPATILDI. Kalıcı çözüm: yaprak/bitki
+# fotoğraflarını negatif örnek olarak toplayıp yeniden eğitmek (README 2b).
+# Meyve olgunluğu takibi isterseniz `aktif: true` yapın.
+strawberry_ripe:
+  tr: Olgun Çilek
+  en: Ripe Strawberry
+  grup: olgunluk
+  esik: 0.70
+strawberry_semi_ripe:
+  tr: Yarı Olgun Çilek
+  en: Semi-ripe Strawberry
+  grup: olgunluk
+  esik: 0.75
+strawberry_unripe:
+  tr: Olgunlaşmamış Çilek
+  en: Unripe Strawberry
+  grup: olgunluk
+  esik: 0.90
+  aktif: false        # yaprakları çilek sanıyor — yeniden eğitilene kadar kapalı
+
+# ──────────────────────────────────── planlanan (ID yok → henüz etiketlenmez)
+# Eklemek için: python scripts/sinif_ekle.py "<ad>"
+# Kaynak: yaygın çilek zararlı/hastalık listesi.
+Aphids:
+  tr: Yaprak Biti
+  grup: zararli
+  egitimde: false
+Spider Mites:
+  tr: Kırmızı Örümcek
+  grup: zararli
+  egitimde: false
+Whiteflies:
+  tr: Beyaz Sinek
+  grup: zararli
+  egitimde: false
+Thrips:
+  tr: Trips
+  grup: zararli
+  egitimde: false
+Lygus Bugs:
+  tr: Yeşil Kokarca (Lygus)
+  grup: zararli
+  egitimde: false
+Lepidopterous Worms:
+  tr: Kelebek Tırtılları
+  grup: zararli
+  egitimde: false
+Cercospora:
+  tr: Cercospora Yaprak Lekesi
+  grup: hastalik
+  egitimde: false
+Phytophthora:
+  tr: Phytophthora Kök/Taç Çürüklüğü
+  grup: hastalik
+  egitimde: false
+Rhizoctonia Pythium:
+  tr: Rhizoctonia / Pythium Kök Çürüklüğü
+  grup: hastalik
+  egitimde: false
+Birds:
+  tr: Kuş Zararı
+  grup: diger
+  egitimde: false
+Mice:
+  tr: Kemirgen Zararı
+  grup: diger
+  egitimde: false
+Weeds:
+  tr: Yabancı Ot
+  grup: diger
+  egitimde: false

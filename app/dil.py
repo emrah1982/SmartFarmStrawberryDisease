@@ -39,9 +39,10 @@ def _adlari_yukle() -> dict:
     düşülür (orada zaten Türkçe karşılıklar var).
     """
     kok = Path(__file__).resolve().parent.parent / 'configs'
-    p = kok / 'sinif_adlari.yaml'
-    if p.exists():
-        return yaml.safe_load(p.read_text(encoding='utf-8')) or {}
+    for ad in ('siniflar.yaml', 'sinif_adlari.yaml'):     # kütük → eski dosya
+        p = kok / ad
+        if p.exists():
+            return yaml.safe_load(p.read_text(encoding='utf-8')) or {}
 
     tedavi = kok / 'tedavi_onerileri.yaml'
     if tedavi.exists():

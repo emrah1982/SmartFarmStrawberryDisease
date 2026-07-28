@@ -13,7 +13,7 @@ from typing import List, Optional
 
 import cv2
 
-from app import config
+from app import config, siniflar
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +94,12 @@ def _nms(kutular, iou_esigi: float):
     return secili
 
 
+def _ciz(frame, kutular, cikti_yol: str):
+    """Sonuç görselini kullanıcının dilindeki etiketlerle yazar."""
+    from app import cizim, dil
+    cizim.sonuc_yaz(frame, kutular, cikti_yol, ad_cevir=dil.sinif_adi)
+
+
 class Detector:
     """Ultralytics modelini sarmalar. İlk kullanımda yüklenir (lazy)."""
 
@@ -132,12 +138,14 @@ class Detector:
         """Tek görüntüyü işler, kutulanmış görseli kaydeder."""
         model = self.yukle()
         t0 = time.time()
-        r = model(kaynak_yol, conf=config.CONF_THRESHOLD, imgsz=config.IMGSZ, verbose=False)[0]
+        r = model(kaynak_yol, conf=siniflar.en_dusuk_esik(), imgsz=config.IMGSZ,
+                  verbose=False)[0]
 
         kutular = self._kutulari_al(r)
-        cv2.imwrite(cikti_yol, r.plot())
-
+        # Etiketler kullanıcının dilinde ve YALNIZCA kabul edilen kutular çizilir
+        # (r.plot() İngilizce yazar ve elenen kutuları da çizerdi)
         kare = cv2.imread(kaynak_yol)
+        _ciz(kare, kutular, cikti_yol)
         keskinlik = keskinlik_olc(kare) if kare is not None else 0.0
         not_ = ''
         if keskinlik and keskinlik < config.BULANIKLIK_ESIGI:
@@ -163,7 +171,7 @@ class Detector:
 
         t0 = time.time()
         kutular: List[Kutu] = []
-        en_iyi_kare, en_iyi_sayi = None, -1
+        en_iyi_kare, en_iyi_sayi, en_iyi_kutular = None, -1, []
         idx = islenen = bulanik = 0
         keskinlikler = []
         en_keskin_frame, en_keskin_deger = None, -1.0
@@ -184,11 +192,13 @@ class Detector:
                     idx += 1
                     continue
 
-                r = model(frame, conf=config.CONF_THRESHOLD, imgsz=config.IMGSZ, verbose=False)[0]
+                r = model(frame, conf=siniflar.en_dusuk_esik(), imgsz=config.IMGSZ,
+                          verbose=False)[0]
                 kare_kutulari = self._kutulari_al(r, kare=idx)
                 kutular.extend(kare_kutulari)
                 if len(kare_kutulari) > en_iyi_sayi:
-                    en_iyi_sayi, en_iyi_kare = len(kare_kutulari), r.plot()
+                    en_iyi_sayi = len(kare_kutulari)
+                    en_iyi_kare, en_iyi_kutular = frame.copy(), kare_kutulari
                 islenen += 1
             idx += 1
 
@@ -196,13 +206,14 @@ class Detector:
 
         # Tüm kareler bulanıksa yine de en keskin olanı işle — kullanıcı boş dönmesin
         if islenen == 0 and en_keskin_frame is not None:
-            r = model(en_keskin_frame, conf=config.CONF_THRESHOLD,
+            r = model(en_keskin_frame, conf=siniflar.en_dusuk_esik(),
                       imgsz=config.IMGSZ, verbose=False)[0]
-            kutular.extend(self._kutulari_al(r, kare=0))
-            en_iyi_kare = r.plot()
+            en_iyi_kutular = self._kutulari_al(r, kare=0)
+            kutular.extend(en_iyi_kutular)
+            en_iyi_kare = en_keskin_frame
             islenen = 1
         if en_iyi_kare is not None:
-            cv2.imwrite(cikti_yol, en_iyi_kare)
+            _ciz(en_iyi_kare, en_iyi_kutular, cikti_yol)
 
         ort_keskinlik = sum(keskinlikler) / len(keskinlikler) if keskinlikler else 0.0
         toplam = bulanik + islenen
@@ -245,7 +256,8 @@ class Detector:
 
         # 1) Tam görüntü, birkaç ölçekte
         for boyut in config.DETAYLI_OLCEKLER:
-            topla(model(img, imgsz=boyut, conf=config.CONF_THRESHOLD, verbose=False)[0])
+            topla(model(img, imgsz=boyut, conf=siniflar.en_dusuk_esik(),
+                        verbose=False)[0])
 
         # 2) Büyük görüntüde örtüşen dilimler — lezyon kendi çözünürlüğünde görünür
         if max(h, w) > config.DILIM_ESIGI:
@@ -256,28 +268,20 @@ class Detector:
                     parca = img[y:min(y + d, h), x:min(x + d, w)]
                     if parca.shape[0] < 200 or parca.shape[1] < 200:
                         continue
-                    topla(model(parca, imgsz=d, conf=config.CONF_THRESHOLD,
+                    topla(model(parca, imgsz=d, conf=siniflar.en_dusuk_esik(),
                                 verbose=False)[0], x, y)
 
         secili = _nms(ham, config.NMS_IOU)
 
-        # Kutuları kendimiz çiziyoruz (birleştirilmiş sonuç Ultralytics nesnesi değil)
-        cizim = img.copy()
         isimler = self._names or model.names
-        for x1, y1, x2, y2, guven, cid in secili:
-            renk = (0, 200, 0) if guven >= 0.5 else (0, 165, 255)
-            kalinlik = max(2, int(min(h, w) / 400))
-            cv2.rectangle(cizim, (int(x1), int(y1)), (int(x2), int(y2)), renk, kalinlik)
-            etiket = f'{isimler[cid]} {guven:.2f}'
-            cv2.putText(cizim, etiket, (int(x1), max(20, int(y1) - 8)),
-                        cv2.FONT_HERSHEY_SIMPLEX, max(0.6, min(h, w) / 1400),
-                        renk, kalinlik)
-        cv2.imwrite(cikti_yol, cizim)
-
+        # Sınıf bazlı eşik burada da uygulanır: dilimli tarama tek karelik
+        # analizden daha çok aday üretir, kapalı sınıflar elenmezse yığılır
         kutular = [Kutu(sinif_id=cid, sinif_adi=isimler[cid], guven=guven,
                         x=((x1 + x2) / 2) / w, y=((y1 + y2) / 2) / h,
                         w=(x2 - x1) / w, h=(y2 - y1) / h)
-                   for x1, y1, x2, y2, guven, cid in secili]
+                   for x1, y1, x2, y2, guven, cid in secili
+                   if siniflar.kabul_edilir_mi(isimler[cid], guven)]
+        _ciz(img, kutular, cikti_yol)
 
         keskinlik = keskinlik_olc(img)
         notlar = [f'Ayrıntılı analiz: {len(config.DETAYLI_OLCEKLER)} ölçek'
@@ -314,9 +318,10 @@ class Detector:
 
         model = self.yukle()
         t0 = time.time()
-        r = model(frame, conf=config.CONF_THRESHOLD, imgsz=config.IMGSZ, verbose=False)[0]
-        cv2.imwrite(cikti_yol, r.plot())
-        return Sonuc(kutular=self._kutulari_al(r), sonuc_yolu=cikti_yol,
+        r = model(frame, conf=siniflar.en_dusuk_esik(), imgsz=config.IMGSZ, verbose=False)[0]
+        kutular = self._kutulari_al(r)
+        _ciz(frame, kutular, cikti_yol)
+        return Sonuc(kutular=kutular, sonuc_yolu=cikti_yol,
                      islenen_kare=1, sure_ms=int((time.time() - t0) * 1000))
 
     # ------------------------------------------------- canlı akış (tek kare)
@@ -334,7 +339,7 @@ class Detector:
         """
         model = self.yukle()
         t0 = time.time()
-        r = model(frame, conf=config.CONF_THRESHOLD,
+        r = model(frame, conf=siniflar.en_dusuk_esik(),
                   imgsz=imgsz or config.IMGSZ, verbose=False)[0]
         return Sonuc(kutular=self._kutulari_al(r), islenen_kare=1,
                      sure_ms=int((time.time() - t0) * 1000))
@@ -346,7 +351,12 @@ class Detector:
         for b in r.boxes:
             x, y, w, h = b.xywhn[0].tolist()
             cid = int(b.cls[0])
-            out.append(Kutu(sinif_id=cid, sinif_adi=names[cid], guven=float(b.conf[0]),
+            ad, guven = names[cid], float(b.conf[0])
+            # Sınıf bazlı eşik/kapatma: gürültülü bir sınıfı tek başına
+            # sıkılaştırmak, genel eşiği yükseltip her şeyi kaybetmekten iyidir
+            if not siniflar.kabul_edilir_mi(ad, guven):
+                continue
+            out.append(Kutu(sinif_id=cid, sinif_adi=ad, guven=guven,
                             x=x, y=y, w=w, h=h, kare=kare))
         return out
 

@@ -11,8 +11,10 @@ WORKDIR /app
 
 # libglib2.0-0: opencv-headless'ın tek sistem bağımlılığı
 # ffmpeg: RTSP/video kod çözme güvenilirliği için
+# fonts-dejavu-core: sonuc gorselindeki etiketler Turkce karakter icerir;
+# OpenCV'nin dahili yazi tipi yalnizca ASCII cizer (bkz. app/cizim.py)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libglib2.0-0 ffmpeg \
+        libglib2.0-0 ffmpeg fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # torch ayrı kurulur: CPU tekerleği ~200 MB, CUDA sürümü ~2.5 GB.
