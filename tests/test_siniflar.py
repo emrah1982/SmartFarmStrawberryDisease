@@ -8,10 +8,23 @@ from app.detector import Kutu
 
 
 # ─────────────────────────────────────────────────── sınıf bazlı eşik
-def test_kapali_sinif_hic_gosterilmez():
-    """strawberry_unripe yaprakları çilek sanıyor — kapalıyken hiç çıkmamalı."""
-    assert siniflar.aktif_mi('strawberry_unripe') is False
-    assert siniflar.kabul_edilir_mi('strawberry_unripe', 0.99) is False
+def test_kapali_sinif_hic_gosterilmez(monkeypatch):
+    """Kapatılan sınıf, güven ne olursa olsun gösterilmemeli."""
+    monkeypatch.setattr(siniflar, 'KUTUK',
+                        {**siniflar.KUTUK, 'Gray Mold': {'aktif': False}})
+    assert siniflar.aktif_mi('Gray Mold') is False
+    assert siniflar.kabul_edilir_mi('Gray Mold', 0.99) is False
+
+
+def test_gurultulu_sinif_yuksek_esikle_sinirlanir():
+    """strawberry_unripe yaprakları çilek sanıyor; ölçüme göre eşiği yüksek.
+
+    Yaprak yanlış pozitifleri 0.79'a kadar çıkıyordu — eşik onların üstünde
+    olmalı ki yalnızca belirgin meyveler geçsin.
+    """
+    assert siniflar.esik('strawberry_unripe') > 0.79
+    assert siniflar.kabul_edilir_mi('strawberry_unripe', 0.79) is False
+    assert siniflar.kabul_edilir_mi('strawberry_unripe', 0.95) is True
 
 
 def test_hastalik_siniflari_dusuk_guvende_bile_gecer():

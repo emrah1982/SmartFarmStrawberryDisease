@@ -69,8 +69,16 @@ strawberry_unripe:
   tr: Olgunlaşmamış Çilek
   en: Unripe Strawberry
   grup: olgunluk
-  esik: 0.90
-  aktif: false        # yaprakları çilek sanıyor — yeniden eğitilene kadar kapalı
+  # ÖLÇÜM (mevcut model, v13'ten unripe içeren 12 görsel, 51 tespit):
+  #   gerçek olgunlaşmamış çilek : min 0.21 · medyan 0.58 · max 0.94
+  #   yaprak yanlış pozitifleri  : 0.69 · 0.75 · 0.79   (EC 4.4 fotoğrafı)
+  # İki grup ÜST ÜSTE BİNİYOR; temiz ayıran eşik yok. 0.80 en iyi taviz:
+  #   yaprakların tamamı elenir, en belirgin meyveler (10/51) görünür.
+  # Eşiği düşürürseniz daha çok meyve yakalarsınız ama yapraklar da girer.
+  # Kalıcı çözüm: v13'teki 346 gerçek unripe örneği + 96 sağlıklı yaprak
+  # background'u ile yeniden eğitim (ince ayar). Sonra bu ölçümü tekrarlayın.
+  esik: 0.80
+  aktif: true
 
 # ──────────────────────────────────── planlanan (ID yok → henüz etiketlenmez)
 # Eklemek için: python scripts/sinif_ekle.py "<ad>"
