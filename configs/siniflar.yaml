@@ -55,6 +55,19 @@ Powdery Mildew Leaf:
 # Bu yüzden eşik yükseltildi ve unripe KAPATILDI. Kalıcı çözüm: yaprak/bitki
 # fotoğraflarını negatif örnek olarak toplayıp yeniden eğitmek (README 2b).
 # Meyve olgunluğu takibi isterseniz `aktif: true` yapın.
+# ÖLÇÜM — üretimdeki model: strawberry_exp-3 (sıfırdan, 200 epoch)
+#
+# İnce ayar modeli (strawberry_ince_ayar) DENENDİ VE ÜRETİME ALINMADI:
+#   Kıyaslama setinde çok daha iyiydi (mAP50-95 0.228 -> 0.477, 10 sınıfın
+#   hepsi iyileşti) AMA kullanıcının gerçek fotoğraflarında çok daha kötü:
+#     ekran görüntüsü 1598x1194 : eski 12 tespit  | yeni 0
+#     saha fotoğrafı 2712x2496  : eski  1 tespit  | yeni 0
+#     yaprak lekesi   440x336   : eski  0.96      | yeni 0.64
+#     v13 tarzı        640x640  : eski  6 tespit  | yeni 12   <- kendi dağılımı
+#   Yani ince ayar modeli kendi eğitim dağılımına (v13, ~640px) uyarlanmış;
+#   sahadaki farklı çözünürlük ve koşullara genellemiyor.
+#   Ders: kıyaslama seti sahayı temsil etmiyorsa metrik yanıltır.
+#
 strawberry_ripe:
   tr: Olgun Çilek
   en: Ripe Strawberry
@@ -69,16 +82,7 @@ strawberry_unripe:
   tr: Olgunlaşmamış Çilek
   en: Unripe Strawberry
   grup: olgunluk
-  # ÖLÇÜM (üretimdeki model = strawberry_exp-3, sıfırdan 200 epoch):
-  #   gerçek olgunlaşmamış meyve : min 0.21 · medyan 0.58 · max 0.94
-  #   yaprak yanlış pozitifleri  : 0.69 · 0.75 · 0.79   (EC 4.4 fotoğrafı)
-  # İki grup üst üste biniyor; 0.80 en iyi taviz (yapraklar elenir,
-  # en belirgin meyveler görünür).
-  #
-  # NOT: 60 epochluk ince ayar denemesi bu sorunu ÇÖZMEDİ — modeli genel
-  # olarak zayıflattı (bkz. configs/finetune_config.yaml içindeki deney
-  # kaydı). Eşiği düşürmek ancak ölçülmüş şekilde daha iyi bir modelle
-  # anlamlı olur.
+  # bu modelde: gerçek meyve medyan 0.58 · yaprak yanlış pozitifleri max 0.79
   esik: 0.80
   aktif: true
 

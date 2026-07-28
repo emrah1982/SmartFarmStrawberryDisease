@@ -534,7 +534,48 @@ Colab'de 5️⃣ hücresi bu analizi eğitimden önce **otomatik** basar ve öne
 Yalnızca yeni görüntülerle eğitmek eski sınıflarda **unutmaya** (catastrophic forgetting)
 yol açar. `strawberry_data.yaml` tüm kaynakları listeler — doğru kullanım budur.
 
-#### ⚠️ Gerçek örnek: ilk ince ayar denemesi BAŞARISIZ oldu
+#### ⚠️ Gerçek örnek: kıyaslama seti sahayı temsil etmezse metrik yanıltır
+
+Bu projede yaşandı ve ince ayar akışının en önemli dersi bu.
+
+İnce ayar modeli (`strawberry_ince_ayar`, 60 epoch) **kıyaslama setinde açık ara
+daha iyiydi** — `model_karsilastir.py` çıktısı:
+
+| | eski (exp-3) | yeni (ince ayar) |
+|---|---|---|
+| mAP50-95 | 0.228 | **0.477** |
+| precision | 0.430 | **0.701** |
+| recall | 0.411 | **0.652** |
+| Gerileyen sınıf | — | **yok** (10 sınıfın hepsi iyileşti) |
+
+Karar satırı "dağıtıma alınabilir" dedi. Ama **kullanıcının gerçek fotoğraflarında**
+tam tersi çıktı:
+
+| Görsel | Eski | Yeni |
+|--------|------|------|
+| Ekran görüntüsü 1598×1194 | **12 tespit** (0.94, 0.92) | **0** |
+| Saha fotoğrafı 2712×2496 | 1 tespit | **0** |
+| Yaprak lekesi 440×336 | Leaf Spot 0.96 | Leaf Spot 0.64 |
+| v13 tarzı 640×640 | 6 tespit | **12 tespit** ← kendi dağılımı |
+
+**Teşhis:** İnce ayar modeli kendi eğitim dağılımına (v13, ~640 px kürasyonlu
+görüntüler) uyarlandı; sahadaki farklı çözünürlük ve çekim koşullarına
+genellemedi. Kıyaslama seti de aynı dağılımdan geldiği için "her şey iyileşti"
+dedi.
+
+**Alınan dersler:**
+
+1. **Kıyaslama seti sahayı temsil etmeli.** Dataset'in test split'i, telefonla
+   çekilmiş 12 MP fotoğrafı temsil etmiyor. Sahadan gelen görüntülerden ayrı bir
+   **saha test seti** kurun (uygulamadaki etiketleme ekranı tam bunun için var).
+2. **Metriğe körü körüne güvenmeyin.** mAP'ın artması, sizin kullanım
+   senaryonuzda daha iyi olduğu anlamına gelmez.
+3. **Dağıtımdan önce kendi görüntülerinizde deneyin.** Birkaç gerçek fotoğrafta
+   yan yana karşılaştırmak, tek başına mAP'tan daha bilgilendiricidir.
+
+Üretimde `strawberry_exp-3` (sıfırdan, 200 epoch) kalmaya devam ediyor.
+
+#### ⚠️ İkinci ders: ince ayarda öğrenme oranı
 
 Bu bölüm teorik değil — bu projede yaşandı ve neden karşılaştırmadan dağıtım
 yapılmaması gerektiğini gösteriyor.
