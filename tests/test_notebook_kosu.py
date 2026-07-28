@@ -98,3 +98,28 @@ def test_checkpointsiz_kosu_devam_adayi_degil(tmp_path):
 def test_hic_kosu_yoksa_none(tmp_path):
     g = _yardimcilari_yukle(tmp_path)
     assert g['_devam_edilebilir']()[0] is None
+
+
+def test_farkli_adli_ince_ayar_kosusu_bulunur(tmp_path):
+    """GERÇEK HATA: ince ayar koşusunun adı sıfırdan eğitiminkinden bağımsızdır.
+
+    train_config: name=strawberry_exp,  finetune_config: name=strawberry_ince_ayar
+    Arama yalnızca 'strawberry_exp*' desenine dayansaydı ince ayar koşusu hiç
+    görünmez ve yarım kalan eğitime devam edilemezdi.
+    """
+    _kosu_olustur(tmp_path, 'strawberry_ince_ayar', 60, 52)   # ön eki farklı
+    _kosu_olustur(tmp_path, 'strawberry_exp-4', 200, 120)
+    g = _yardimcilari_yukle(tmp_path)
+
+    adlar = [d.name for d in g['_kosular'](ince=True)]
+    assert 'strawberry_ince_ayar' in adlar, 'farklı adlı ince ayar koşusu bulunamadı'
+    assert g['_devam_edilebilir'](ince=True)[0].name == 'strawberry_ince_ayar'
+    # Sıfırdan tarafı etkilenmemeli
+    assert g['_devam_edilebilir'](ince=False)[0].name == 'strawberry_exp-4'
+
+
+def test_ilgisiz_klasor_kosu_sayilmaz(tmp_path):
+    (tmp_path / 'baska_bir_sey').mkdir()
+    _kosu_olustur(tmp_path, 'strawberry_exp-1', 200, 10)
+    g = _yardimcilari_yukle(tmp_path)
+    assert [d.name for d in g['_kosular']()] == ['strawberry_exp-1']
