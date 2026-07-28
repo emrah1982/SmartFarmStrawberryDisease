@@ -84,7 +84,11 @@ def rapor(eski: dict, yeni: dict, olcut: str = 'mAP50-95') -> dict:
     print(f'{"GENEL":24} {"eski":>8} {"yeni":>8} {"fark":>8}')
     print('-' * 78)
     for k in ('mAP50', 'mAP50-95', 'precision', 'recall'):
-        e, y = eski['genel'][k], yeni['genel'][k]
+        # Eski sürümlerle yazılmış JSON'larda eksik anahtar olabilir; rapor
+        # bu yüzden çökmemeli
+        e, y = eski['genel'].get(k), yeni['genel'].get(k)
+        if e is None or y is None:
+            continue
         print(f'{k:24} {e:>8.3f} {y:>8.3f} {y - e:>+8.3f}   {_ok(y - e)}')
 
     print()

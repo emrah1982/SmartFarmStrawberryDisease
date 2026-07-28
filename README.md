@@ -456,6 +456,12 @@ seti değiştiyse iki sayı farklı ölçütlerden gelir. Tek geçerli kıyas, i
 python scripts/model_karsilastir.py     --eski models/best.pt     --yeni runs/train/strawberry_ince_ayar/weights/best.pt     --data configs/strawberry_data.yaml --split test
 ```
 
+**Colab'de:** notebook'ta **7️⃣.1 Eski model ile karşılaştırma** hücresi bunu otomatik
+yapar. Eski model olarak ince ayarın başladığı ağırlığı, yeni model olarak bu oturumun
+çıktısını alır; raporu Drive'a JSON olarak yazar. Genel iyileşme varsa **ve hiçbir sınıf
+gerilemediyse** yeni modeli Drive'a `best.pt` olarak kopyalar — aksi halde kopyalamaz ve
+kararı size bırakır.
+
 Rapor **sınıf bazındadır**: toplam mAP artarken tek tek sınıflar gerileyebilir —
 özellikle yeni veri belirli sınıflara yoğunlaşırsa. Ortalama bunu gizler, tablo gizlemez.
 Çıktı sonunda net bir karar satırı vardır ("dağıtıma alınabilir" / "eski modeli koruyun").
