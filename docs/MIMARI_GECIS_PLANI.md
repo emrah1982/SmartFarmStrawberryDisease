@@ -85,8 +85,8 @@ görünsün (hata ayıklama ve güven için).
 python scripts/dataset_ayir.py --kuru     # rapor
 python scripts/dataset_ayir.py            # uygula
 ```
- Mevcut 10 sınıflı birleşik veriden **sınıf bazında
-ayırarak** üç dataset üretir:
+
+Mevcut 10 sınıflı birleşik veriden **sınıf bazında ayırarak** üç dataset üretir:
 
 | Yeni dataset | Alınacak sınıflar |
 |--------------|-------------------|
