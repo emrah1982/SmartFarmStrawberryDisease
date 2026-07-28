@@ -11,7 +11,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # MODEL_PATH ortam değişkeniyle gösterin.
 MODEL_PATH = os.environ.get('MODEL_PATH', str(BASE_DIR / 'models' / 'best.pt'))
 
-CONF_THRESHOLD = float(os.environ.get('CONF_THRESHOLD', '0.25'))
+# 0.20: sahada hastalık lezyonları düşük güvenle bulunabiliyor (ölçüm: antraknoz
+# %20-24). REVIEW_THRESHOLD 0.55 olduğu için bu tespitler zaten inceleme
+# kuyruğuna düşer — kaçırmaktansa uzman onayına gitsin.
+# Sınıf bazlı eşikler bunu sıkılaştırabilir (bkz. configs/siniflar.yaml).
+CONF_THRESHOLD = float(os.environ.get('CONF_THRESHOLD', '0.20'))
 IMGSZ = int(os.environ.get('IMGSZ', '1024'))
 
 # Bu güvenin altındaki tespitler "incelenecek" kuyruğuna düşer.
