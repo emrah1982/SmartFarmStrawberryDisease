@@ -441,6 +441,23 @@ Sıfırdan eğitim ayarlarıyla ince ayar yapmak öğrenilmiş ağırlıkları b
 > kırpıldı). Mevcut model eski/kaymış hedeflerle eğitilmişti; eski önyargının silinmesi
 > için yeterli epoch gerekir.
 
+#### İnce ayar çıktıları nereye kaydedilir?
+
+Colab'de her şey **Drive'a** yazılır; oturum kopsa da kaybolmaz:
+
+| Ne | Nerede |
+|----|--------|
+| Koşu dizini (ağırlıklar, `results.csv`, grafikler) | `MyDrive/SmartFarmStrawberryDisease/results/strawberry_exp_ince_ayar/` |
+| Ara checkpoint (her 10 epoch) | `.../results/<koşu>/weights/epoch*.pt` |
+| En iyi ve son ağırlık | `.../results/<koşu>/weights/best.pt`, `last.pt` |
+| Eğitim sonunda kopya | `MyDrive/SmartFarmStrawberryDisease/best_models/best_<koşu>.pt` |
+| Karşılaştırma raporu | `.../best_models/karsilastirma_<koşu>.json` |
+| Karşılaştırmayı kazanırsa | `.../best_models/best.pt` |
+
+> ⚠️ `finetune_config.yaml` içindeki `project: runs/train` **göreli** bir yoldur ve tek
+> başına kullanıldığında yerel diske yazar. Notebook bu değeri Drive'daki `results/`
+> ile değiştirir. Yerelde çalıştırıyorsanız yol repo kökünüze göre çözülür.
+
 #### Kaç epoch? — tahmin değil, ölçüm
 
 "200 verelim, ezberlerse erken durdurma keser" yaklaşımı burada **yanıltıcıdır**.

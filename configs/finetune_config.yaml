@@ -95,6 +95,9 @@ copy_paste: 0.0
 close_mosaic: 10      # Son 10 epoch mozaik kapanır — gerçek görüntü dağılımına oturur
 
 # --- Kayıt ---------------------------------------------------------------
+# DİKKAT: Bu göreli yol YEREL diske yazar. Colab'de notebook bunu Drive'daki
+# results/ klasörüyle değiştirir (RESULTS_DIR) — yoksa oturum kopunca
+# checkpoint'ler ve results.csv kaybolur, eğitime devam edilemez.
 project: runs/train
 name: strawberry_ince_ayar
 exist_ok: false
