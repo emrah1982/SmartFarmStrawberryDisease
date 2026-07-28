@@ -441,6 +441,53 @@ Sıfırdan eğitim ayarlarıyla ince ayar yapmak öğrenilmiş ağırlıkları b
 > kırpıldı). Mevcut model eski/kaymış hedeflerle eğitilmişti; eski önyargının silinmesi
 > için yeterli epoch gerekir.
 
+#### Kaç epoch? — tahmin değil, ölçüm
+
+"200 verelim, ezberlerse erken durdurma keser" yaklaşımı burada **yanıltıcıdır**.
+Ultralytics'te iki şey `epochs` değerine bağlıdır:
+
+1. **Öğrenme oranı takvimi** (`cos_lr → one_cycle(1, lrf, epochs)`). 200 planlayıp
+   70'te durursanız model `lr0`'ın hâlâ **~%73'ünde** kalır — ağırlıklar oturmamış olur.
+   70 planlayıp 70'te bitseydi %1'e inmiş olurdu.
+2. **`close_mosaic`** son N epoch'ta devreye girer. 200 planlanıp 70'te durulursa mozaik
+   hiç kapanmaz ve o son iyileşme alınmaz.
+
+| Toplam `epochs` | Erken durdurma 70'te tetiklenirse LR | Mozaik kapandı mı |
+|---|---|---|
+| 70 | %1 (tam annealed) | ✅ epoch 60-70 |
+| 100 | %21 | ❌ 90-100'de olacaktı |
+| 200 | **%73** | ❌ 190-200'de olacaktı |
+
+Yani `epochs` bir "üst sınır" değil, eğitimin **şeklini** belirleyen parametredir.
+
+Doğru yol geçmiş koşuların eğrisini **ölçmektir**:
+
+```bash
+python scripts/epoch_oner.py --results results --ince-ayar
+```
+
+Bu projede ölçülen (`strawberry_exp-3`, 200 epoch, sıfırdan):
+
+```
+en iyi mAP50-95 = 0.7510 @ epoch 199
+  %90'ına epoch 58'de,  %95'ine 79'da,  %98'ine 96'da ulaşılmış
+  son 20 epoch kazancı: +0.0004   → PLATO
+  en uzun iyileşmesiz seri: 22 epoch
+```
+
+**Sonuç:** eğri ~96. epochta doymuş; kalan 104 epoch yalnızca %2 kazandırmış. Yani bu veri
+setinde risk **ezberleme değil doyma** — 200 epoch zaten gereğinden uzundu. Warm start
+tepeye yakın başladığı için `finetune_config.yaml` **epochs 60, patience 33** kullanır
+(patience, gözlenen 22 epoch'luk geçici duraklamanın 1.5 katı — gerçek plato ile geçici
+duraklama karışmasın).
+
+> **Ezberleme yine de olursa ne olur?** Ultralytics `best.pt` olarak **en yüksek fitness**
+> (mAP50-95) epoch'unu saklar. Son epoch'lar kötüleşse bile dağıttığınız model tepe
+> noktasındaki modeldir. Erken durdurma zaman kazandırır, doğruluğu korumaz — onu `best.pt`
+> zaten koruyor.
+
+Colab'de 5️⃣ hücresi bu analizi eğitimden önce **otomatik** basar ve öneriyi gösterir.
+
 #### ⚠️ Sadece yeni veriyle ince ayar yapmayın
 
 Yalnızca yeni görüntülerle eğitmek eski sınıflarda **unutmaya** (catastrophic forgetting)

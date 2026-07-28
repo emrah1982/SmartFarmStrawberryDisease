@@ -33,8 +33,20 @@ model: models/best.pt
 # ama ÇOK kısa tutmayın: bu projede etiket geometrisi düzeltildi (6455 kutu
 # kırpıldı), mevcut model eski/kaymış hedeflerle eğitilmişti. Eski önyargının
 # silinmesi için 60-80 epoch gerekir.
-epochs: 70
-patience: 25      # Sıfırdan eğitimdeki 50'ye göre kısa: iyileşme erken durur
+# Bu iki değer TAHMİN DEĞİL, önceki koşuların eğrisinden ölçüldü:
+#   scripts/epoch_oner.py --results <results> --ince-ayar
+#
+# strawberry_exp-3 (200 epoch, sıfırdan):
+#   en iyi mAP50-95 = 0.7510 @ epoch 199
+#   %98'ine epoch 96'da ulaşılmış → kalan 104 epoch yalnızca %2 kazandırmış
+#   son 20 epoch kazancı +0.0004 → PLATO (ezberleme değil, doyma)
+#   en uzun iyileşmesiz seri: 22 epoch
+#
+# Sonuç: sıfırdan eğitimde bile eğri ~96. epochta doyuyor. Warm start tepeye
+# yakın başladığı için ~60'ı yeterlidir; patience gözlenen en uzun geçici
+# duraklamanın (22) 1.5 katı seçilir ki gerçek plato ile duraklama karışmasın.
+epochs: 60
+patience: 33      # 22 epochluk geçici duraklamalar erken durdurmayı tetiklemesin
 
 batch: 8          # Colab notebook GPU'ya göre otomatik günceller (A100→32)
 imgsz: 1024       # Mevcut model 1024 ile eğitildi — DEĞİŞTİRMEYİN.
