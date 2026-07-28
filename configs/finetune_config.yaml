@@ -1,0 +1,96 @@
+# İnce ayar (fine-tuning / warm start) yapılandırması
+#
+# NE ZAMAN KULLANILIR?
+#     Elinizde ÇALIŞAN bir model varsa (models/best.pt) ve veri setine yeni
+#     görüntüler eklendiyse. Model sıfırdan başlatılmaz; mevcut ağırlıklardan
+#     devam eder, çok daha az epoch'ta yakınsar.
+#
+# ZORUNLU ŞART
+#     Başlangıç ağırlığının sınıf listesi dataset ile BİREBİR aynı olmalı
+#     (aynı sayı, aynı sıra). train_yolo.py bunu eğitim başlamadan kontrol eder;
+#     uyuşmuyorsa eğitimi başlatmaz ve sebebini yazar.
+#
+#     Yeni SINIF eklediyseniz ince ayar yapılamaz: tespit başı yeniden
+#     kurulmalıdır → train_config.yaml ile sıfırdan eğitin.
+#
+# KULLANIM
+#     python scripts/train_yolo.py \
+#         --data configs/strawberry_data.yaml \
+#         --config configs/finetune_config.yaml \
+#         --model models/best.pt
+#
+# ⚠️ SADECE YENİ VERİYLE EĞİTMEYİN
+#     Yalnızca yeni görüntülerle ince ayar, eski sınıflarda unutmaya
+#     (catastrophic forgetting) yol açar. strawberry_data.yaml TÜM kaynakları
+#     listeler — doğru kullanım budur.
+
+# --- Model ---------------------------------------------------------------
+# Buradaki değer --model ile ezilir. Kendi modelinizin yolunu verin.
+model: models/best.pt
+
+# --- Eğitim süresi -------------------------------------------------------
+# Sıfırdan eğitimde 200 epoch kullanılır. Warm start çok daha hızlı yakınsar;
+# ama ÇOK kısa tutmayın: bu projede etiket geometrisi düzeltildi (6455 kutu
+# kırpıldı), mevcut model eski/kaymış hedeflerle eğitilmişti. Eski önyargının
+# silinmesi için 60-80 epoch gerekir.
+epochs: 70
+patience: 25      # Sıfırdan eğitimdeki 50'ye göre kısa: iyileşme erken durur
+
+batch: 8          # Colab notebook GPU'ya göre otomatik günceller (A100→32)
+imgsz: 1024       # Mevcut model 1024 ile eğitildi — DEĞİŞTİRMEYİN.
+                  # Farklı imgsz warm start'ın kazancını büyük ölçüde silerdi.
+device: 0
+workers: 8
+
+# --- Optimizasyon --------------------------------------------------------
+# optimizer: auto lr0 değerini YOK SAYAR ve sıfırdan eğitim için uygun (yüksek)
+# bir öğrenme oranı seçer. İnce ayarda bu, öğrenilmiş ağırlıkları bozar.
+# Bu yüzden optimizer sabitlenir ve lr0 elle küçültülür.
+optimizer: AdamW
+lr0: 0.0008       # Sıfırdan eğitimin ~1/3'ü: mevcut bilgi korunur, yeni veri öğrenilir
+lrf: 0.01
+weight_decay: 0.0005
+warmup_epochs: 2.0    # Warm start'ta uzun ısınma gereksiz (sıfırdan: 3)
+cos_lr: true
+
+# --- Katman dondurma -----------------------------------------------------
+# freeze: 10 omurgayı dondurur — yeni veri ÇOK azsa (birkaç yüz görüntü) işe
+# yarar. Bu projede kullanılmıyor:
+#   - yeni veri toplamın ~%15'i (1944/13143), az sayılmaz
+#   - etiket geometrisi değişti; kutu regresyonunun güncellenmesi gerekiyor
+freeze: null
+
+# --- Kayıp ağırlıkları ---------------------------------------------------
+box: 7.5
+cls: 0.5
+dfl: 1.5          # YOLO26 DFL-free — yok sayılır
+
+# --- Veri artırma --------------------------------------------------------
+# Sıfırdan eğitimle aynı: renk hastalık sinyalidir, hue/saturation düşük tutulur.
+hsv_h: 0.02
+hsv_s: 0.5
+hsv_v: 0.5
+degrees: 10.0
+translate: 0.1
+scale: 0.6
+shear: 0.0
+perspective: 0.001
+flipud: 0.0
+fliplr: 0.5
+mosaic: 1.0
+mixup: 0.0
+copy_paste: 0.0
+close_mosaic: 10      # Son 10 epoch mozaik kapanır — gerçek görüntü dağılımına oturur
+
+# --- Kayıt ---------------------------------------------------------------
+project: runs/train
+name: strawberry_ince_ayar
+exist_ok: false
+save: true
+save_period: 10       # Colab kopmalarına karşı: her 10 epoch'ta checkpoint
+plots: true
+verbose: true
+seed: 0
+deterministic: true
+amp: true
+val: true

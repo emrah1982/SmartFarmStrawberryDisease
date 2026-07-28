@@ -385,6 +385,81 @@ python scripts/train_yolo.py --data configs/strawberry_data.yaml --config config
 python scripts/train_yolo.py --data datasets/processed/data.yaml --epochs 100 --batch 16 --model yolov8s.pt
 ```
 
+### 2b. 🔁 İnce Ayar (fine-tuning) — sıfırdan eğitmeden geliştirme
+
+Elinizde çalışan bir model varsa ve veri setine yeni görüntüler eklendiyse, sıfırdan
+eğitmek gerekmez: mevcut ağırlıklardan devam edilir (**warm start**). Çok daha az
+epoch'ta yakınsar.
+
+```bash
+python scripts/train_yolo.py     --data configs/strawberry_data.yaml     --config configs/finetune_config.yaml     --model models/best.pt
+```
+
+Colab'de: eğitim hücresinde **`MOD = 'ince_ayar'`**. Başlangıç ağırlığı olarak Drive'daki
+en yeni `best*.pt` alınır (`INCE_AYAR_AGIRLIK` ile elle de verilebilir).
+
+#### ⛔ Sınıf uyumu kontrolü — eğitim başlamadan durur
+
+İnce ayarın **tek zorunlu şartı**: başlangıç ağırlığının sınıf listesi dataset ile
+birebir aynı olmalı (aynı sayı, aynı sıra).
+
+Uyuşmazsa Ultralytics hata vermez — tespit başını sessizce yeniden kurar ya da ID
+kaydığı için model yanlış sınıfları öğrenir. **Sonuç ancak saatlerce süren eğitim
+bittikten sonra fark edilir.** Bu yüzden hem `train_yolo.py` hem notebook eğitimi
+başlatmadan kontrol eder ve durursa **sebebini ve çözümünü yazar**:
+
+```
+⛔ EĞİTİM BAŞLATILMADI — sınıf listeleri uyuşmuyor
+Başlangıç ağırlığı : models/best.pt
+  10 sınıf: [...]
+Dataset            : configs/strawberry_data.yaml
+  11 sınıf: [...]
+FARK: sınıf SAYISI farklı (10 != 11).
+  Datasette olup ağırlıkta olmayan : ['Spider Mites']
+
+NE YAPMALI?
+  1) Sınıf EKLEDİYSENİZ: ince ayar yapılamaz, sıfırdan eğitin (--model yolo26s.pt)
+  2) Sıra kaydıysa: configs/siniflar.yaml içindeki ID değerlerini eski haline getirin
+  3) Yanlış ağırlık verdiyseniz --model yolunu düzeltin
+  4) Riski bilerek devam: --sinif-kontrolu-atla (ÖNERİLMEZ)
+```
+
+#### Neden ayrı yapılandırma?
+
+Sıfırdan eğitim ayarlarıyla ince ayar yapmak öğrenilmiş ağırlıkları bozar:
+
+| Ayar | Sıfırdan (`train_config.yaml`) | İnce ayar (`finetune_config.yaml`) | Neden |
+|------|-------------------------------|-----------------------------------|-------|
+| `epochs` | 200 | **70** | Warm start hızlı yakınsar |
+| `patience` | 50 | **25** | İyileşme erken durur |
+| `optimizer` | `auto` | **AdamW** | `auto`, `lr0`'ı **yok sayar** ve sıfırdan eğitime uygun (yüksek) bir değer seçer |
+| `lr0` | 0.002 | **0.0008** | Yüksek LR öğrenilmiş ağırlıkları bozar |
+| `warmup_epochs` | 3 | **2** | Warm start'ta uzun ısınma gereksiz |
+| `imgsz` | 1024 | **1024 (aynı)** | Farklı imgsz warm start kazancını siler |
+
+> **Neden 70 epoch, 20 değil?** Bu projede etiket geometrisi düzeltildi (6455 kutu
+> kırpıldı). Mevcut model eski/kaymış hedeflerle eğitilmişti; eski önyargının silinmesi
+> için yeterli epoch gerekir.
+
+#### ⚠️ Sadece yeni veriyle ince ayar yapmayın
+
+Yalnızca yeni görüntülerle eğitmek eski sınıflarda **unutmaya** (catastrophic forgetting)
+yol açar. `strawberry_data.yaml` tüm kaynakları listeler — doğru kullanım budur.
+
+#### Karşılaştırma: gerçekten iyileşti mi?
+
+Eski modelin eğitim sonundaki mAP'ı ile yeninin mAP'ını kıyaslamak **yanlıştır**: veri
+seti değiştiyse iki sayı farklı ölçütlerden gelir. Tek geçerli kıyas, iki modeli de
+**aynı test setinde** çalıştırmaktır:
+
+```bash
+python scripts/model_karsilastir.py     --eski models/best.pt     --yeni runs/train/strawberry_ince_ayar/weights/best.pt     --data configs/strawberry_data.yaml --split test
+```
+
+Rapor **sınıf bazındadır**: toplam mAP artarken tek tek sınıflar gerileyebilir —
+özellikle yeni veri belirli sınıflara yoğunlaşırsa. Ortalama bunu gizler, tablo gizlemez.
+Çıktı sonunda net bir karar satırı vardır ("dağıtıma alınabilir" / "eski modeli koruyun").
+
 ### 3. Model Değerlendirme
 
 ```bash

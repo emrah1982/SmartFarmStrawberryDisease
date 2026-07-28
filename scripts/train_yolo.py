@@ -1,5 +1,12 @@
 """
-YOLOv8 model eğitim scripti.
+YOLO26 model eğitim scripti.
+
+İKİ MOD:
+  Sıfırdan  : --model yolo26s.pt      (hazır COCO ağırlıkları)
+  İnce ayar : --model models/best.pt  (kendi modelinizden devam — warm start)
+
+İnce ayarda başlangıç ağırlığının sınıf listesi dataset ile BİREBİR aynı olmalı;
+değilse eğitim başlatılmaz (bkz. sinif_uyumu_kontrol).
 
 Usage:
     python scripts/train_yolo.py --data configs/strawberry_data.yaml --config configs/train_config.yaml
@@ -27,8 +34,94 @@ def load_config(config_path: str) -> Dict[str, Any]:
         return {}
 
 
+def agirlik_siniflari(model_yolu: str) -> Optional[list]:
+    """Bir .pt kontrol noktasindaki sinif listesini okur. Hazir model ise None."""
+    p = Path(model_yolu)
+    if not p.exists() or p.suffix != ".pt":
+        return None                     # "yolo26s.pt" gibi indirilecek hazir model
+    try:
+        import torch
+        ckpt = torch.load(str(p), map_location="cpu", weights_only=False)
+        model = ckpt.get("model") or ckpt.get("ema")
+        adlar = getattr(model, "names", None) or ckpt.get("names")
+        if not adlar:
+            return None
+        return [adlar[i] for i in sorted(adlar)] if isinstance(adlar, dict) else list(adlar)
+    except Exception as e:
+        logger.warning(f"Baslangic agirliginin siniflari okunamadi: {e}")
+        return None
+
+
+def sinif_uyumu_kontrol(model_yolu: str, data_yaml: str) -> bool:
+    """Baslangic agirligi ile dataset sinif listesi uyusuyor mu?
+
+    NEDEN EGITIMDEN ONCE?
+        Ince ayarda agirliklar mevcut modelden yuklenir. Sinif SIRASI veya
+        SAYISI farkliysa Ultralytics hata vermez: tespit basini sessizce
+        yeniden baslatir ya da daha kotusu, ID kaydigi icin model yanlis
+        siniflari ogrenir. Sonuc ancak saatlerce suren egitim bittikten sonra
+        fark edilir. Bu yuzden burada durdurulur ve sebebi yazilir.
+    """
+    agirlik = agirlik_siniflari(model_yolu)
+    if agirlik is None:
+        return True                     # hazir model / okunamadi
+
+    try:
+        with open(data_yaml, "r", encoding="utf-8") as f:
+            veri = yaml.safe_load(f) or {}
+    except Exception as e:
+        logger.error(f"data.yaml okunamadi: {e}")
+        return False
+
+    isimler = veri.get("names", {})
+    hedef = ([isimler[i] for i in sorted(isimler)] if isinstance(isimler, dict)
+             else list(isimler))
+
+    if agirlik == hedef:
+        logger.info(f"OK Sinif uyumu tamam: {len(hedef)} sinif, sira birebir ayni "
+                    "-> ince ayar guvenli.")
+        return True
+
+    logger.error("")
+    logger.error("=" * 74)
+    logger.error("EGITIM BASLATILMADI - sinif listeleri uyusmuyor")
+    logger.error("=" * 74)
+    logger.error(f"Baslangic agirligi : {model_yolu}")
+    logger.error(f"  {len(agirlik)} sinif: {agirlik}")
+    logger.error(f"Dataset            : {data_yaml}")
+    logger.error(f"  {len(hedef)} sinif: {hedef}")
+    logger.error("")
+
+    if len(agirlik) != len(hedef):
+        logger.error(f"FARK: sinif SAYISI farkli ({len(agirlik)} != {len(hedef)}).")
+        eklenen = [a for a in hedef if a not in agirlik]
+        cikan = [a for a in agirlik if a not in hedef]
+        if eklenen:
+            logger.error(f"  Datasette olup agirlikta olmayan : {eklenen}")
+        if cikan:
+            logger.error(f"  Agirlikta olup datasette olmayan : {cikan}")
+    else:
+        for i, (a, b) in enumerate(zip(agirlik, hedef)):
+            if a != b:
+                logger.error(f"FARK: ID {i} -> agirlikta \"{a}\", datasette \"{b}\". "
+                             "Sira kaymis; etiketler yanlis sinifa gider.")
+
+    logger.error("")
+    logger.error("NE YAPMALI?")
+    logger.error("  1) Sinif EKLEDIYSENIZ (yeni zararli/hastalik):")
+    logger.error("     Bu agirlikla ince ayar yapilamaz, tespit basi yeniden kurulmali.")
+    logger.error("     Sifirdan egitin:  --model yolo26s.pt   (notebook: MOD=sifirdan)")
+    logger.error("  2) Sira kaymissa: configs/siniflar.yaml icindeki ID degerlerini")
+    logger.error("     eski haline getirin. ID bir kez verilir, DEGISTIRILMEZ - degisirse")
+    logger.error("     gecmiste etiketlenen her sey yanlis sinifa doner.")
+    logger.error("  3) Yanlis agirlik dosyasi verdiyseniz --model yolunu duzeltin.")
+    logger.error("  4) Riski bilerek devam edecekseniz: --sinif-kontrolu-atla (ONERILMEZ)")
+    logger.error("=" * 74)
+    return False
+
+
 def train_yolo(data_yaml: str, config: Dict[str, Any]) -> bool:
-    """YOLOv8 modelini eğitir.
+    """YOLO26 modelini eğitir (sıfırdan veya ince ayar).
     
     Args:
         data_yaml: Dataset config dosya yolu
@@ -45,7 +138,16 @@ def train_yolo(data_yaml: str, config: Dict[str, Any]) -> bool:
     
     try:
         model_name = config.get('model', 'yolo26s.pt')
+
+        # İnce ayar (mevcut .pt üzerinden başlatma) yapılıyorsa sınıf uyumu şart
+        if not config.get('sinif_kontrolu_atla', False):
+            if not sinif_uyumu_kontrol(model_name, data_yaml):
+                return False
+
         logger.info(f"Model yükleniyor: {model_name}")
+        if Path(model_name).exists() and Path(model_name).suffix == '.pt':
+            logger.info('🔁 İNCE AYAR: ağırlıklar mevcut modelden devralındı '
+                        '(sıfırdan başlatılmıyor).')
         model = YOLO(model_name)
         
         # MUTLAK YOL ZORUNLU: Ultralytics, dataset kökünü data.yaml'ın bulunduğu
@@ -216,6 +318,10 @@ def main():
     parser.add_argument("--imgsz", type=int, default=None, help="Görüntü boyutu")
     parser.add_argument("--device", type=str, default=None, help="Device (0, 1, cpu)")
     parser.add_argument("--name", type=str, default=None, help="Experiment adı")
+    parser.add_argument("--sinif-kontrolu-atla", action="store_true",
+                        help="Baslangic agirligi/dataset sinif uyumu kontrolunu atlar (ONERILMEZ)")
+    parser.add_argument("--sinif-kontrolu-atla", action="store_true",
+                        help="Baslangic agirligi/dataset sinif uyumu kontrolunu atlar (ONERILMEZ)")
     
     args = parser.parse_args()
     
@@ -248,6 +354,8 @@ def main():
     
     if args.model:
         config['model'] = args.model
+    if args.sinif_kontrolu_atla:
+        config['sinif_kontrolu_atla'] = True
     if args.epochs:
         config['epochs'] = args.epochs
     if args.batch:
