@@ -30,7 +30,11 @@
 organ:
   dosya: organ.pt
   rol: organ
-  siniflar: [leaf, fruit, flower, stem, runner]
+  # Veri kaynağı: strawberry.v2i (16.358 görüntü). Sınıf adları O DATASET'TEKİ
+  # adlardır — model bu adlarla çıktı verir. Tetik eşleşmesi büyük/küçük harf
+  # duyarsızdır (bkz. app/modeller.py: tetiklenen).
+  # stem ve runner bu veride YOK; gerekirse sonradan etiketlenip eklenir.
+  siniflar: [Flower, Fruit, Leaf]
   esik: 0.35
   aktif: true
   zorunlu: false
@@ -70,7 +74,7 @@ olgunluk:
 zararli:
   dosya: pest_detection.pt
   rol: zararli
-  tetik: [leaf, fruit, stem]
+  tetik: [leaf, fruit]   # organ modelinde stem sınıfı yok
   siniflar: [Thrips, Spider Mites, Aphids, Whiteflies, Slug, Weevil]
   esik: 0.25
   aktif: true

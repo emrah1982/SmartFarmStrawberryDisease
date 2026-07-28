@@ -25,7 +25,7 @@ sorun eşikle bastırılmaz, ortadan kalkar.
 | 3 | Boru hattı (`app/pipeline.py`) | 2 | ✅ yapıldı |
 | 4 | Çekirdeğe bağlama (foto/video/kamera/canlı) | 3 | ✅ yapıldı |
 | 5 | Mevcut veriden 3 dataset türetme | — | ✅ betik hazır |
-| 6 | Organ dataset'i (yeni etiketleme) | — | ⬜ veri gerekli |
+| 6 | Organ dataset'i | — | ✅ **veri bulundu** (16.358 görüntü) |
 | 7 | Zararlı dataset'i (yeni etiketleme) | — | ⬜ veri gerekli |
 | 8 | Model eğitimleri | 5,6,7 | ⬜ |
 | 9 | Arayüz: model durumu ve boru hattı izi | 3 | ⬜ |
@@ -125,14 +125,37 @@ kalır (silinmez) — "burada bu sınıf yok" bilgisi değerlidir.
 Kalıcı çözüm 6. maddedeki organ etiketlemesinden sonra ROI kırpıntılarıyla
 yeniden üretmektir (`--roi` kipi).
 
-## 6. Organ dataset'i — YENİ ETİKETLEME GEREKLİ
+## 6. Organ dataset'i ✅
 
-Mevcut veride organ etiketi **yok**. 5 sınıf: `leaf, fruit, flower, stem, runner`.
+**Veri hazır** — `dataset/zip dosyalar/strawberry.v2i.yolo26.zip` içinde çıktı.
+Etiketleme gerekmedi.
 
-- Hedef: **300-500 görüntü**, her sınıftan en az 100 örnek
-- Kaynak: `dataset/` içindeki mevcut görüntüler + sahadan gelenler
-- Araç: uygulamadaki etiketleme ekranı (sınıflar `sinif_ekle.py` ile eklenir)
-- Bu model **en kritik olanıdır**: yanlış organ, yanlış uzman modele yönlendirir
+```
+datasets/organ_detection/
+  train  14.313 görüntü    Flower 780 · Fruit 10.662 · Leaf 11.833
+  valid   1.363 görüntü    Flower  71 · Fruit    991 · Leaf  1.072
+  test      682 görüntü    Flower  39 · Fruit    487 · Leaf    561
+  ────────────────────────────────────────────────────────────────
+  16.358 görüntü · 26.496 kutu · eşleşmeyen dosya: 0
+```
+
+| Konu | Durum |
+|------|-------|
+| Sınıflar | `Flower`, `Fruit`, `Leaf` |
+| Eksik organlar | `stem`, `runner` yok — bu veride etiketlenmemiş |
+| Sınıf dengesi | ⚠️ Flower 890 kutu vs Leaf 13.466 → **15 kat dengesizlik** |
+
+**Flower dengesizliği önemli mi?** Şu an hayır: hiçbir uzman model çiçekte
+tetiklenmiyor (`tetik` listelerinde `flower` yok). Blossom Blight (çiçek
+yanıklığı) için ileride çiçek ROI'si gerekirse önce bu sınıf güçlendirilmelidir.
+
+**Sınıf adları büyük harfle** (`Leaf`, `Fruit`) — model bu adlarla çıktı verir.
+Tetik eşleşmesi büyük/küçük harf duyarsızdır (`app/modeller.py: tetiklenen`),
+doğrulandı.
+
+> Roboflow'un `data.yaml` dosyası `../train/images` yazar; bu yol
+> `datasets/train/images`'a çözülür ve "images not found" verir. Diğer türetilen
+> dataset'lerle aynı biçime çevrildi: mutlak `path` + göreli alt yollar.
 
 ## 7. Zararlı dataset'i — YENİ ETİKETLEME GEREKLİ
 
