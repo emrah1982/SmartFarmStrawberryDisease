@@ -38,6 +38,17 @@ import yaml
 
 KOK = Path(__file__).resolve().parent.parent
 
+# --- Ürün kapsamı (çok bitkili kurulum) -------------------------------------
+# Eğitim yapılandırması her ürünün kendi klasöründedir:
+#   configs/urunler/<urun>/veri.yaml
+# Eski kurulumlarda configs/strawberry_data.yaml'a düşülür.
+def veri_yapilandirmasi(urun: str = None) -> Path:
+    import os
+    urun = urun or os.environ.get('VARSAYILAN_URUN', 'cilek')
+    yeni = KOK / 'configs' / 'urunler' / urun / 'veri.yaml'
+    return yeni if yeni.exists() else KOK / 'configs' / 'strawberry_data.yaml'
+
+
 # Hangi uzman dataset hangi master sınıfları alır.
 # Gray Mold hem yaprakta hem meyvede görülür → ikisine de girer.
 AYRIM = {
@@ -177,8 +188,11 @@ def paketle(hedef_kok: Path, adlar) -> None:
 def main():
     ap = argparse.ArgumentParser(description='Birleşik dataset → uzman dataset\'ler')
     ap.add_argument('--kaynak', default=str(KOK / 'dataset'))
-    ap.add_argument('--hedef', default=str(KOK / 'datasets'))
-    ap.add_argument('--yapilandirma', default=str(KOK / 'configs' / 'strawberry_data.yaml'))
+    ap.add_argument('--hedef', default=None,
+                    help='Hedef kök (boşsa datasets/<urun>)')
+    ap.add_argument('--urun', default=None, help='Ürün kapsamı (varsayılan: cilek)')
+    ap.add_argument('--yapilandirma', default=None,
+                    help='Ana sınıf listesi (boşsa ürünün veri.yaml dosyası)')
     ap.add_argument('--arka-plan-orani', type=float, default=0.15,
                     help='İçerikli görüntü sayısının kaçta kaçı kadar background alınsın')
     ap.add_argument('--kuru', action='store_true')
@@ -186,22 +200,27 @@ def main():
                     help="Her dataset'i ayri zip yapar (Colab'e yuklemek icin)")
     a = ap.parse_args()
 
+    import os
+    urun_ad = a.urun or os.environ.get('VARSAYILAN_URUN', 'cilek')
+    hedef_kok = Path(a.hedef) if a.hedef else (KOK / 'datasets' / urun_ad)
     kaynak = Path(a.kaynak)
     if not kaynak.exists():
         print(f'Kaynak yok: {kaynak}')
         return 1
-    master = master_siniflar(Path(a.yapilandirma))
+    master = master_siniflar(Path(a.yapilandirma) if a.yapilandirma
+                             else veri_yapilandirmasi(a.urun))
     if not master:
         print('Master sınıf listesi okunamadı')
         return 1
 
     print(f'Kaynak : {kaynak}')
-    print(f'Hedef  : {a.hedef}')
+    print(f'Hedef  : {hedef_kok}')
+    print(f'Ürün   : {urun_ad}')
     print(f'Master : {len(master)} sınıf')
-    sonuc = ayir(kaynak, Path(a.hedef), master, a.arka_plan_orani, a.kuru)
+    sonuc = ayir(kaynak, hedef_kok, master, a.arka_plan_orani, a.kuru)
     if a.paketle and not a.kuru:
         print(chr(10) + 'Paketleniyor...')
-        paketle(Path(a.hedef), AYRIM.keys())
+        paketle(hedef_kok, AYRIM.keys())
     return sonuc
 
 

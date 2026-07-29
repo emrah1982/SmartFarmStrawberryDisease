@@ -320,8 +320,6 @@ def main():
     parser.add_argument("--name", type=str, default=None, help="Experiment adı")
     parser.add_argument("--sinif-kontrolu-atla", action="store_true",
                         help="Baslangic agirligi/dataset sinif uyumu kontrolunu atlar (ONERILMEZ)")
-    parser.add_argument("--sinif-kontrolu-atla", action="store_true",
-                        help="Baslangic agirligi/dataset sinif uyumu kontrolunu atlar (ONERILMEZ)")
     
     args = parser.parse_args()
     

@@ -126,7 +126,7 @@ python scripts/merge_datasets.py --in-place   --inputs "dataset/Strawberry Disea
 ```
 
 `--in-place` **görüntüleri kopyalamaz**, yalnızca `.txt` etiketlerindeki ID'leri yeniden
-yazar. `configs/strawberry_data.yaml` kaynak dizinleri doğrudan listelediği için
+yazar. `configs/urunler/cilek/veri.yaml` kaynak dizinleri doğrudan listelediği için
 (Ultralytics çoklu dizin desteği) binlerce görüntüyü ikinci kez diske yazmaya gerek yoktur.
 
 **Güvenlik ağları:**
@@ -226,7 +226,7 @@ python scripts/augment_by_class.py --update-data-yaml
 
 **Çözüm:** ID'lere değil **sınıf isimlerine** göre eşleme:
 
-1. Ana (master) sınıf listesi tanımlanır — varsayılan: [configs/strawberry_data.yaml](configs/strawberry_data.yaml)'daki 7 hastalık sınıfı.
+1. Ana (master) sınıf listesi tanımlanır — varsayılan: [configs/urunler/cilek/veri.yaml](configs/urunler/cilek/veri.yaml)'daki 7 hastalık sınıfı.
 2. Her kaynağın `data.yaml`'ındaki sınıf isimleri normalize edilip master listeyle eşlenir (`gray_mold`, `Gray-Mold`, `GRAY MOLD` → otomatik aynı sınıf).
 3. Farklı adlandırmalar (`botrytis` → `Gray Mold`, `külleme` → `Powdery Mildew Leaf`) [configs/class_aliases.yaml](configs/class_aliases.yaml) ile çözülür — kendi kaynaklarınıza göre bu dosyaya ekleme yapın.
 4. Tüm label dosyalarındaki ID'ler master listeye göre yeniden yazılır; dosya adlarına kaynak öneki eklenir (aynı isimli dosyaların birbirini ezmesini önler).
@@ -339,7 +339,7 @@ python scripts/augment_by_class.py --factors "1:5,2:3,5:3" --update-data-yaml
 
 ### 📂 Eğitimde Dosyalar Modele Nasıl Verilir?
 
-Görüntüler **kopyalanmaz veya tek klasörde toplanmaz.** [configs/strawberry_data.yaml](configs/strawberry_data.yaml), Ultralytics'in çoklu dizin desteğiyle 4 kaynağı + augment çıktısını **liste olarak** gösterir; eğitim bunları birlikte okur:
+Görüntüler **kopyalanmaz veya tek klasörde toplanmaz.** [configs/urunler/cilek/veri.yaml](configs/urunler/cilek/veri.yaml), Ultralytics'in çoklu dizin desteğiyle 4 kaynağı + augment çıktısını **liste olarak** gösterir; eğitim bunları birlikte okur:
 
 ```yaml
 train:
@@ -365,7 +365,7 @@ Doğrulanmış mevcut durum:
 ⚠️ **`--data` her zaman MUTLAK yol olmalı.** Ultralytics dataset kökünü `data.yaml`'ın bulunduğu dizinden türetir; göreli yol verilirse kökü kendi `DATASETS_DIR`'i altında arar ve *"images not found"* hatası verir. [train_yolo.py](scripts/train_yolo.py) bunu artık otomatik yapar (`Path(data_yaml).resolve()`), ancak `yolo` CLI'ını doğrudan kullanırsanız mutlak yol verin:
 
 ```bash
-yolo train data=/tam/yol/configs/strawberry_data.yaml model=yolo26s.pt
+yolo train data=/tam/yol/configs/urunler/cilek/veri.yaml model=yolo26s.pt
 ```
 
 ⚠️ **Windows'ta 260 karakter yol sınırı:** Roboflow dosya adları çok uzun olabilir; mutlak yol 260 karakteri aşarsa Python o dosyayı açamaz ve eğitim hata verir. Bu depodaki 28 dosya bu yüzden kısa adlarla yeniden adlandırılmıştır (`lp_<hash>`). Yeni veri eklerken kontrol edin:
@@ -379,7 +379,7 @@ Sonuç boş değilse dosya adlarını kısaltın (veya depoyu `C:\SFD` gibi kıs
 
 ```bash
 # Config dosyası ile eğitim
-python scripts/train_yolo.py --data configs/strawberry_data.yaml --config configs/train_config.yaml
+python scripts/train_yolo.py --data configs/urunler/cilek/veri.yaml --config configs/train_config.yaml
 
 # Komut satırı parametreleri ile
 python scripts/train_yolo.py --data datasets/processed/data.yaml --epochs 100 --batch 16 --model yolov8s.pt
@@ -392,7 +392,7 @@ eğitmek gerekmez: mevcut ağırlıklardan devam edilir (**warm start**). Çok d
 epoch'ta yakınsar.
 
 ```bash
-python scripts/train_yolo.py     --data configs/strawberry_data.yaml     --config configs/finetune_config.yaml     --model models/best.pt
+python scripts/train_yolo.py     --data configs/urunler/cilek/veri.yaml     --config configs/finetune_config.yaml     --model models/best.pt
 ```
 
 Colab'de: eğitim hücresinde **`MOD = 'ince_ayar'`**. Başlangıç ağırlığı olarak Drive'daki
@@ -412,14 +412,14 @@ başlatmadan kontrol eder ve durursa **sebebini ve çözümünü yazar**:
 ⛔ EĞİTİM BAŞLATILMADI — sınıf listeleri uyuşmuyor
 Başlangıç ağırlığı : models/best.pt
   10 sınıf: [...]
-Dataset            : configs/strawberry_data.yaml
+Dataset            : configs/urunler/cilek/veri.yaml
   11 sınıf: [...]
 FARK: sınıf SAYISI farklı (10 != 11).
   Datasette olup ağırlıkta olmayan : ['Spider Mites']
 
 NE YAPMALI?
   1) Sınıf EKLEDİYSENİZ: ince ayar yapılamaz, sıfırdan eğitin (--model yolo26s.pt)
-  2) Sıra kaydıysa: configs/siniflar.yaml içindeki ID değerlerini eski haline getirin
+  2) Sıra kaydıysa: configs/urunler/cilek/siniflar.yaml içindeki ID değerlerini eski haline getirin
   3) Yanlış ağırlık verdiyseniz --model yolunu düzeltin
   4) Riski bilerek devam: --sinif-kontrolu-atla (ÖNERİLMEZ)
 ```
@@ -623,7 +623,7 @@ seti değiştiyse iki sayı farklı ölçütlerden gelir. Tek geçerli kıyas, i
 **aynı test setinde** çalıştırmaktır:
 
 ```bash
-python scripts/model_karsilastir.py     --eski models/best.pt     --yeni runs/train/strawberry_ince_ayar/weights/best.pt     --data configs/strawberry_data.yaml --split test
+python scripts/model_karsilastir.py     --eski models/best.pt     --yeni runs/train/strawberry_ince_ayar/weights/best.pt     --data configs/urunler/cilek/veri.yaml --split test
 ```
 
 **Colab'de:** notebook'ta **7️⃣.1 Eski model ile karşılaştırma** hücresi bunu otomatik
@@ -639,7 +639,7 @@ Rapor **sınıf bazındadır**: toplam mAP artarken tek tek sınıflar gerileyeb
 ### 3. Model Değerlendirme
 
 ```bash
-python scripts/evaluate_model.py --model runs/train/strawberry_exp/weights/best.pt --data configs/strawberry_data.yaml
+python scripts/evaluate_model.py --model runs/train/strawberry_exp/weights/best.pt --data configs/urunler/cilek/veri.yaml
 ```
 
 #### 📏 Ticari Değerlendirme Metrikleri — mAP Tek Başına Yetmez
@@ -859,7 +859,7 @@ kartlarda da doğrudan **✏️ Etiketle** bağlantısı bulunur.
 - Model tahminleri **ön-etiket** olarak yüklenir — sıfırdan çizmezsiniz, düzeltirsiniz
 - Boş alanda sürükleyerek yeni kutu çizilir; kutuya tıklayıp sınıfı değiştirilir veya silinir
 - Dokunmatik destekli (`pointer` olayları): telefon ve tablette de çalışır
-- Sınıf listesi **`configs/strawberry_data.yaml`'dan** okunur → ID'ler eğitimdekiyle birebir aynı
+- Sınıf listesi **`configs/urunler/cilek/veri.yaml`'dan** okunur → ID'ler eğitimdekiyle birebir aynı
 - Hastalık yoksa hiç kutu bırakmayın: kayıt **background örneği** olur, yanlış alarmı azaltır
 
 **Kaydedince ne olur:** kayıt `elle_etiketlendi` olarak işaretlenir, inceleme kuyruğundan
@@ -1156,7 +1156,7 @@ sabitlenmiştir.
 
 ### 🧬 Sınıf kütüğü — sınıf ekleme, eşik, açma/kapama
 
-`configs/siniflar.yaml` sınıfların **tek yetkili listesidir**: ID, görünen ad, grup,
+`configs/urunler/cilek/siniflar.yaml` sınıfların **tek yetkili listesidir**: ID, görünen ad, grup,
 güven eşiği ve açık/kapalı durumu tek yerdedir. Docker'da dışarıdan bağlıdır — düzenleyip
 `docker compose restart` demek yeterli, yeniden derleme gerekmez.
 
@@ -1209,8 +1209,8 @@ python scripts/sinif_ekle.py --listele                 # mevcut + planlanan list
 python scripts/sinif_ekle.py "Spider Mites" --tr "Kırmızı Örümcek" --grup zararli
 ```
 
-Betik bir sonraki boş ID'yi atar ve `configs/siniflar.yaml` ile
-`configs/strawberry_data.yaml`'ı **birlikte** günceller — ikisi elle düzenlenirse
+Betik bir sonraki boş ID'yi atar ve `configs/urunler/cilek/siniflar.yaml` ile
+`configs/urunler/cilek/veri.yaml`'ı **birlikte** günceller — ikisi elle düzenlenirse
 kaçınılmaz olarak birbirinden sapar ve etiketler yanlış sınıfa kayar.
 
 Kütükte hazır bekleyen planlanan sınıflar (yaygın çilek zararlıları — ID'si yok, yani
@@ -1462,7 +1462,7 @@ bir sonraki modeli besler — bkz. [Sürekli İyileştirme](#-sahadan-gelen-veri
 ### Teşhisin yanında eylem önerisi
 
 Çiftçi "Gray Mold %87" değil **"ne yapmalıyım?"** cevabını ister. Her tespitin yanında
-[configs/tedavi_onerileri.yaml](configs/tedavi_onerileri.yaml)'dan gelen etken bilgisi,
+[configs/urunler/cilek/tedavi_onerileri.yaml](configs/urunler/cilek/tedavi_onerileri.yaml)'dan gelen etken bilgisi,
 belirti ve kültürel önlem listesi gösterilir.
 
 > ⚠️ Bu dosyada **ilaç adı ve dozu bilinçli olarak yoktur.** Ruhsatlı ilaçlar ülkeye,
@@ -1647,7 +1647,7 @@ ama modelin eski veriye aşırı uyumu kalıcı olabilir.
 ### 5) Karşılaştır ve karar ver
 
 ```bash
-python scripts/evaluate_model.py --model <yeni_best.pt> --data configs/strawberry_data.yaml
+python scripts/evaluate_model.py --model <yeni_best.pt> --data configs/urunler/cilek/veri.yaml
 ```
 
 Sadece genel mAP'ye bakmayın. **Sınıf bazlı recall** ve **sağlıklı bitkide yanlış alarm
@@ -1745,7 +1745,7 @@ Sahada tahmin → düşük güvenli/yanlış tahminleri otomatik topla
 | 9 | strawberry_unripe | Olgunluk | unripe→9 (fowax), Unripened→9 (maturity) |
 | — | (Sağlıklı bitki) | **Background** | strawberry-healthy: etiketler boşaltıldı — ayrı sınıf DEĞİL, yanlış alarm azaltır |
 
-Eğitim, [configs/strawberry_data.yaml](configs/strawberry_data.yaml) üzerinden 4 kaynağı **kopyalamadan** birlikte okur (Ultralytics çoklu dizin desteği).
+Eğitim, [configs/urunler/cilek/veri.yaml](configs/urunler/cilek/veri.yaml) üzerinden 4 kaynağı **kopyalamadan** birlikte okur (Ultralytics çoklu dizin desteği).
 
 > ⚠️ **Karışık etiketleme uyarısı (gerçek dünya):** Hastalık kaynağındaki görüntülerde meyveler olgunluk etiketi taşımaz; olgunluk kaynağındaki görüntülerde de hastalık etiketi yoktur. Model bu "eksik etiket" gürültüsüne rağmen pratikte iyi çalışır, ancak sınıf bazlı recall'u confusion matrix ile izleyin. Olgunluk ve hastalık performansı ticari hedefe yetmezse en temiz çözüm iki ayrı model eğitmektir (hastalık modeli + olgunluk modeli) — mevcut yapı buna hazırdır.
 

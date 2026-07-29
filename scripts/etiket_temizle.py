@@ -35,7 +35,18 @@ from pathlib import Path
 import yaml
 
 KOK = Path(__file__).resolve().parent.parent
-VARSAYILAN_YAPILANDIRMA = KOK / 'configs' / 'strawberry_data.yaml'
+VARSAYILAN_YAPILANDIRMA = None      # ürüne göre çözülür (bkz. veri_yapilandirmasi)
+
+# --- Ürün kapsamı (çok bitkili kurulum) -------------------------------------
+# Eğitim yapılandırması her ürünün kendi klasöründedir:
+#   configs/urunler/<urun>/veri.yaml
+# Eski kurulumlarda configs/strawberry_data.yaml'a düşülür.
+def veri_yapilandirmasi(urun: str = None) -> Path:
+    import os
+    urun = urun or os.environ.get('VARSAYILAN_URUN', 'cilek')
+    yeni = KOK / 'configs' / 'urunler' / urun / 'veri.yaml'
+    return yeni if yeni.exists() else KOK / 'configs' / 'strawberry_data.yaml'
+
 
 # Kırpma sonrası bu değerden ince kalan kutu atılır (görüntü kenarının binde biri).
 EN_KUCUK_KENAR = 0.001
@@ -139,7 +150,8 @@ def main():
     ap = argparse.ArgumentParser(description='YOLO etiketlerindeki taşan/bozuk kutuları onarır')
     ap.add_argument('--inputs', nargs='*', default=[],
                     help='Etiket dizinleri veya dataset kökleri (boşsa yapılandırmadan alınır)')
-    ap.add_argument('--yapilandirma', default=str(VARSAYILAN_YAPILANDIRMA))
+    ap.add_argument('--urun', default=None)
+    ap.add_argument('--yapilandirma', default=None)
     ap.add_argument('--kok', default='', help='Dataset kökü (yapılandırmadaki ../dataset/ yerine)')
     ap.add_argument('--kuru', action='store_true', help='Yazmadan raporla')
     a = ap.parse_args()
@@ -152,7 +164,8 @@ def main():
                 d for d in sorted(p.rglob('labels')) if d.is_dir()]
     else:
         kok = Path(a.kok) if a.kok else KOK / 'dataset'
-        dizinler = etiket_dizinleri(Path(a.yapilandirma), kok)
+        yap = Path(a.yapilandirma) if a.yapilandirma else veri_yapilandirmasi(a.urun)
+        dizinler = etiket_dizinleri(yap, kok)
 
     if not dizinler:
         print('Etiket dizini bulunamadı.')

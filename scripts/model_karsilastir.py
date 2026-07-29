@@ -25,6 +25,19 @@ import logging
 import sys
 from pathlib import Path
 
+KOK = Path(__file__).resolve().parent.parent
+
+# --- Ürün kapsamı (çok bitkili kurulum) -------------------------------------
+# Eğitim yapılandırması her ürünün kendi klasöründedir:
+#   configs/urunler/<urun>/veri.yaml
+# Eski kurulumlarda configs/strawberry_data.yaml'a düşülür.
+def veri_yapilandirmasi(urun: str = None) -> Path:
+    import os
+    urun = urun or os.environ.get('VARSAYILAN_URUN', 'cilek')
+    yeni = KOK / 'configs' / 'urunler' / urun / 'veri.yaml'
+    return yeni if yeni.exists() else KOK / 'configs' / 'strawberry_data.yaml'
+
+
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger(__name__)
 
@@ -145,7 +158,7 @@ def main():
     ap = argparse.ArgumentParser(description='İki modeli aynı test setinde karşılaştırır')
     ap.add_argument('--eski', required=True, help='Mevcut/üretimdeki model (.pt)')
     ap.add_argument('--yeni', required=True, help='Yeni eğitilen model (.pt)')
-    ap.add_argument('--data', default='configs/strawberry_data.yaml')
+    ap.add_argument('--data', default=str(veri_yapilandirmasi()))
     ap.add_argument('--split', default='test', choices=['val', 'test'],
                     help='test önerilir: val eğitim sırasında model seçimi için kullanıldı')
     ap.add_argument('--imgsz', type=int, default=1024)

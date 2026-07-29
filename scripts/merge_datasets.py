@@ -45,13 +45,28 @@ import re
 import shutil
 import yaml
 from pathlib import Path
+
+KOK = Path(__file__).resolve().parent.parent
 from typing import Dict, List, Optional, Set
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.bmp', '.webp'}
-DEFAULT_MASTER_YAML = Path(__file__).resolve().parent.parent / 'configs' / 'strawberry_data.yaml'
+KOK = Path(__file__).resolve().parent.parent
+
+# --- Ürün kapsamı (çok bitkili kurulum) -------------------------------------
+# Eğitim yapılandırması her ürünün kendi klasöründedir:
+#   configs/urunler/<urun>/veri.yaml
+# Eski kurulumlarda configs/strawberry_data.yaml'a düşülür.
+def veri_yapilandirmasi(urun: str = None) -> Path:
+    import os
+    urun = urun or os.environ.get('VARSAYILAN_URUN', 'cilek')
+    yeni = KOK / 'configs' / 'urunler' / urun / 'veri.yaml'
+    return yeni if yeni.exists() else KOK / 'configs' / 'strawberry_data.yaml'
+
+
+DEFAULT_MASTER_YAML = veri_yapilandirmasi()
 DEFAULT_ALIAS_YAML = Path(__file__).resolve().parent.parent / 'configs' / 'class_aliases.yaml'
 
 

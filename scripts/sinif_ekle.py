@@ -32,8 +32,22 @@ from pathlib import Path
 import yaml
 
 KOK = Path(__file__).resolve().parent.parent
-KUTUK = KOK / 'configs' / 'siniflar.yaml'
-EGITIM = KOK / 'configs' / 'strawberry_data.yaml'
+# --- Ürün kapsamı (çok bitkili kurulum) -------------------------------------
+# Her ürünün KENDİ sınıf kütüğü vardır; ID'ler ürün içinde 0..n-1'dir.
+# Ürünler arası ID çakışması bu sayede imkânsızdır.
+def _urun_yolu(dosya: str, urun: str = None):
+    import os
+    urun = urun or os.environ.get('VARSAYILAN_URUN', 'cilek')
+    yeni = KOK / 'configs' / 'urunler' / urun / dosya
+    if yeni.exists():
+        return yeni
+    eski = {'siniflar.yaml': 'siniflar.yaml',
+            'veri.yaml': 'strawberry_data.yaml'}[dosya]
+    return KOK / 'configs' / eski
+
+
+KUTUK = _urun_yolu('siniflar.yaml')
+EGITIM = _urun_yolu('veri.yaml')
 GRUPLAR = ('hastalik', 'zararli', 'olgunluk', 'diger')
 
 
@@ -124,7 +138,13 @@ def main():
     ap.add_argument('--grup', default='', choices=('', *GRUPLAR))
     ap.add_argument('--esik', type=float, default=None, help='Sınıfa özel güven eşiği')
     ap.add_argument('--listele', action='store_true', help='Mevcut sınıfları göster')
+    ap.add_argument('--urun', default=None, help='Ürün kapsamı (varsayılan: cilek)')
     a = ap.parse_args()
+
+    if a.urun:
+        global KUTUK, EGITIM
+        KUTUK = _urun_yolu('siniflar.yaml', a.urun)
+        EGITIM = _urun_yolu('veri.yaml', a.urun)
 
     if a.listele or not a.ad:
         listele()

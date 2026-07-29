@@ -35,10 +35,25 @@ import argparse
 import logging
 import random
 from pathlib import Path
+
+KOK = Path(__file__).resolve().parent.parent
 from typing import Dict, List, Tuple
 
 import cv2
 import yaml
+
+KOK = Path(__file__).resolve().parent.parent
+
+
+# --- Ürün kapsamı (çok bitkili kurulum) -------------------------------------
+# Eğitim yapılandırması her ürünün kendi klasöründedir:
+#   configs/urunler/<urun>/veri.yaml
+# Eski kurulumlarda configs/strawberry_data.yaml'a düşülür.
+def veri_yapilandirmasi(urun: str = None) -> Path:
+    import os
+    urun = urun or os.environ.get('VARSAYILAN_URUN', 'cilek')
+    yeni = KOK / 'configs' / 'urunler' / urun / 'veri.yaml'
+    return yeni if yeni.exists() else KOK / 'configs' / 'strawberry_data.yaml'
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -262,7 +277,7 @@ def augment(data_yaml_path: str, output_dir: str, factors: Dict[int, int],
 def main():
     parser = argparse.ArgumentParser(
         description="Sınıf hedefli augmentasyon — az örnekli sınıfları çoğaltarak dengesizliği azaltır")
-    parser.add_argument("--data", type=str, default="configs/strawberry_data.yaml",
+    parser.add_argument("--data", type=str, default=str(veri_yapilandirmasi()),
                         help="Dataset config (train dizin listesi buradan okunur)")
     parser.add_argument("--output", type=str, default="dataset/augmented_train",
                         help="Augment çıktı dizini (images/ + labels/)")
