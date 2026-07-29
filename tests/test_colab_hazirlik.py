@@ -102,6 +102,47 @@ class TestUzmanHazirlik:
         assert not (depo / 'datasets' / 'cilek').exists()
 
 
+class TestArsivKonumu:
+    """Paketler Drive'a depodaki `datasets/<urun>/` düzeniyle yüklenir.
+
+    Notebook eskiden yalnızca `dataset/` klasörüne bakıyordu; kullanıcı
+    klasörü olduğu gibi kopyaladığında "arşiv yok" diyordu. Aranan konumlar
+    burada sabitlenmiştir.
+    """
+
+    def test_datasets_urun_altinda_bulunur(self, tmp_path):
+        depo = tmp_path / 'depo'
+        depo.mkdir()
+        drive = tmp_path / 'drive'
+        _paket_yaz(drive / 'datasets' / 'cilek' / 'organ_detection.zip', 'organ_detection')
+
+        assert hazirlik.prepare(drive, depo, 'organ_detection', 'cilek') == 0
+        assert (depo / 'datasets' / 'cilek' / 'organ_detection' / 'data.yaml').exists()
+
+    def test_eski_dataset_klasoru_hala_calisir(self, tmp_path):
+        depo = tmp_path / 'depo'
+        depo.mkdir()
+        drive = tmp_path / 'drive'
+        _paket_yaz(drive / 'dataset' / 'leaf_disease.zip', 'leaf_disease')
+
+        assert hazirlik.prepare(drive, depo, 'leaf_disease', 'cilek') == 0
+        assert (depo / 'datasets' / 'cilek' / 'leaf_disease' / 'data.yaml').exists()
+
+    def test_urun_klasoru_oncelikli(self, tmp_path):
+        """İki yerde de varsa ürünün klasörü kazanmalı (yanlış ürünü eğitmeyelim)."""
+        depo = tmp_path / 'depo'
+        depo.mkdir()
+        drive = tmp_path / 'drive'
+        _paket_yaz(drive / 'datasets' / 'cilek' / 'organ_detection.zip', 'organ_detection')
+        _paket_yaz(drive / 'dataset' / 'organ_detection.zip', 'organ_detection')
+
+        dizinler = hazirlik.model_arsiv_dizinleri(drive, 'cilek')
+        assert dizinler[0] == drive / 'datasets' / 'cilek'
+        bulunan = hazirlik.find_archive(drive, tmp_path / 'yok',
+                                        ('organ_detection.zip',), dizinler)
+        assert bulunan == drive / 'datasets' / 'cilek' / 'organ_detection.zip'
+
+
 class TestBirlesikBozulmadi:
     def test_varsayilan_eski_dala_gider(self, tmp_path):
         """model='birlesik' eski davranışı korumalı (geriye dönük uyum)."""

@@ -58,10 +58,16 @@ def sources_in(d: Path) -> List[Path]:
         return []
 
 
-def find_archive(drive_root: Path, mydrive: Path, names=ARCHIVE_NAMES) -> Optional[Path]:
-    """Arşivi bilinen konumlarda, sonra MyDrive'da (4 seviyeye kadar) arar."""
+def find_archive(drive_root: Path, mydrive: Path, names=ARCHIVE_NAMES,
+                 extra_dirs=()) -> Optional[Path]:
+    """Arşivi bilinen konumlarda, sonra MyDrive'da (4 seviyeye kadar) arar.
+
+    extra_dirs önce bakılır: uzman paketler depodaki `datasets/<urun>/` düzenini
+    aynen Drive'a kopyalanarak yüklenir, tarama oraya da bakmalı.
+    """
     candidates = []
     for name in names:
+        candidates += [d / name for d in extra_dirs]
         candidates += [drive_root / 'dataset' / name, drive_root / name,
                        mydrive / name, mydrive / 'Colab Notebooks' / name]
     for c in candidates:
@@ -153,6 +159,18 @@ def model_archive_root(names: List[str]) -> Optional[str]:
     return en_sig.rsplit('/', 1)[0] if '/' in en_sig else ''
 
 
+def model_arsiv_dizinleri(drive_root: Path, urun: str):
+    """Uzman paketin Drive'da bulunabileceği klasörler — öncelik sırasıyla.
+
+    Depodaki `datasets/<urun>/` düzenini Drive'a olduğu gibi kopyalamak en
+    doğal yol olduğu için ÖNCE oraya bakılır; eski `dataset/` klasörü de
+    desteklenir ki tek dosya yükleyen kurulumlar bozulmasın.
+    """
+    return (drive_root / 'datasets' / urun,
+            drive_root / 'datasets',
+            drive_root / 'dataset' / urun)
+
+
 def model_hazir(d: Path) -> bool:
     """Uzman dataset klasörü kullanılabilir durumda mı?"""
     return (d / 'data.yaml').exists() and (d / 'train' / 'images').is_dir()
@@ -167,15 +185,19 @@ def prepare_model(drive_root: Path, repo: Path, model: str, urun: str) -> int:
         logger.info(f'ℹ️  {dest.relative_to(repo)} zaten hazır, açma atlandı.')
     else:
         arsiv_adlari = (f'{model}.zip', f'{model}.tar')
-        archive = find_archive(drive_root, mydrive, arsiv_adlari)
+        aranan = model_arsiv_dizinleri(drive_root, urun)
+        archive = find_archive(drive_root, mydrive, arsiv_adlari, aranan)
         if not archive:
             logger.error(f'❌ Arşiv bulunamadı: {arsiv_adlari[0]}')
-            logger.error(f'   Beklenen konum: {drive_root / "dataset" / arsiv_adlari[0]}')
-            for d in (drive_root, drive_root / 'dataset'):
+            logger.error('   Bakılan klasörler:')
+            for d in aranan + (drive_root / 'dataset', drive_root):
+                logger.error(f'     {"✓" if d.exists() else "✗"} {d}')
+            for d in aranan + (drive_root / 'dataset', drive_root):
                 if d.exists():
-                    logger.error(f'📂 {d} → {sorted(q.name for q in d.iterdir())}')
-            logger.error(f'\nÇözüm: yerelde `python scripts/dataset_ayir.py --paketle` çalıştırıp')
-            logger.error(f'       datasets/{urun}/{model}.zip dosyasını yukarıdaki klasöre yükleyin.')
+                    logger.error(f'📂 {d} → {sorted(q.name for q in d.iterdir())[:15]}')
+            logger.error('\nÇözüm: yerelde `python scripts/dataset_ayir.py --paketle` çalıştırıp')
+            logger.error(f'       datasets/{urun}/{model}.zip dosyasını şuraya yükleyin:')
+            logger.error(f'       {aranan[0]}')
             return 1
 
         size_mb = archive.stat().st_size / 1e6
