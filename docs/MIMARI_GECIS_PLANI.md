@@ -182,6 +182,27 @@ EGITILECEK = 'organ_detection'   # sonra leaf_disease, fruit_disease, fruit_ripe
 python scripts/train_yolo.py --data datasets/cilek/organ_detection/data.yaml        --model yolo26s.pt --name organ
 ```
 
+### Çıktılar nereye yazılır? (Colab oturumu kapansa da kalır)
+
+Eğitim boyunca **her şey Drive'a** yazılır — Colab'in geçici diskine değil:
+
+| Ne | Nerede |
+|----|--------|
+| Koşu dizini (ağırlıklar, `results.csv`, grafikler) | `MyDrive/SmartFarmStrawberryDisease/results/<koşu>/` |
+| Ara checkpoint (her 10 epoch) | `.../results/<koşu>/weights/epoch*.pt` |
+| Eğitim sonunda kopya | `.../best_models/best_<koşu>.pt` |
+| **Boru hattı adıyla kopya** | `.../best_models/<urun>/organ.pt` gibi |
+
+Son satır işi kolaylaştırır: eğitim çıktısı hep `best.pt` adındadır, oysa boru
+hattı kütükteki adı arar (`organ.pt`). Notebook ikisini de yazar; Drive'dan
+indirip doğrudan `models/<urun>/` altına koyabilirsiniz.
+
+`TRAIN_CONFIG['project']` **tüm modlar için** Drive'daki `results/` klasörüdür
+(sıfırdan, devam, ince ayar ve `EGITILECEK` ile uzman model eğitimleri dahil).
+`tests/test_notebook_kosu.py` bunu sabitler — bir kez ince ayar bu ayarı
+devralmadığı için sonuçlar geçici diske yazılmış ve oturum koptuğunda
+kaybolmuştu.
+
 ### Eğitim bitince: kurulum
 
 Eğitim `runs/.../weights/best.pt` üretir; boru hattı ise modeli kütükteki adla

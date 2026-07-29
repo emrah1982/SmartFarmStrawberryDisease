@@ -123,3 +123,51 @@ def test_ilgisiz_klasor_kosu_sayilmaz(tmp_path):
     _kosu_olustur(tmp_path, 'strawberry_exp-1', 200, 10)
     g = _yardimcilari_yukle(tmp_path)
     assert [d.name for d in g['_kosular']()] == ['strawberry_exp-1']
+
+
+# ────────────────────────────── eğitim çıktıları Drive'a yazılmalı
+def _hucre(anahtar):
+    nb = json.loads(NOTEBOOK.read_text(encoding='utf-8'))
+    for c in nb['cells']:
+        if c['cell_type'] == 'code' and anahtar in ''.join(c['source']):
+            return ''.join(c['source'])
+    raise AssertionError(f'hücre bulunamadı: {anahtar}')
+
+
+def test_kosu_dizini_drive_altinda():
+    """Colab oturumu kapanınca yerel disk silinir. Eğitim çıktıları (checkpoint,
+    results.csv, ağırlıklar) Drive'a yazılmazsa eğitim tamamen kaybolur ve
+    devam da edilemez."""
+    src = _hucre("TRAIN_CONFIG['project']")
+    assert "TRAIN_CONFIG['project'] = str(RESULTS_DIR)" in src,         "project, Drive icindeki RESULTS_DIR ile degistirilmeli"
+
+
+def test_results_dir_drive_kokunde_tanimli():
+    src = _hucre('DRIVE_ROOT')
+    assert "RESULTS_DIR = DRIVE_ROOT / 'results'" in src
+    assert "MODELS_DIR = DRIVE_ROOT / 'best_models'" in src
+
+
+def test_ince_ayar_project_devralir():
+    """GERÇEK HATA: ince ayar yapılandırmayı taze yüklerken 'project'i
+    devralmıyordu; sonuçlar Colab'in geçici diskine yazılıyordu."""
+    src = _hucre('_ince')
+    assert "'device', 'project'" in src,         "ince ayar TRAIN_CONFIG'ten 'project' anahtarını devralmalı"
+
+
+def test_egitilen_model_boru_hatti_adiyla_kopyalanir():
+    """Eğitim çıktısı hep 'best.pt'; boru hattı ise kütükteki adı arar.
+    Elle adlandırma sessiz hataya yol açtığı için otomatik kopyalanır."""
+    src = _hucre('BORU_HATTI_ADLARI')
+    duz = src.replace('"', "'")          # tırnak stiline bağlı kalmasın
+    assert "'organ_detection': 'organ.pt'" in duz
+    assert "'fruit_ripeness': 'fruit_ripeness.pt'" in duz
+    assert 'MODELS_DIR / _urun' in src, 'ürün klasörü altına kopyalanmalı'
+
+
+def test_checkpointler_belirli_araliklarla_kaydedilir():
+    """Oturum koparsa kaldığı yerden devam edilebilsin."""
+    import yaml
+    for ad in ('train_config.yaml', 'finetune_config.yaml'):
+        v = yaml.safe_load((KOK / 'configs' / ad).read_text(encoding='utf-8'))
+        assert v.get('save_period', 0) > 0, f'{ad}: save_period tanımlı olmalı'
