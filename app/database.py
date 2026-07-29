@@ -135,6 +135,10 @@ class Analiz(Base):
     id = Column(Integer, primary_key=True)
     zaman = Column(DateTime, default=simdi, index=True)
 
+    # Hangi bitkinin model seti bu kaydı üretti. Çok bitkili kurulumda geçmiş,
+    # panel ve harita ürünleri karıştırmasın diye kayda YAZILIR (sonradan sera
+    # değişse bile kaydın hangi modelle üretildiği bilinmelidir).
+    urun = Column(String(60), default='cilek', index=True)
     kaynak_tip = Column(String(20), index=True)   # foto | video | kamera
     kaynak_ad = Column(String(255), default='')   # dosya adı veya kamera adı
 
@@ -229,7 +233,7 @@ def _eksik_sutunlari_ekle():
     yeni = {
         'kameralar': {'sera_id': 'INTEGER', 'enlem': 'FLOAT', 'boylam': 'FLOAT',
                       'blok': 'VARCHAR(60)', 'sira': 'VARCHAR(30)'},
-        'analizler': {'sera_id': 'INTEGER', 'keskinlik': 'FLOAT',
+        'analizler': {'urun': "VARCHAR(60) DEFAULT 'cilek'", 'sera_id': 'INTEGER', 'keskinlik': 'FLOAT',
                       'bulanik_kare': 'INTEGER', 'kalite_notu': 'TEXT',
                       'elle_etiketlendi': 'BOOLEAN', 'disa_aktarildi': 'BOOLEAN',
                       'dosya_hash': 'VARCHAR(16)'},

@@ -130,34 +130,35 @@ def _birlestir(kutular: List[Kutu]) -> List[Kutu]:
                 k.guven, k.sinif_adi) in secili_kume]
 
 
-def _kabul(kutular: List[Kutu], esik: float) -> List[Kutu]:
-    """Sınıf bazlı eşik + kapalı sınıf elemesi (configs/siniflar.yaml)."""
+def _kabul(kutular: List[Kutu], esik: float, urun=None) -> List[Kutu]:
+    """Sınıf bazlı eşik + kapalı sınıf elemesi (ürünün siniflar.yaml'ı)."""
     return [k for k in kutular
-            if k.guven >= max(esik, siniflar.esik(k.sinif_adi))
-            and siniflar.aktif_mi(k.sinif_adi)]
+            if k.guven >= max(esik, siniflar.esik(k.sinif_adi, urun))
+            and siniflar.aktif_mi(k.sinif_adi, urun)]
 
 
-def calistir(frame, imgsz: Optional[int] = None) -> Tuple[List[Kutu], Iz]:
+def calistir(frame, imgsz: Optional[int] = None,
+             urun: Optional[str] = None) -> Tuple[List[Kutu], Iz]:
     """Bir kareyi hiyerarşik boru hattından geçirir.
 
     Returns: (kutular, iz)
     """
     t0 = time.time()
     h, w = frame.shape[:2]
-    organ_tanimlari = modeller.rol_ile('organ')
+    organ_tanimlari = modeller.rol_ile('organ', urun)
 
     # --- Organ modeli yoksa: mirasa düş -----------------------------------
     if not organ_tanimlari:
-        miras = modeller.yukle('miras')
+        miras = modeller.yukle('miras', urun)
         if miras is None:
             return [], Iz([], [], 0, True, int((time.time() - t0) * 1000))
-        t = modeller.tanim('miras')
-        kutular = _kabul(_tahmin(miras, frame, t.esik, imgsz), t.esik)
+        t = modeller.tanim('miras', urun)
+        kutular = _kabul(_tahmin(miras, frame, t.esik, imgsz), t.esik, urun)
         return kutular, Iz([], ['miras'], 0, True, int((time.time() - t0) * 1000))
 
     # --- 1) Organ tespiti --------------------------------------------------
     organ_tanim = organ_tanimlari[0]
-    organ_model = modeller.yukle(organ_tanim.ad)
+    organ_model = modeller.yukle(organ_tanim.ad, urun)
     organlar = _tahmin(organ_model, frame, organ_tanim.esik, imgsz) if organ_model else []
 
     sonuc: List[Kutu] = []
@@ -166,7 +167,7 @@ def calistir(frame, imgsz: Optional[int] = None) -> Tuple[List[Kutu], Iz]:
 
     # --- 2) Her organ için tetiklenen uzman modeller -----------------------
     for organ in organlar:
-        uzmanlar = modeller.tetiklenen(organ.sinif_adi)
+        uzmanlar = modeller.tetiklenen(organ.sinif_adi, urun)
         if not uzmanlar:
             continue
         kirpma = _kirp(frame, organ)
@@ -177,7 +178,7 @@ def calistir(frame, imgsz: Optional[int] = None) -> Tuple[List[Kutu], Iz]:
         roi_sayisi += 1
 
         for u in uzmanlar:
-            m = modeller.yukle(u.ad)
+            m = modeller.yukle(u.ad, urun)
             if m is None:
                 continue
             if u.ad not in calisan:
@@ -188,20 +189,20 @@ def calistir(frame, imgsz: Optional[int] = None) -> Tuple[List[Kutu], Iz]:
     # --- 3) Hiç uzman çalışmadıysa mirasla tamamla ------------------------
     miras_kullanildi = False
     if not calisan:
-        miras = modeller.yukle('miras')
+        miras = modeller.yukle('miras', urun)
         if miras is not None:
-            t = modeller.tanim('miras')
+            t = modeller.tanim('miras', urun)
             sonuc.extend(_tahmin(miras, frame, t.esik, imgsz))
             miras_kullanildi = True
             calisan.append('miras')
 
-    sonuc = _birlestir(_kabul(sonuc, config.CONF_THRESHOLD))
+    sonuc = _birlestir(_kabul(sonuc, config.CONF_THRESHOLD, urun))
     iz = Iz([(o.sinif_adi, o.guven) for o in organlar], calisan, roi_sayisi,
             miras_kullanildi, int((time.time() - t0) * 1000))
     return sonuc, iz
 
 
-def goruntu(kaynak_yol: str, cikti_yol: str) -> Sonuc:
+def goruntu(kaynak_yol: str, cikti_yol: str, urun: Optional[str] = None) -> Sonuc:
     """Tek görüntüyü boru hattından geçirip kutulanmış görseli yazar."""
     from app import cizim, dil
 
@@ -210,7 +211,7 @@ def goruntu(kaynak_yol: str, cikti_yol: str) -> Sonuc:
         raise RuntimeError(f'Görüntü okunamadı: {kaynak_yol}')
 
     t0 = time.time()
-    kutular, iz = calistir(frame)
+    kutular, iz = calistir(frame, urun=urun)
     cizim.sonuc_yaz(frame, kutular, cikti_yol, ad_cevir=dil.sinif_adi)
 
     keskinlik = keskinlik_olc(frame)
@@ -223,10 +224,10 @@ def goruntu(kaynak_yol: str, cikti_yol: str) -> Sonuc:
                  keskinlik=keskinlik, kalite_notu=' '.join(notlar))
 
 
-def kare(frame, imgsz: Optional[int] = None) -> Sonuc:
+def kare(frame, imgsz: Optional[int] = None, urun: Optional[str] = None) -> Sonuc:
     """Bellekteki kare (canlı akış) — dosya yazmaz."""
     t0 = time.time()
-    kutular, iz = calistir(frame, imgsz=imgsz)
+    kutular, iz = calistir(frame, imgsz=imgsz, urun=urun)
     return Sonuc(kutular=kutular, islenen_kare=1,
                  sure_ms=int((time.time() - t0) * 1000),
                  kalite_notu=iz.ozet())

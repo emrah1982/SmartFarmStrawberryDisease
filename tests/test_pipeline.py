@@ -115,7 +115,7 @@ def sahte_kurulum(monkeypatch):
     """organ + olgunluk + yaprak hastalığı modellerini taklit eder."""
     yuklenen = {}
 
-    def sahte_yukle(ad):
+    def sahte_yukle(ad, urun=None):
         return yuklenen.get(ad)
 
     monkeypatch.setattr(modeller, 'yukle', sahte_yukle)
@@ -140,8 +140,8 @@ def test_olgunluk_modeli_yaprak_roisinde_calistirilmaz(monkeypatch, sahte_kurulu
                           'yaprak_hastalik': yaprak})
 
     monkeypatch.setattr(modeller, 'rol_ile',
-                        lambda rol: [_tanim('organ', 'organ')] if rol == 'organ' else [])
-    monkeypatch.setattr(modeller, 'tetiklenen', lambda organ_ad: (
+                        lambda rol, urun=None: [_tanim('organ', 'organ')] if rol == 'organ' else [])
+    monkeypatch.setattr(modeller, 'tetiklenen', lambda organ_ad, urun=None: (
         [_tanim('yaprak_hastalik', 'yaprak_hastalik', ['leaf'])]
         if organ_ad == 'leaf' else
         [_tanim('olgunluk', 'olgunluk', ['fruit'])]))
@@ -159,8 +159,8 @@ def test_meyve_bulununca_olgunluk_calisir(monkeypatch, sahte_kurulum):
     olgunluk = SahteModel([('strawberry_ripe', 0.9, 0.5, 0.5, 0.5, 0.5)])
     sahte_kurulum.update({'organ': organ, 'olgunluk': olgunluk})
     monkeypatch.setattr(modeller, 'rol_ile',
-                        lambda rol: [_tanim('organ', 'organ')] if rol == 'organ' else [])
-    monkeypatch.setattr(modeller, 'tetiklenen', lambda o: (
+                        lambda rol, urun=None: [_tanim('organ', 'organ')] if rol == 'organ' else [])
+    monkeypatch.setattr(modeller, 'tetiklenen', lambda o, urun=None: (
         [_tanim('olgunluk', 'olgunluk', ['fruit'])] if o == 'fruit' else []))
 
     kutular, iz = pipeline.calistir(_kare())
@@ -173,8 +173,8 @@ def test_organ_modeli_yoksa_mirasa_duser(monkeypatch, sahte_kurulum):
     """Kademeli geçiş: uzman modeller hazır değilken sistem çalışmaya devam eder."""
     miras = SahteModel([('Gray Mold', 0.8, 0.5, 0.5, 0.3, 0.3)])
     sahte_kurulum['miras'] = miras
-    monkeypatch.setattr(modeller, 'rol_ile', lambda rol: [])
-    monkeypatch.setattr(modeller, 'tanim', lambda ad: _tanim('miras', 'miras'))
+    monkeypatch.setattr(modeller, 'rol_ile', lambda rol, urun=None: [])
+    monkeypatch.setattr(modeller, 'tanim', lambda ad, urun=None: _tanim('miras', 'miras'))
 
     kutular, iz = pipeline.calistir(_kare())
     assert miras.cagri == 1
@@ -188,9 +188,9 @@ def test_uzman_model_eksikse_mirasla_tamamlanir(monkeypatch, sahte_kurulum):
     miras = SahteModel([('Anthracnose Fruit Rot', 0.7, 0.5, 0.5, 0.2, 0.2)])
     sahte_kurulum.update({'organ': organ, 'miras': miras})   # olgunluk YOK
     monkeypatch.setattr(modeller, 'rol_ile',
-                        lambda rol: [_tanim('organ', 'organ')] if rol == 'organ' else [])
-    monkeypatch.setattr(modeller, 'tetiklenen', lambda o: [])
-    monkeypatch.setattr(modeller, 'tanim', lambda ad: _tanim('miras', 'miras'))
+                        lambda rol, urun=None: [_tanim('organ', 'organ')] if rol == 'organ' else [])
+    monkeypatch.setattr(modeller, 'tetiklenen', lambda o, urun=None: [])
+    monkeypatch.setattr(modeller, 'tanim', lambda ad, urun=None: _tanim('miras', 'miras'))
 
     kutular, iz = pipeline.calistir(_kare())
     assert iz.miras_kullanildi is True
@@ -203,8 +203,8 @@ def test_iz_ozeti_okunabilir(monkeypatch, sahte_kurulum):
     olgunluk = SahteModel([('strawberry_ripe', 0.9, 0.5, 0.5, 0.4, 0.4)])
     sahte_kurulum.update({'organ': organ, 'olgunluk': olgunluk})
     monkeypatch.setattr(modeller, 'rol_ile',
-                        lambda rol: [_tanim('organ', 'organ')] if rol == 'organ' else [])
-    monkeypatch.setattr(modeller, 'tetiklenen', lambda o: (
+                        lambda rol, urun=None: [_tanim('organ', 'organ')] if rol == 'organ' else [])
+    monkeypatch.setattr(modeller, 'tetiklenen', lambda o, urun=None: (
         [_tanim('olgunluk', 'olgunluk', ['fruit'])] if o == 'fruit' else []))
 
     _, iz = pipeline.calistir(_kare())

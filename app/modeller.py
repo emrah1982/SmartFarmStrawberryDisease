@@ -25,8 +25,18 @@ from app import config
 
 logger = logging.getLogger(__name__)
 
-KUTUK_YOLU = config.BASE_DIR / 'configs' / 'modeller.yaml'
-MODEL_DIZINI = Path(config.MODEL_PATH).parent
+def _kutuk_yolu(urun=None) -> Path:
+    from app import urunler
+    return urunler.yapilandirma(urun, 'modeller.yaml')
+
+
+def model_dizini(urun=None) -> Path:
+    from app import urunler
+    return urunler.model_dizini(urun)
+
+
+KUTUK_YOLU = _kutuk_yolu()
+MODEL_DIZINI = model_dizini()
 
 
 @dataclass
@@ -40,22 +50,24 @@ class ModelTanimi:
     aktif: bool = True
     zorunlu: bool = False
     aciklama: str = ''
+    urun: str = ''          # hangi ürünün modeli (boş = varsayılan)
 
     @property
     def yol(self) -> Path:
-        return MODEL_DIZINI / self.dosya
+        return model_dizini(self.urun or None) / self.dosya
 
     @property
     def var(self) -> bool:
         return self.yol.exists()
 
 
-def _kutugu_oku() -> Dict[str, ModelTanimi]:
-    if not KUTUK_YOLU.exists():
-        logger.warning(f'Model kütüğü yok: {KUTUK_YOLU}')
+def _kutugu_oku(urun=None) -> Dict[str, ModelTanimi]:
+    yol = _kutuk_yolu(urun)
+    if not yol.exists():
+        logger.warning(f'Model kütüğü yok: {yol}')
         return {}
     try:
-        ham = yaml.safe_load(KUTUK_YOLU.read_text(encoding='utf-8')) or {}
+        ham = yaml.safe_load(yol.read_text(encoding='utf-8')) or {}
     except yaml.YAMLError as e:
         logger.error(f'configs/modeller.yaml okunamadı: {e}')
         return {}
@@ -73,46 +85,66 @@ def _kutugu_oku() -> Dict[str, ModelTanimi]:
             aktif=d.get('aktif', True) is not False,
             zorunlu=bool(d.get('zorunlu', False)),
             aciklama=(d.get('aciklama') or '').strip(),
+            urun=urun or '',
         )
     return tanimlar
 
 
 TANIMLAR: Dict[str, ModelTanimi] = _kutugu_oku()
 
+# Ürün başına kütük — her bitkinin KENDİ model seti vardır.
+_urun_tanimlari: Dict[str, Dict[str, ModelTanimi]] = {}
+
+
+def tanimlar(urun=None) -> Dict[str, ModelTanimi]:
+    from app import urunler
+    if urun is None:
+        return TANIMLAR
+    ad = urunler.slug(urun)
+    if ad not in _urun_tanimlari:
+        _urun_tanimlari[ad] = _kutugu_oku(ad)
+    return _urun_tanimlari[ad]
+
 # Yüklenmiş modeller (ad → YOLO nesnesi). Süreç ömrü boyunca bellekte kalır.
 _yuklu: Dict[str, object] = {}
 
 
-def tanim(ad: str) -> Optional[ModelTanimi]:
-    return TANIMLAR.get(ad)
+def tanim(ad: str, urun=None) -> Optional[ModelTanimi]:
+    return tanimlar(urun).get(ad)
 
 
-def rol_ile(rol: str) -> List[ModelTanimi]:
+def rol_ile(rol: str, urun=None) -> List[ModelTanimi]:
     """Bir role sahip AKTİF ve DOSYASI VAR olan modeller."""
-    return [t for t in TANIMLAR.values() if t.rol == rol and t.aktif and t.var]
+    return [t for t in tanimlar(urun).values() if t.rol == rol and t.aktif and t.var]
 
 
-def tetiklenen(organ: str) -> List[ModelTanimi]:
-    """Bu organ bulunduğunda çalışacak uzman modeller."""
+def tetiklenen(organ: str, urun=None) -> List[ModelTanimi]:
+    """Bu organ bulunduğunda çalışacak uzman modeller.
+
+    Eşleşme büyük/küçük harf duyarsızdır: organ modeli sınıf adlarını
+    dataset'teki biçimde ('Leaf') üretir, kütükte 'leaf' yazılıdır.
+    """
     o = organ.lower()
-    return [t for t in TANIMLAR.values()
+    return [t for t in tanimlar(urun).values()
             if t.aktif and t.var and o in [x.lower() for x in t.tetik]]
 
 
-def yukle(ad: str):
+def yukle(ad: str, urun=None):
     """Modeli (gerekiyorsa) yükler. Yoksa None döner — akış çökmemeli."""
-    t = TANIMLAR.get(ad)
+    from app import urunler
+    anahtar = f'{urunler.slug(urun) if urun else urunler.VARSAYILAN}/{ad}'
+    t = tanimlar(urun).get(ad)
     if t is None or not t.aktif:
         return None
-    if ad in _yuklu:
-        return _yuklu[ad]
+    if anahtar in _yuklu:
+        return _yuklu[anahtar]
     if not t.var:
         return None
     try:
         from ultralytics import YOLO
-        logger.info(f'Model yükleniyor: {t.ad} ({t.yol})')
-        _yuklu[ad] = YOLO(str(t.yol))
-        return _yuklu[ad]
+        logger.info(f'Model yükleniyor: {anahtar} ({t.yol})')
+        _yuklu[anahtar] = YOLO(str(t.yol))
+        return _yuklu[anahtar]
     except Exception as e:
         logger.error(f'Model yüklenemedi ({t.ad}): {e}')
         return None
@@ -123,23 +155,30 @@ def bosalt():
     _yuklu.clear()
 
 
-def durum() -> List[dict]:
+def durum(urun=None) -> List[dict]:
     """Arayüzde gösterilecek model durumu: hangisi hazır, hangisi eksik."""
     out = []
-    for t in TANIMLAR.values():
+    for t in tanimlar(urun).values():
         out.append({
             'ad': t.ad, 'rol': t.rol, 'dosya': t.dosya, 'var': t.var,
             'aktif': t.aktif, 'zorunlu': t.zorunlu, 'tetik': t.tetik,
             'siniflar': t.siniflar, 'aciklama': t.aciklama,
-            'yuklu': t.ad in _yuklu,
+            'urun': t.urun or '', 'yol': str(t.yol),
+            'yuklu': any(k.endswith('/' + t.ad) for k in _yuklu),
         })
     return out
 
 
-def hiyerarsik_hazir() -> bool:
+def hiyerarsik_hazir(urun=None) -> bool:
     """Organ modeli var mı? Yoksa boru hattı mirasa düşer."""
-    return any(t.var and t.aktif for t in TANIMLAR.values() if t.rol == 'organ')
+    return any(t.var and t.aktif for t in tanimlar(urun).values() if t.rol == 'organ')
 
 
-def eksikler() -> List[str]:
-    return [t.ad for t in TANIMLAR.values() if t.aktif and not t.var and t.rol != 'miras']
+def eksikler(urun=None) -> List[str]:
+    return [t.ad for t in tanimlar(urun).values()
+            if t.aktif and not t.var and t.rol != 'miras']
+
+
+def bosalt_kutuk():
+    """Ürün kütüğü önbelleğini temizler (testlerde ve yapılandırma değişiminde)."""
+    _urun_tanimlari.clear()

@@ -33,45 +33,68 @@ from app import config
 
 logger = logging.getLogger(__name__)
 
-KUTUK_YOLU = config.BASE_DIR / 'configs' / 'siniflar.yaml'
-EGITIM_YAML = config.BASE_DIR / 'configs' / 'strawberry_data.yaml'
+def _yol(dosya: str, urun=None):
+    from app import urunler
+    return urunler.yapilandirma(urun, dosya)
+
+
+# Varsayılan ürünün yolları (modül düzeyi API bunları kullanır)
+KUTUK_YOLU = _yol('siniflar.yaml')
+EGITIM_YAML = _yol('veri.yaml')
 
 # Ortam değişkeniyle tek seferlik kapatma (Docker'da dosya düzenlemeden):
 #   KAPALI_SINIFLAR="strawberry_unripe,strawberry_semi_ripe"
 _KAPALI_ENV = {a.strip() for a in os.environ.get('KAPALI_SINIFLAR', '').split(',') if a.strip()}
 
 
-def _yukle() -> dict:
-    if not KUTUK_YOLU.exists():
+def _yukle(yol=None) -> dict:
+    yol = yol or KUTUK_YOLU
+    if not yol.exists():
         return {}
     try:
-        return yaml.safe_load(KUTUK_YOLU.read_text(encoding='utf-8')) or {}
+        return yaml.safe_load(yol.read_text(encoding='utf-8')) or {}
     except yaml.YAMLError as e:
-        logger.error(f'configs/siniflar.yaml okunamadı: {e}')
+        logger.error(f'{yol} okunamadı: {e}')
         return {}
 
 
 KUTUK = _yukle()
 
+# Ürün başına kütük önbelleği. Çok bitkili kurulumda her ürünün sınıf listesi
+# BAĞIMSIZDIR; ID'ler ürün içinde 0..n-1'dir, ürünler arası çakışma olmaz.
+_urun_kutukleri = {}
 
-def bilgi(ad: str) -> dict:
-    return KUTUK.get(ad) or {}
+
+def kutuk(urun=None) -> dict:
+    from app import urunler
+    ad = urunler.slug(urun) if urun else urunler.VARSAYILAN
+    if ad not in _urun_kutukleri:
+        _urun_kutukleri[ad] = _yukle(_yol('siniflar.yaml', ad))
+    return _urun_kutukleri[ad]
 
 
-def esik(ad: str) -> float:
+def bosalt_onbellek():
+    _urun_kutukleri.clear()
+
+
+def bilgi(ad: str, urun=None) -> dict:
+    return (kutuk(urun) if urun else KUTUK).get(ad) or {}
+
+
+def esik(ad: str, urun=None) -> float:
     """Bu sınıf için kabul eşiği. Tanımlı değilse genel CONF_THRESHOLD."""
-    d = bilgi(ad).get('esik')
+    d = bilgi(ad, urun).get('esik')
     try:
         return float(d) if d is not None else config.CONF_THRESHOLD
     except (TypeError, ValueError):
         return config.CONF_THRESHOLD
 
 
-def aktif_mi(ad: str) -> bool:
+def aktif_mi(ad: str, urun=None) -> bool:
     """Kapalı sınıflar hiç gösterilmez (model yine üretir, arayüz eler)."""
     if ad in _KAPALI_ENV:
         return False
-    return bilgi(ad).get('aktif', True) is not False
+    return bilgi(ad, urun).get('aktif', True) is not False
 
 
 def en_dusuk_esik() -> float:
@@ -84,22 +107,22 @@ def en_dusuk_esik() -> float:
     return min(esikler + [config.CONF_THRESHOLD])
 
 
-def kabul_edilir_mi(ad: str, guven: float) -> bool:
-    return aktif_mi(ad) and guven >= esik(ad)
+def kabul_edilir_mi(ad: str, guven: float, urun=None) -> bool:
+    return aktif_mi(ad, urun) and guven >= esik(ad, urun)
 
 
-def grup(ad: str) -> str:
+def grup(ad: str, urun=None) -> str:
     """hastalik | zararli | olgunluk | diger — arayüzde gruplama için."""
-    return bilgi(ad).get('grup', 'diger')
+    return bilgi(ad, urun).get('grup', 'diger')
 
 
-def egitimde_mi(ad: str) -> bool:
+def egitimde_mi(ad: str, urun=None) -> bool:
     """Model bu sınıfı tanıyor mu?
 
     Kütüğe yeni sınıf eklemek onu MODELE ÖĞRETMEZ; yalnızca etiketlemede
     kullanılabilir hale getirir. Model ancak yeniden eğitimden sonra tanır.
     """
-    return bilgi(ad).get('egitimde', True) is not False
+    return bilgi(ad, urun).get('egitimde', True) is not False
 
 
 def id_haritasi() -> dict:

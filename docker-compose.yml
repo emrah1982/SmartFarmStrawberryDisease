@@ -17,14 +17,16 @@ services:
       # Kayıtlar ve yüklenen görseller konteyner silinse de kalır
       - ./storage:/app/storage
       # Tedavi önerilerini yeniden derlemeden düzenleyebilmek için
-      - ./configs/tedavi_onerileri.yaml:/app/configs/tedavi_onerileri.yaml:ro
-      # Sınıf kütüğü: eşik/açma-kapama ve yeni sınıf ekleme (yeniden derleme gerekmez)
-      - ./configs/siniflar.yaml:/app/configs/siniflar.yaml:ro
+      # Ürün yapılandırmaları (tedavi önerileri, sınıf kütüğü, model kütüğü).
+      # Tek klasör bağlanır: yeni bitki eklendiğinde compose değişmez.
+      - ./configs/urunler:/app/configs/urunler:ro
       # HTTPS sertifikası (varsa otomatik kullanılır — canlı kamera için şart)
       #   python scripts/https_sertifika.py  ile üretilir
       - ./certs:/app/certs:ro
     environment:
-      MODEL_PATH: /app/models/best.pt
+      # Ürün kapsamlı: models/<urun>/ altından okunur (bkz. app/urunler.py)
+      MODEL_PATH: /app/models/cilek/best.pt
+      VARSAYILAN_URUN: cilek
       # 0.20: sahada hastalik lezyonlari dusuk guvenle bulunabiliyor (orn.
       # antraknoz %20-24). REVIEW_THRESHOLD 0.55 oldugu icin bu tespitler
       # zaten inceleme kuyruguna dusuyor — kacirmaktansa uzman onayina gitsin.

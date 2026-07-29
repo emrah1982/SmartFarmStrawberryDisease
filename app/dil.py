@@ -38,13 +38,14 @@ def _adlari_yukle() -> dict:
     Kaynak configs/sinif_adlari.yaml; yoksa tedavi dosyasındaki `ad` alanına
     düşülür (orada zaten Türkçe karşılıklar var).
     """
-    kok = Path(__file__).resolve().parent.parent / 'configs'
+    from app import urunler
     for ad in ('siniflar.yaml', 'sinif_adlari.yaml'):     # kütük → eski dosya
-        p = kok / ad
+        p = urunler.yapilandirma(None, ad)
         if p.exists():
             return yaml.safe_load(p.read_text(encoding='utf-8')) or {}
 
-    tedavi = kok / 'tedavi_onerileri.yaml'
+    kok = Path(__file__).resolve().parent.parent / 'configs'
+    tedavi = urunler.yapilandirma(None, 'tedavi_onerileri.yaml')
     if tedavi.exists():
         veri = yaml.safe_load(tedavi.read_text(encoding='utf-8')) or {}
         return {ad: {'tr': (bilgi or {}).get('ad', ad)} for ad, bilgi in veri.items()}

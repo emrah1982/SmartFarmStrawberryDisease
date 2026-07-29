@@ -52,8 +52,9 @@ GORUNTU_UZANTI = {'.jpg', '.jpeg', '.png', '.bmp', '.webp'}
 VIDEO_UZANTI = {'.mp4', '.mov', '.avi', '.mkv', '.webm'}
 
 
-def tedavi_yukle() -> dict:
-    p = BASE_DIR / 'configs' / 'tedavi_onerileri.yaml'
+def tedavi_yukle(urun=None) -> dict:
+    from app import urunler
+    p = urunler.yapilandirma(urun, 'tedavi_onerileri.yaml')
     if not p.exists():
         return {}
     return yaml.safe_load(p.read_text(encoding='utf-8')) or {}
@@ -138,11 +139,28 @@ templates.env.globals['menu_moduller'] = _menu_moduller
 templates.env.globals['bekleyen_sayisi'] = bekleyen_sayisi
 
 
+def _urun_kapsami(db: Session, sera_id: Optional[int]) -> str:
+    """Bu analiz hangi bitkinin model setine ait?
+
+    Kaynak sıradüzeni: seranın ürünü → varsayılan. Bitki türünü GÖRÜNTÜDEN
+    tespit etmek birincil yol değildir; kare tamamen yaprakla dolduğunda
+    güvenilmez, oysa "hangi sera" bilgisi kesindir.
+    """
+    from app import urunler
+    if sera_id:
+        try:
+            return urunler.seradan(db.get(Sera, sera_id))
+        except Exception:
+            pass
+    return urunler.VARSAYILAN
+
+
 def _kaydet(sonuc, db: Session, kaynak_tip: str, kaynak_ad: str,
             dosya_yolu: str, kamera_id: Optional[int] = None,
             sera_id: Optional[int] = None) -> Analiz:
     """Detector sonucunu veritabanına yazar."""
     a = Analiz(
+        urun=_urun_kapsami(db, sera_id),
         kaynak_tip=kaynak_tip,
         kaynak_ad=kaynak_ad,
         kamera_id=kamera_id,
