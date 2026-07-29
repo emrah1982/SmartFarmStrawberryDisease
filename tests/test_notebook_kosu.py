@@ -16,16 +16,22 @@ KOK = Path(__file__).resolve().parent.parent
 NOTEBOOK = KOK / 'StrawberryVision_Colab_Production.ipynb'
 
 
-def _yardimcilari_yukle(proje_dizini):
-    """Notebook'un eğitim hücresinden koşu yardımcılarını çıkarır."""
+def _yardimcilari_yukle(proje_dizini, egitilecek=None, ad='strawberry_exp'):
+    """Notebook'un eğitim hücresinden koşu yardımcılarını çıkarır.
+
+    egitilecek=None → değişken hiç tanımlı değil (4️⃣ hücresi çalıştırılmamış);
+    hücre bu durumda da kırılmamalı, birleşik kuruluma düşmeli.
+    """
     nb = json.loads(NOTEBOOK.read_text(encoding='utf-8'))
     egitim = next(''.join(c['source']) for c in nb['cells']
                   if c['cell_type'] == 'code' and 'def _kosular' in ''.join(c['source']))
     bas = egitim.index('INCE_EK =')
     son = egitim.index('# Mevcut koşuları göster')
     ortam = {'TRAIN_CONFIG': {'project': str(proje_dizini),
-                              'name': 'strawberry_exp', 'epochs': 200},
+                              'name': ad, 'epochs': 200},
              'Path': Path}
+    if egitilecek is not None:
+        ortam['EGITILECEK'] = egitilecek
     exec(egitim[bas:son], ortam)
     return ortam
 
@@ -123,6 +129,97 @@ def test_ilgisiz_klasor_kosu_sayilmaz(tmp_path):
     _kosu_olustur(tmp_path, 'strawberry_exp-1', 200, 10)
     g = _yardimcilari_yukle(tmp_path)
     assert [d.name for d in g['_kosular']()] == ['strawberry_exp-1']
+
+
+# ──────────────── koşular MODELE göre ayrılmalı (hiyerarşik mimari)
+#
+# GERÇEK HATA: EGITILECEK='organ_detection' seçilip eğitim başlatıldığında
+# birleşik modelin `strawberry_ince_ayar` koşusu "bitmiş" sayıldı. Sonuç:
+#   1. organ eğitimi hiç başlamadı ("zaten tamamlanmış" denildi),
+#   2. o koşunun 10 sınıflı ağırlığı `best_models/cilek/organ.pt` adıyla
+#      kopyalandı — boru hattı yanlış modelle çalışacaktı.
+# Süzgeç ince ayar koşularını AD EKİNDEN buluyordu ama model adına hiç
+# bakmıyordu; bütün modeller aynı results/ klasörünü paylaştığı için karıştı.
+
+DRIVE_KOSULARI = ('strawberry_exp', 'strawberry_exp-2', 'strawberry_exp-3',
+                  'strawberry_ince_ayar', 'strawberry_ince_ayar-2')
+
+
+def _drive_benzeri(kok):
+    """Kullanıcının Drive'ındaki gerçek koşu klasörlerini kurar."""
+    for ad in DRIVE_KOSULARI:
+        hedef = 60 if 'ince_ayar' in ad else 200
+        _kosu_olustur(kok, ad, hedef, hedef)          # hepsi tamamlanmış
+    return kok
+
+
+def test_uzman_model_baska_modelin_kosusunu_gormez(tmp_path):
+    """Asıl hata: organ eğitimi, birleşik modelin koşusunu kendi sanıyordu."""
+    _drive_benzeri(tmp_path)
+    g = _yardimcilari_yukle(tmp_path, 'organ_detection', ad='organ_detection')
+    assert [d.name for d in g['_kosular']()] == [], (
+        'organ modeli için koşu YOK; birleşik koşular sayılırsa eğitim atlanır')
+
+
+def test_uzman_model_kendi_kosularini_gorur(tmp_path):
+    _drive_benzeri(tmp_path)
+    _kosu_olustur(tmp_path, 'organ_detection', 200, 120)            # yarım
+    _kosu_olustur(tmp_path, 'organ_detection_ince_ayar', 60, 20)    # yarım
+    g = _yardimcilari_yukle(tmp_path, 'organ_detection', ad='organ_detection')
+
+    assert set(d.name for d in g['_kosular']()) == {
+        'organ_detection', 'organ_detection_ince_ayar'}
+    assert g['_devam_edilebilir'](ince=False)[0].name == 'organ_detection'
+    assert g['_devam_edilebilir'](ince=True)[0].name == 'organ_detection_ince_ayar'
+
+
+def test_modeller_birbirinin_kosusunu_secmez(tmp_path):
+    for ad in ('organ_detection', 'leaf_disease', 'fruit_disease'):
+        _kosu_olustur(tmp_path, ad, 200, 50)
+    for ad in ('organ_detection', 'leaf_disease', 'fruit_disease'):
+        g = _yardimcilari_yukle(tmp_path, ad, ad=ad)
+        assert [d.name for d in g['_kosular']()] == [ad]
+
+
+def test_birlesik_kurulum_bozulmadi(tmp_path):
+    """Eski kurulumda iki koşu ailesi vardır; ortak önek 'strawberry'.
+
+    'strawberry_ince_ayar' adı 'strawberry_exp' ile BAŞLAMAZ — önek yanlış
+    seçilseydi ince ayara devam edilemezdi.
+    """
+    _drive_benzeri(tmp_path)
+    g = _yardimcilari_yukle(tmp_path, 'birlesik')
+    assert len(g['_kosular']()) == len(DRIVE_KOSULARI)
+    assert set(d.name for d in g['_kosular'](ince=True)) == {
+        'strawberry_ince_ayar', 'strawberry_ince_ayar-2'}
+
+
+def test_egitilecek_tanimsizsa_birlesike_duser(tmp_path):
+    """4️⃣ hücresi çalıştırılmadıysa hücre NameError ile ölmemeli."""
+    _drive_benzeri(tmp_path)
+    g = _yardimcilari_yukle(tmp_path, egitilecek=None)
+    assert g['KOSU_ONEKI'] == 'strawberry'
+    assert len(g['_kosular']()) == len(DRIVE_KOSULARI)
+
+
+def test_boru_hatti_kopyasi_sinif_dogrulamasi_yapar():
+    """Eğitim atlandığında RUN_DIR başka bir koşuyu gösterebilir.
+
+    Doğrulama olmadan o koşunun ağırlığı boru hattı adıyla kopyalanır ve
+    sistem sessizce yanlış modelle çalışır (bu bir kez gerçekten oldu:
+    10 sınıflı birleşik model `organ.pt` olarak kopyalandı).
+    """
+    src = _hucre('BORU_HATTI_ADLARI')
+    assert '_agirlik_sin' in src, 'ağırlığın sınıfları okunmalı'
+    assert 'BORU HATTI ADIYLA KOPYALANMADI' in src, 'uyuşmazlıkta kopyalama durmalı'
+    assert '_dosya = None' in src, 'uyuşmazlıkta kopyalama iptal edilmeli'
+
+
+def test_ince_ayar_kosu_adi_modele_gore_ayrilir():
+    """finetune_config'teki sabit ad kullanılsaydı organ ince ayarı
+    birleşik modelin klasörüne yazar, ikisi birbirini ezerdi."""
+    src = _hucre('_ince')
+    assert "_ince['name'] = f'{EGITILECEK}{INCE_EK}'" in src
 
 
 # ────────────────────────────── eğitim çıktıları Drive'a yazılmalı
