@@ -14,10 +14,19 @@ NEDEN ÖNCE KOPYALA SONRA AÇ?
     açmak belirgin şekilde hızlıdır. Açma işi de mümkünse sistem 'unzip'
     komutuna verilir (C ile yazılmış, çok sayıda küçük dosyada Python'dan hızlı).
 
+İKİ ARŞİV BİÇİMİ
+    birlesik  → eski tek model. Arşivde `augmented_train/` ve `*.yolo26/` kaynak
+                klasörleri vardır, `dataset/` altına açılır.
+    uzman     → hiyerarşik mimarinin modelleri (organ_detection, leaf_disease...).
+                Arşiv standart YOLO düzenidir (data.yaml + train/valid/test) ve
+                `datasets/<urun>/<model>/` altına açılır — notebook'un doğrulama
+                hücresi data.yaml'ı orada arar.
+
 Usage (Colab):
     python scripts/prepare_colab_dataset.py \
         --drive-root /content/drive/MyDrive/SmartFarmStrawberryDisease \
-        --repo /content/SmartFarmStrawberryDisease
+        --repo /content/SmartFarmStrawberryDisease \
+        --model organ_detection --urun cilek
 """
 
 import argparse
@@ -49,10 +58,10 @@ def sources_in(d: Path) -> List[Path]:
         return []
 
 
-def find_archive(drive_root: Path, mydrive: Path) -> Optional[Path]:
+def find_archive(drive_root: Path, mydrive: Path, names=ARCHIVE_NAMES) -> Optional[Path]:
     """Arşivi bilinen konumlarda, sonra MyDrive'da (4 seviyeye kadar) arar."""
     candidates = []
-    for name in ARCHIVE_NAMES:
+    for name in names:
         candidates += [drive_root / 'dataset' / name, drive_root / name,
                        mydrive / name, mydrive / 'Colab Notebooks' / name]
     for c in candidates:
@@ -65,7 +74,7 @@ def find_archive(drive_root: Path, mydrive: Path) -> Optional[Path]:
         if len(Path(cur).relative_to(mydrive).parts) >= 4:
             dirs[:] = []          # çok derine inip Drive'ı yavaşlatma
             continue
-        for name in ARCHIVE_NAMES:
+        for name in names:
             if name in files:
                 cand = Path(cur) / name
                 try:
@@ -130,7 +139,96 @@ def list_names(archive: Path) -> List[str]:
         return zf.namelist()
 
 
-def prepare(drive_root: Path, repo: Path) -> int:
+def model_archive_root(names: List[str]) -> Optional[str]:
+    """Uzman arşivde data.yaml'ın bulunduğu dizin = dataset kökü.
+
+    Arşiv `organ_detection/data.yaml` köküyle de, sarmalayıcısız (`data.yaml`)
+    da gelebilir. En sığ data.yaml doğru köktür; daha derindekiler alt
+    kopyalardır ve seçilirse train/valid dizinleri bulunamaz.
+    """
+    adaylar = [n for n in names if n.rsplit('/', 1)[-1] == 'data.yaml']
+    if not adaylar:
+        return None
+    en_sig = min(adaylar, key=lambda n: n.count('/'))
+    return en_sig.rsplit('/', 1)[0] if '/' in en_sig else ''
+
+
+def model_hazir(d: Path) -> bool:
+    """Uzman dataset klasörü kullanılabilir durumda mı?"""
+    return (d / 'data.yaml').exists() and (d / 'train' / 'images').is_dir()
+
+
+def prepare_model(drive_root: Path, repo: Path, model: str, urun: str) -> int:
+    """Tek bir uzman modelin dataset'ini datasets/<urun>/<model>/ altına açar."""
+    mydrive = Path('/content/drive/MyDrive')
+    dest = repo / 'datasets' / urun / model
+
+    if model_hazir(dest):
+        logger.info(f'ℹ️  {dest.relative_to(repo)} zaten hazır, açma atlandı.')
+    else:
+        arsiv_adlari = (f'{model}.zip', f'{model}.tar')
+        archive = find_archive(drive_root, mydrive, arsiv_adlari)
+        if not archive:
+            logger.error(f'❌ Arşiv bulunamadı: {arsiv_adlari[0]}')
+            logger.error(f'   Beklenen konum: {drive_root / "dataset" / arsiv_adlari[0]}')
+            for d in (drive_root, drive_root / 'dataset'):
+                if d.exists():
+                    logger.error(f'📂 {d} → {sorted(q.name for q in d.iterdir())}')
+            logger.error(f'\nÇözüm: yerelde `python scripts/dataset_ayir.py --paketle` çalıştırıp')
+            logger.error(f'       datasets/{urun}/{model}.zip dosyasını yukarıdaki klasöre yükleyin.')
+            return 1
+
+        size_mb = archive.stat().st_size / 1e6
+        logger.info(f'📦 Arşiv: {archive}  ({size_mb:.0f} MB)')
+
+        t0 = time.time()
+        local_archive = repo.parent / archive.name
+        if local_archive.exists():
+            local_archive.unlink()
+        shutil.copyfile(archive, local_archive)
+        t_copy = time.time() - t0
+        logger.info(f'   ⬇️  Yerel diske kopyalandı: {t_copy:.0f} sn '
+                    f'({size_mb / max(t_copy, 0.1):.0f} MB/sn)')
+
+        root = model_archive_root(list_names(local_archive))
+        if root is None:
+            logger.error('❌ Arşivde data.yaml yok — bu bir uzman dataset paketi değil.')
+            local_archive.unlink(missing_ok=True)
+            return 1
+        logger.info(f"   arşiv kökü: '{root or '(sarmalayıcı yok)'}'")
+
+        t0 = time.time()
+        tmp = Path(tempfile.mkdtemp(dir=str(repo)))
+        extract(local_archive, tmp)
+        logger.info(f'   📂 Açıldı: {time.time() - t0:.0f} sn')
+
+        if dest.exists():
+            shutil.rmtree(dest, ignore_errors=True)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(tmp / root if root else tmp), str(dest))
+        shutil.rmtree(tmp, ignore_errors=True)
+        local_archive.unlink(missing_ok=True)
+
+    if not model_hazir(dest):
+        icerik = sorted(q.name for q in dest.iterdir()) if dest.exists() else []
+        logger.error(f'❌ {dest} beklenen yapıda değil (data.yaml + train/images).')
+        logger.error(f'   Bulunanlar: {icerik[:10]}')
+        return 1
+
+    logger.info(f'\n📂 {dest}')
+    for split in ('train', 'valid', 'test'):
+        d = dest / split / 'images'
+        if d.is_dir():
+            logger.info(f'   {split:6} {len(list(d.iterdir())):>6} görüntü')
+    logger.info(f'\n✅ {model} dataset hazır.')
+    return 0
+
+
+def prepare(drive_root: Path, repo: Path, model: str = 'birlesik',
+            urun: str = 'cilek') -> int:
+    if model and model != 'birlesik':
+        return prepare_model(drive_root, repo, model, urun)
+
     mydrive = Path('/content/drive/MyDrive')
     dataset_dir = repo / 'dataset'
 
@@ -206,8 +304,11 @@ def main():
                     help='Drive proje klasörü')
     ap.add_argument('--repo', type=str, default='/content/SmartFarmStrawberryDisease',
                     help='Depo kök dizini (dataset/ buraya açılır)')
+    ap.add_argument('--model', type=str, default='birlesik',
+                    help="Eğitilecek model ('birlesik' = eski tek model)")
+    ap.add_argument('--urun', type=str, default='cilek', help='Ürün kapsamı')
     args = ap.parse_args()
-    return prepare(Path(args.drive_root), Path(args.repo))
+    return prepare(Path(args.drive_root), Path(args.repo), args.model, args.urun)
 
 
 if __name__ == '__main__':
