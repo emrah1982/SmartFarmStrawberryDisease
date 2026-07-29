@@ -166,23 +166,53 @@ Aphids, Whiteflies, Slug, Weevil).
 - Hedef: sınıf başına **100-200 örnek**
 - Sahadan toplama: canlı tespitteki 🗃️ "her kare" kipi hızlandırır
 
-## 8. Model eğitimleri
+## 8. Model eğitimleri ve kurulumu
 
-Her dataset bağımsız eğitilir; **sıra bağımlılığı yoktur**, paralel yürütülebilir:
+Her dataset bağımsız eğitilir; **sıra bağımlılığı yoktur**, paralel yürütülebilir.
 
-```bash
-python scripts/train_yolo.py --data datasets/organ_detection/data.yaml   --model yolo26s.pt --name organ
-python scripts/train_yolo.py --data datasets/leaf_disease/data.yaml      --model yolo26s.pt --name leaf_disease
-python scripts/train_yolo.py --data datasets/fruit_disease/data.yaml     --model yolo26s.pt --name fruit_disease
-python scripts/train_yolo.py --data datasets/fruit_ripeness/data.yaml    --model yolo26s.pt --name fruit_ripeness
-python scripts/train_yolo.py --data datasets/pest_detection/data.yaml    --model yolo26s.pt --name pest
+**Colab'de:** dataset hücresinde tek değişken:
+
+```python
+EGITILECEK = 'organ_detection'   # sonra leaf_disease, fruit_disease, fruit_ripeness
 ```
 
-Çıkan `best.pt` dosyaları `models/` altına kütükteki adlarla konur
-(`organ.pt`, `leaf_disease.pt`, ...). **Her model hazır olduğunda kendiliğinden
-devreye girer** — kod değişikliği gerekmez.
+**Yerelde:**
 
-Küçük dataset'lerde `yolo26n` yeterli olabilir; organ modeli için `yolo26s`.
+```bash
+python scripts/train_yolo.py --data datasets/cilek/organ_detection/data.yaml        --model yolo26s.pt --name organ
+```
+
+### Eğitim bitince: kurulum
+
+Eğitim `runs/.../weights/best.pt` üretir; boru hattı ise modeli kütükteki adla
+arar. Elle kopyalamayın — üç sessiz hata olur:
+
+| Hata | Sonuç |
+|------|-------|
+| Yanlış ada kopyalama | Model **hiç kullanılmaz**, kimse fark etmez |
+| Yanlış modeli kopyalama | Yaprak modeli olgunluk yerine geçer |
+| Sınıfları uymayan model | Boru hattı çalışır ama **sonuçlar saçmadır** |
+
+```bash
+python scripts/model_kur.py --listele                      # hangi model nereye
+python scripts/model_kur.py organ runs/train/organ/weights/best.pt
+```
+
+Betik kopyalamadan **önce** modelin sınıflarını kütükle karşılaştırır; uyuşmazsa
+kurulumu yapmaz ve farkı yazar. Önceki model `.pt.onceki` olarak yedeklenir.
+Kurulum sonrası hangi modellerin eksik kaldığını ve boru hattının aktif olup
+olmadığını bildirir.
+
+> **Sınıf sırası kütükle dataset arasında birebir aynı olmalıdır.** Eğitim
+> ID'lerini dataset belirler; kütük ona uyar. Sıra kayarsa `Gray Mold` tespiti
+> `Powdery Mildew Leaf` olarak görünür — `tests/test_model_kur.py` bunu sabitler.
+
+### Model hazır olunca ne değişir?
+
+Kod değişikliği **gerekmez**. `models/<urun>/` altına doğru adla konan model,
+uygulama yeniden başlatıldığında boru hattına kendiliğinden girer. Analiz
+yollarının **hepsi** (fotoğraf, ayrıntılı analiz, video, IP kamera, canlı akış)
+aynı boru hattını kullanır — biri hiyerarşik, diğeri tek model diye ayrışmaz.
 
 ## 9. Arayüz
 

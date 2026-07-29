@@ -174,7 +174,10 @@ class Detector:
         Her kareyi işlemek gereksiz ve yavaştır; VIDEO_FRAME_STEP aralığıyla
         örneklenir. En çok tespit içeren kare önizleme olarak kaydedilir.
         """
-        model = self.yukle()
+        from app import modeller as model_kutugu
+        hiyerarsik = model_kutugu.hiyerarsik_hazir()
+        model = None if hiyerarsik else self.yukle()
+
         cap = cv2.VideoCapture(kaynak_yol)
         if not cap.isOpened():
             raise RuntimeError(f'Video açılamadı: {kaynak_yol}')
@@ -202,9 +205,17 @@ class Detector:
                     idx += 1
                     continue
 
-                r = model(frame, conf=siniflar.en_dusuk_esik(), imgsz=config.IMGSZ,
-                          verbose=False)[0]
-                kare_kutulari = self._kutulari_al(r, kare=idx)
+                # Hiyerarşik mimari kuruluysa her örneklenen kare de organ →
+                # ROI → uzman model yolundan geçer; yoksa tek model kullanılır.
+                if hiyerarsik:
+                    from app import pipeline
+                    kare_kutulari = pipeline.calistir(frame)[0]
+                    for k in kare_kutulari:
+                        k.kare = idx
+                else:
+                    r = model(frame, conf=siniflar.en_dusuk_esik(), imgsz=config.IMGSZ,
+                              verbose=False)[0]
+                    kare_kutulari = self._kutulari_al(r, kare=idx)
                 kutular.extend(kare_kutulari)
                 if len(kare_kutulari) > en_iyi_sayi:
                     en_iyi_sayi = len(kare_kutulari)
@@ -216,9 +227,13 @@ class Detector:
 
         # Tüm kareler bulanıksa yine de en keskin olanı işle — kullanıcı boş dönmesin
         if islenen == 0 and en_keskin_frame is not None:
-            r = model(en_keskin_frame, conf=siniflar.en_dusuk_esik(),
-                      imgsz=config.IMGSZ, verbose=False)[0]
-            en_iyi_kutular = self._kutulari_al(r, kare=0)
+            if hiyerarsik:
+                from app import pipeline
+                en_iyi_kutular = pipeline.calistir(en_keskin_frame)[0]
+            else:
+                r = model(en_keskin_frame, conf=siniflar.en_dusuk_esik(),
+                          imgsz=config.IMGSZ, verbose=False)[0]
+                en_iyi_kutular = self._kutulari_al(r, kare=0)
             kutular.extend(en_iyi_kutular)
             en_iyi_kare = en_keskin_frame
             islenen = 1
@@ -241,6 +256,20 @@ class Detector:
 
     # ------------------------------------------------------- ayrıntılı analiz
     def goruntu_detayli(self, kaynak_yol: str, cikti_yol: str) -> Sonuc:
+        """Çok ölçekli + dilimli tarama (ölçek kaynaklı kaçırmaları azaltır).
+
+        HİYERARŞİK MİMARİDE: organ modeli zaten her organı bulup ROI olarak
+        kırpıyor; uzman model lezyonu kendi çözünürlüğünde görüyor. Yani
+        yakınlaştırma etkisi boru hattının içinde var, ayrıca dilimlemeye
+        gerek kalmıyor. Bu yüzden hiyerarşi kuruluysa boru hattına yönlendirilir.
+        """
+        from app import modeller as model_kutugu
+        if model_kutugu.hiyerarsik_hazir():
+            from app import pipeline
+            return pipeline.goruntu(kaynak_yol, cikti_yol)
+        return self._goruntu_detayli_tek_model(kaynak_yol, cikti_yol)
+
+    def _goruntu_detayli_tek_model(self, kaynak_yol: str, cikti_yol: str) -> Sonuc:
         """Çok ölçekli + dilimli analiz (büyük saha fotoğrafları için).
 
         NEDEN: Tek ölçekli tahmin, çekim ölçeği eğitim verisinden farklı olduğunda
@@ -326,10 +355,15 @@ class Detector:
         if kaynak_kaydet:
             cv2.imwrite(kaynak_kaydet, frame)
 
-        model = self.yukle()
         t0 = time.time()
-        r = model(frame, conf=siniflar.en_dusuk_esik(), imgsz=config.IMGSZ, verbose=False)[0]
-        kutular = self._kutulari_al(r)
+        from app import modeller as model_kutugu
+        if model_kutugu.hiyerarsik_hazir():
+            from app import pipeline
+            kutular = pipeline.calistir(frame)[0]
+        else:
+            r = self.yukle()(frame, conf=siniflar.en_dusuk_esik(),
+                             imgsz=config.IMGSZ, verbose=False)[0]
+            kutular = self._kutulari_al(r)
         _ciz(frame, kutular, cikti_yol)
         return Sonuc(kutular=kutular, sonuc_yolu=cikti_yol,
                      islenen_kare=1, sure_ms=int((time.time() - t0) * 1000))

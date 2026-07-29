@@ -46,7 +46,10 @@ yaprak_hastalik:
   dosya: leaf_disease.pt
   rol: yaprak_hastalik
   tetik: [leaf]
-  siniflar: [Angular Leafspot, Leaf Spot, Gray Mold, Powdery Mildew Leaf]
+  # SIRA ÖNEMLİ: dataset'teki sırayla birebir aynı olmalı — eğitim ID'lerini
+  # dataset belirler (datasets/<urun>/leaf_disease/data.yaml). Sıra kayarsa
+  # scripts/model_kur.py kurulumu reddeder.
+  siniflar: [Angular Leafspot, Leaf Spot, Powdery Mildew Leaf, Gray Mold]
   esik: 0.20
   aktif: true
   aciklama: Yalnızca yaprak ROI'lerinde çalışır. Meyveyi hiç öğrenmez.
@@ -55,7 +58,8 @@ meyve_hastalik:
   dosya: fruit_disease.pt
   rol: meyve_hastalik
   tetik: [fruit]
-  siniflar: [Anthracnose Fruit Rot, Gray Mold, Powdery Mildew Fruit, Blossom Blight]
+  # Sıra dataset'ten gelir (datasets/<urun>/fruit_disease/data.yaml)
+  siniflar: [Anthracnose Fruit Rot, Powdery Mildew Fruit, Blossom Blight, Gray Mold]
   esik: 0.20
   aktif: true
   aciklama: Yalnızca meyve ROI'lerinde çalışır.
