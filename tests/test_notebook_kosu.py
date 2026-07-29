@@ -209,3 +209,38 @@ def test_depo_dogrulamasi_gercek_depoda_gecer():
     ortam = {'Path': Path}
     exec(blok, ortam)                      # AssertionError atmamalı
     assert ortam['_bulunan'].exists()
+
+
+# ─────────────────────────── bayat sekme tespiti
+def test_notebook_surumu_tanimli():
+    """Colab, GitHub'dan açılan notebook'u TARAYICIDA önbelleğe alır: depo
+    git pull ile güncellenir ama sekmedeki hücre kodu eski kalır. Bu fark
+    defalarca 'dosya yok' hatasına yol açtı."""
+    src = _hucre('NOTEBOOK_SURUM')
+    assert 'NOTEBOOK_SURUM = "' in src
+
+
+def test_bayat_sekme_uyarisi_calisir(tmp_path, capsys, monkeypatch):
+    """Sürüm farklıysa uyarı basılmalı, aynıysa sessiz kalmalı."""
+    import shutil
+    shutil.copy(NOTEBOOK, tmp_path / NOTEBOOK.name)
+    monkeypatch.chdir(tmp_path)
+
+    src = _hucre('NOTEBOOK_SURUM')
+    blok = src[src.index('# ── Sekme bayat'):]
+
+    exec(blok, {'Path': Path})
+    assert 'ESKİ' not in capsys.readouterr().out, 'aynı sürümde uyarı çıkmamalı'
+
+    eski = blok.replace(blok.split('NOTEBOOK_SURUM = "')[1].split('"')[0],
+                        '2000-01-01-0', 1)
+    exec(eski, {'Path': Path})
+    cikti = capsys.readouterr().out
+    assert 'ESKİ' in cikti and 'Ctrl+Shift+R' in cikti
+
+
+def test_surum_kontrolu_egitimi_engellemez(tmp_path, monkeypatch):
+    """Notebook dosyası bulunamasa bile sürüm kontrolü hata fırlatmamalı."""
+    monkeypatch.chdir(tmp_path)          # burada .ipynb yok
+    src = _hucre('NOTEBOOK_SURUM')
+    exec(src[src.index('# ── Sekme bayat'):], {'Path': Path})
