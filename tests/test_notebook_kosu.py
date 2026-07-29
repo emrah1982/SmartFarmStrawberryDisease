@@ -171,3 +171,41 @@ def test_checkpointler_belirli_araliklarla_kaydedilir():
     for ad in ('train_config.yaml', 'finetune_config.yaml'):
         v = yaml.safe_load((KOK / 'configs' / ad).read_text(encoding='utf-8'))
         assert v.get('save_period', 0) > 0, f'{ad}: save_period tanımlı olmalı'
+
+
+# ──────────────────────── notebook'taki dosya yolları gerçekten var mı
+def test_notebook_kod_hucrelerinde_eski_yol_kalmadi():
+    """GERÇEK HATA: configs/strawberry_data.yaml -> configs/urunler/cilek/veri.yaml
+    taşınınca notebook'un depo doğrulaması Colab'de AssertionError verdi.
+
+    Yorum satırlarında geçmesi sorun değil; ÇALIŞAN kodda kalmamalı.
+    """
+    nb = json.loads(NOTEBOOK.read_text(encoding='utf-8'))
+    sorunlu = []
+    for i, c in enumerate(nb['cells']):
+        if c['cell_type'] != 'code':
+            continue
+        src = ''.join(c['source'])
+        kod_satirlari = [l.split('#')[0] for l in src.splitlines()]
+        if not any('strawberry_data.yaml' in l for l in kod_satirlari):
+            continue
+        # Eski yola atıf YALNIZCA yeni yolun da denendiği hücrelerde kabul
+        # edilir (geriye dönük destek). Tek başına duruyorsa bayat demektir.
+        if 'urunler' not in src:
+            sorunlu.append(f'hücre {i}: yalnızca eski yol kullanılıyor')
+    assert not sorunlu, 'bayat yapılandırma yolu: ' + '; '.join(sorunlu)
+
+
+def test_depo_dogrulamasi_urun_yolunu_kabul_eder():
+    src = _hucre('Depo hazır')
+    assert 'urunler' in src, 'ürün kapsamlı yol denenmeli'
+    assert 'strawberry_data.yaml' in src, 'eski yola geriye dönük destek kalmalı'
+
+
+def test_depo_dogrulamasi_gercek_depoda_gecer():
+    """Doğrulama bloğunu gerçek depo kökünde çalıştır — Colab'de patlamasın."""
+    src = _hucre('Depo hazır')
+    blok = src[src.index('_urun = globals()'):]
+    ortam = {'Path': Path}
+    exec(blok, ortam)                      # AssertionError atmamalı
+    assert ortam['_bulunan'].exists()
