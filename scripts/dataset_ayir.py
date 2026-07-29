@@ -149,8 +149,10 @@ def ayir(kaynak: Path, hedef_kok: Path, master: dict, arka_plan_orani: float,
             print(f'      {a:24} {sayac[f"kutu_{a}"]:>6} kutu')
 
         if not kuru:
+            # 'path' BILEREK YAZILMAZ: Ultralytics onu bulamayinca yaml'in
+            # kendi klasorunu kok sayar. Mutlak yol yazilsaydi klasor tasininca
+            # veya Colab'de acilinca "images not found" verirdi.
             (hedef / 'data.yaml').write_text(yaml.dump({
-                'path': str(hedef.resolve()),
                 'train': 'train/images', 'val': 'valid/images', 'test': 'test/images',
                 'nc': len(yeni_adlar),
                 'names': {i: a for i, a in enumerate(yeni_adlar)},

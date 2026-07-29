@@ -90,3 +90,37 @@ def test_background_etiketi_bos_dosya(tmp_path):
     icerikler = [f.read_text(encoding='utf-8').strip() for f in etiketler]
     assert '' in icerikler, 'background icin bos etiket dosyasi olmali'
     assert len(etiketler) == 2
+
+
+# ─────────────────────────────────────── taşınabilirlik (gerçek hata)
+def test_data_yaml_mutlak_path_yazmaz(tmp_path):
+    """GERÇEK HATA: 'path' mutlak yazılınca klasör taşınca eğitim kırılıyordu.
+
+    Ultralytics kökü şöyle çözer (data/utils.py):
+        path = data.get('path') or Path(data['yaml_file']).parent
+    'path' yoksa yaml'ın KENDİ klasörü kök olur → dataset taşınabilir olur.
+    Mutlak yol yazılsaydı datasets/ → datasets/cilek/ taşımasında ve Colab'de
+    açıldığında "images not found" verirdi.
+    """
+    kaynak = _kaynak(tmp_path, {'a': [(4, 0.5, 0.5, 0.2, 0.2)]})
+    da.ayir(kaynak, tmp_path / 'hedef', MASTER, 0.0, kuru=False)
+    veri = yaml.safe_load(
+        (tmp_path / 'hedef' / 'leaf_disease' / 'data.yaml').read_text(encoding='utf-8'))
+    assert 'path' not in veri, "'path' yazılmamalı — dataset taşınabilir kalsın"
+    assert veri['train'] == 'train/images'
+
+
+def test_dataset_tasininca_hala_cozulur(tmp_path):
+    """Dataset başka bir klasöre taşınsa bile yollar çözülmeli."""
+    kaynak = _kaynak(tmp_path, {'a': [(4, 0.5, 0.5, 0.2, 0.2)]})
+    da.ayir(kaynak, tmp_path / 'hedef', MASTER, 0.0, kuru=False)
+
+    import shutil
+    yeni_yer = tmp_path / 'baska' / 'yer'
+    yeni_yer.mkdir(parents=True)
+    shutil.move(str(tmp_path / 'hedef' / 'leaf_disease'), str(yeni_yer / 'leaf_disease'))
+
+    y = yeni_yer / 'leaf_disease' / 'data.yaml'
+    veri = yaml.safe_load(y.read_text(encoding='utf-8'))
+    kok = Path(veri.get('path') or y.parent)        # Ultralytics'in kuralı
+    assert (kok / veri['train']).is_dir(), 'taşındıktan sonra train dizini bulunamadı'
