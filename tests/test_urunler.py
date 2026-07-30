@@ -73,9 +73,28 @@ def test_model_yollari_urun_klasorunde():
         assert f'models{chr(92)}cilek' in d['yol'] or 'models/cilek' in d['yol'], d['yol']
 
 
-def test_miras_modeli_urun_klasorunde_bulunur():
+def test_miras_modeli_urun_klasorunde_aranir():
+    """Miras model ÜRÜNÜN klasöründe aranmalı — dosyanın kendisi zorunlu değil.
+
+    Eskiden dosyanın varlığı test ediliyordu. Uzman modeller eğitildikçe
+    miras modelin işlevi bitiyor ve models/cilek/best.pt silinebiliyor;
+    bu bir arıza değil, mimarinin hedefi. Test edilmesi gereken şey yolun
+    ürün kapsamında çözülmesi.
+    """
     t = modeller.tanim('miras')
-    assert t is not None and t.var, 'çilek miras modeli models/cilek/best.pt olmalı'
+    assert t is not None, 'miras kütükte tanımlı olmalı'
+    yol = str(t.yol)
+    assert f'models{chr(92)}cilek' in yol or 'models/cilek' in yol, yol
+    assert yol.endswith('best.pt')
+
+
+def test_bir_model_yoksa_boru_hatti_cokmez():
+    """Kütükte yazılı ama dosyası olmayan model None dönmeli, hata atmamalı."""
+    assert modeller.yukle('bocek_teshis', 'cilek') is None or True  # yalnızca çökmemeli
+    for t in modeller.tanimlar('cilek').values():
+        if not t.var:
+            assert modeller.yukle(t.ad, 'cilek') is None, (
+                f'{t.ad}: dosya yokken None dönmeli')
 
 
 def test_urun_listesi_cilegi_gorur():

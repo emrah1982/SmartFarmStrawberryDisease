@@ -61,7 +61,7 @@ def test_her_kutuk_modeli_dataset_ile_eslesir():
 
     beklenen = {'organ': 'organ_detection', 'yaprak_hastalik': 'leaf_disease',
                 'meyve_hastalik': 'fruit_disease', 'olgunluk': 'fruit_ripeness',
-                'zararli': 'pest_detection'}
+                'zararli': 'pest_detection', 'bocek_teshis': 'bocek_teshis'}
     for ad, t in modeller.tanimlar().items():
         if t.rol == 'miras':
             continue

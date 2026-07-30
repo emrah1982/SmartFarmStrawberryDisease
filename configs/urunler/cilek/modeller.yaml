@@ -81,10 +81,35 @@ zararli:
   tetik: [leaf, fruit]   # organ modelinde stem sınıfı yok
   siniflar: [Thrips, Spider Mites, Aphids, Whiteflies, Slug, Weevil]
   esik: 0.25
+  aktif: false           # veri yok — açılırsa boru hattı boşuna model arar
+  aciklama: >
+    SAHA zararlı tespiti: yaprak/meyve ROI'si içinde zararlı arar.
+    Henüz eğitim verisi YOK — çilek tarlasında, yaprak üzerinde çekilmiş
+    görüntüler gerekir. Karıştırmayın: bocek_teshis makro böcek fotoğrafı
+    üzerinde çalışır ve bu boru hattına hiç girmez.
+
+# ─────────────────────────────────────────────────────────────────────────
+# BORU HATTINA GİRMEYEN MODELLER  (rol: tekil, tetik yok)
+#
+# app/modeller.py: tetiklenen() yalnızca `tetik` listesinde organ adı geçen
+# modelleri döner. Tetik boş olduğu için bu model ROI akışında ASLA
+# çalıştırılmaz; ayrı bir kullanıcı akışından açıkça çağrılır.
+# ─────────────────────────────────────────────────────────────────────────
+
+bocek_teshis:
+  dosya: bocek_teshis.pt
+  rol: tekil
+  tetik: []              # BOŞ BIRAKILMALI — ROI akışına karışmasın
+  # Sıra dataset'ten gelir (datasets/cilek/bocek_teshis/data.yaml).
+  siniflar: [Army Worm, Black Cutworm, Grub, Mole Cricket, Peach Borer, Red Spider Mite]
+  esik: 0.35
   aktif: true
   aciklama: >
-    Zararlılar küçük olduğu için ROI üzerinde çalışması avantajlıdır.
-    Henüz eğitim verisi toplanmadı.
+    Böcek teşhisi: kullanıcının böceğin YAKIN ÇEKİM fotoğrafını çektiği
+    ayrı bir akış. Eğitim verisi 416x416 makro fotoğraflardır (kutu alanı
+    medyanı karenin %15'i); saha görüntüsündeki yaprak kırpıntısına hiç
+    benzemez. Bu yüzden ROI boru hattına BAĞLANMAZ — bağlansaydı yanlış
+    ölçekte çalışıp yanlış tespit üretirdi.
 
 # Uzman modeller hazır olana kadar kullanılan mevcut 10 sınıflı model.
 # Boru hattı, uzman model bulamadığı her adımda buna düşer.

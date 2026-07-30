@@ -138,3 +138,34 @@ Weeds:
   tr: Yabancı Ot
   grup: diger
   egitimde: false
+
+# ─────────────────────── böcek teşhis modeli (ayrı akış, ROI'ye girmez)
+# Bu sınıflar bocek_teshis.pt modelinin ürettiği adlardır. `id` VERİLMEZ:
+# ID alanı birleşik modelin etiket dosyalarındaki sayıyı temsil eder, bu
+# model ise kendi dataset'inde 0-5 kullanır. ID verilseydi etiketleme
+# ekranındaki numaralarla çakışır ve geçmiş etiketler kayardı.
+# Ayrıntı: datasets/cilek/bocek_teshis/data.yaml
+Army Worm:
+  tr: Bozkurt Tırtılı
+  en: Army Worm
+  grup: zararli
+Black Cutworm:
+  tr: Siyah Kesici Kurt
+  en: Black Cutworm
+  grup: zararli
+Grub:
+  tr: Toprak Larvası
+  en: Grub
+  grup: zararli
+Mole Cricket:
+  tr: Danaburnu
+  en: Mole Cricket
+  grup: zararli
+Peach Borer:
+  tr: Şeftali Gövde Kurdu
+  en: Peach Borer
+  grup: zararli
+Red Spider Mite:
+  tr: Kırmızı Örümcek
+  en: Red Spider Mite
+  grup: zararli

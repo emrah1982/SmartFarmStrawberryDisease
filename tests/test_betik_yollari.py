@@ -5,6 +5,7 @@ BEŞ betiği sessizce kırmıştı: --help bile FileNotFoundError veriyordu.
 Bu test onu bir daha yaşamamak için.
 """
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -46,9 +47,20 @@ def test_veri_yapilandirmasi_bilinmeyen_urunde_eski_yola_duser():
     assert yol.name == 'strawberry_data.yaml'
 
 
+def _calistir(*argv):
+    """Alt süreci UTF-8 okur.
+
+    Windows konsolu cp1254'tür ve Türkçe sınıf adlarındaki bazı karakterleri
+    çözemez; text=True yerel kod sayfasını kullandığı için çıktı okunamıyordu
+    (UnicodeDecodeError). Kodlamayı iki uçta da açıkça UTF-8 yapıyoruz.
+    """
+    ortam = {**os.environ, 'PYTHONIOENCODING': 'utf-8'}
+    return subprocess.run([sys.executable, *argv], capture_output=True, text=True,
+                          encoding='utf-8', errors='replace', timeout=120, env=ortam)
+
+
 def test_sinif_ekle_listeler():
-    r = subprocess.run([sys.executable, str(KOK / 'scripts' / 'sinif_ekle.py'), '--listele'],
-                       capture_output=True, text=True, timeout=120)
+    r = _calistir(str(KOK / 'scripts' / 'sinif_ekle.py'), '--listele')
     assert r.returncode == 0, r.stderr[-400:]
     assert 'Gray Mold' in r.stdout
 
