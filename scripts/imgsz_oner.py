@@ -211,8 +211,15 @@ def rapor(ad: str, o: dict, s: dict, mevcut: int = None):
     print(f'  {"imgsz":>6}  {"küçük nesne":>12}  {"durum":<26} {"RAM önbellek":>12}')
     print('  ' + '-' * 66)
     for x in s['tablo']:
-        if x['buyutme']:
-            durum = 'büyütme — bilgi eklemez'
+        # DİKKAT: "büyütme" tek başına "işe yaramaz" demek DEĞİLDİR.
+        # Büyütme yeni bilgi eklemez, ama YOLO'nun tespit ızgarası eğitim
+        # pikselinde SABİTTİR (8 px adım). Kaynakta 3 px olan bir lezyon
+        # 320'de yarım hücre, 1024'te ~1,5 hücre kaplar — ağ ikincisinde
+        # görebilir. Küçük nesneli setlerde yüksek imgsz bu yüzden yaygındır.
+        if x['buyutme'] and x['yeterli']:
+            durum = 'büyütme — ama küçük nesneye yarar'
+        elif x['buyutme']:
+            durum = 'büyütme — yine de yetersiz'
         elif x['yeterli']:
             durum = 'yeterli'
         else:
@@ -241,8 +248,12 @@ def rapor(ad: str, o: dict, s: dict, mevcut: int = None):
                   f'RAM {ram_gb(o["goruntu_sayisi"], mevcut):.1f} → '
                   f'{ram_gb(o["goruntu_sayisi"], s["imgsz"]):.1f} GB')
             if mevcut > s['kaynak_medyan']:
-                print(f'     ⚠️ {mevcut}, kaynak çözünürlüğün ({s["kaynak_medyan"]:.0f} px) '
-                      'ÜSTÜNDE — görüntüler büyütülüyor, bilgi eklenmiyor.')
+                print(f'     ℹ️ {mevcut}, kaynak çözünürlüğün ({s["kaynak_medyan"]:.0f} px) '
+                      'ÜSTÜNDE — yeni bilgi eklenmiyor, AMA nesneler ağın')
+                print('        sabit ızgarasına göre büyür; çok küçük nesnelerde bu')
+                print('        recall\'ı artırabilir. Kesin cevap ölçmekle bulunur:')
+                print(f'        aynı dataset\'i {s["imgsz"]} ve {mevcut} ile eğitip')
+                print('        mAP karşılaştırın (scripts/model_karsilastir.py).')
         else:
             print(f'     ⚠️ Şu anki {mevcut} DÜŞÜK: küçük nesneler '
                   f'{s["kucuk_nesne_payi"] * mevcut:.0f} piksele iner '
