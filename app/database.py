@@ -165,6 +165,12 @@ class Analiz(Base):
     bulanik_kare = Column(Integer, default=0)
     kalite_notu = Column(Text, default='')
 
+    # Boru hattı izi (JSON): {"organlar": {"Leaf": 5}, "modeller": [...], ...}
+    # Tespit listesi yalnızca BULUNANLARI içerir; "5 yaprak gördüm ama
+    # hastalık bulmadım" bilgisi başka hiçbir yerde durmuyor. Sonuç ekranı
+    # "neyin kontrol EDİLMEDİĞİNİ" buradan söyler.
+    boru_izi = Column(Text, default='')
+
     # Düşük güvenli veya tespitsiz kayıtlar uzman incelemesine düşer
     inceleme_gerekli = Column(Boolean, default=False, index=True)
     incelendi = Column(Boolean, default=False, index=True)
@@ -218,6 +224,11 @@ class Tespit(Base):
     h = Column(Float)
     kare = Column(Integer, default=0)     # video ise kare numarası
 
+    # Tespitin bulunduğu organ (Leaf/Fruit/Flower). Hiyerarşik boru hattı
+    # doldurur; tek modelli akışta ve elle etiketlemede boş kalır.
+    # Aynı sınıf iki organda olabildiği için (Gray Mold) ayrım şart.
+    organ = Column(String(30), default='', index=True)
+
     analiz = relationship('Analiz', back_populates='tespitler')
 
 
@@ -236,7 +247,9 @@ def _eksik_sutunlari_ekle():
         'analizler': {'urun': "VARCHAR(60) DEFAULT 'cilek'", 'sera_id': 'INTEGER', 'keskinlik': 'FLOAT',
                       'bulanik_kare': 'INTEGER', 'kalite_notu': 'TEXT',
                       'elle_etiketlendi': 'BOOLEAN', 'disa_aktarildi': 'BOOLEAN',
-                      'dosya_hash': 'VARCHAR(16)'},
+                      'dosya_hash': 'VARCHAR(16)', 'boru_izi': 'TEXT'},
+        # Eski tespitlerde organ boş kalır — hiyerarşiden önce kaydedildiler.
+        'tespitler': {'organ': "VARCHAR(30) DEFAULT ''"},
     }
     with engine.begin() as baglanti:
         for tablo, sutunlar in yeni.items():

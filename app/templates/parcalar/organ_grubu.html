@@ -1,0 +1,48 @@
+{# Tek bir organ grubu: bulgular + o organa özel tedavi önerileri.
+
+   `grup` bir app.sonuc_ozeti.OrganGrubu nesnesidir. Aynı sınıf iki farklı
+   organda çıkabildiği için (Gray Mold) tedavi önerisi de grubun içinde
+   gösterilir — kullanıcı hangi organdaki bulguya ait olduğunu görsün. #}
+<section class="kart organ-grubu {{ grup.aciliyet }}">
+  <h3>
+    {{ grup.simge }} {{ grup.baslik }}
+    {% if grup.gorulen %}<small class="ipucu">({{ grup.gorulen }} adet)</small>{% endif %}
+    {% if grup.aciliyet == 'yuksek' %}<span class="rozet dusuk">acil</span>
+    {% elif grup.aciliyet == 'orta' %}<span class="rozet orta">takip</span>{% endif %}
+  </h3>
+
+  {% if grup.siniflar %}
+  <table>
+    <tr><th>Bulgu</th><th>Adet</th><th>En yüksek güven</th></tr>
+    {% for s in grup.siniflar %}
+    <tr>
+      <td>{{ s.ad|sinif }} <small>({{ s.ad }})</small></td>
+      <td>{{ s.adet }}</td>
+      <td>
+        <span class="rozet {% if s.max_guven >= 0.75 %}yuksek{% elif s.max_guven >= 0.5 %}orta{% else %}dusuk{% endif %}">
+          %{{ (s.max_guven * 100)|round|int }}
+        </span>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  {% for s in grup.siniflar %}{% if s.tedavi %}
+  <div class="oneri-kutu">
+    <strong>{{ s.ad|sinif }}</strong>
+    {% if s.tedavi.etken and s.tedavi.etken != '-' %}
+    <p><strong>Etken:</strong> {{ s.tedavi.etken }}</p>
+    {% endif %}
+    {% if s.tedavi.belirti %}<p><strong>Belirti:</strong> {{ s.tedavi.belirti }}</p>{% endif %}
+    {% if s.tedavi.onlem %}
+    <p><strong>Yapılacaklar:</strong></p>
+    <ul>{% for o in s.tedavi.onlem %}<li>{{ o }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if s.tedavi.uzman %}<p class="ipucu">👨‍🌾 {{ s.tedavi.uzman }}</p>{% endif %}
+  </div>
+  {% endif %}{% endfor %}
+
+  {% else %}
+  <p class="ipucu">{{ grup.not_ or 'Bulgu yok' }}</p>
+  {% endif %}
+</section>

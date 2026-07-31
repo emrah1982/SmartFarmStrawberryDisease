@@ -53,11 +53,32 @@ class Iz:
     miras_kullanildi: bool
     sure_ms: int = 0
 
+    def organ_sayilari(self) -> dict:
+        """{organ: adet} — tespit üretmemiş organlar da burada."""
+        out = {}
+        for o, _ in self.organlar:
+            out[o] = out.get(o, 0) + 1
+        return out
+
+    def sozluk(self) -> dict:
+        """Kaydedilebilir/şablona verilebilir biçim.
+
+        Sonuç ekranı "5 yaprak gördüm, hastalık bulmadım" ile "hiç yaprak
+        görmedim" arasındaki farkı ancak buradan bilebilir; tespit listesi
+        yalnızca BULUNANLARI içerir.
+        """
+        return {
+            'organlar': self.organ_sayilari(),
+            'modeller': list(self.calisan_modeller),
+            'roi': self.roi_sayisi,
+            'miras': self.miras_kullanildi,
+            'sure_ms': self.sure_ms,
+        }
+
     def ozet(self) -> str:
         if self.miras_kullanildi and not self.organlar:
             return 'Tek model (miras) — organ modeli yok'
-        organ = ', '.join(f'{a}×{sum(1 for o, _ in self.organlar if o == a)}'
-                          for a in dict.fromkeys(o for o, _ in self.organlar))
+        organ = ', '.join(f'{a}×{n}' for a, n in self.organ_sayilari().items())
         return (f'{len(self.organlar)} organ ({organ}) → '
                 f'{self.roi_sayisi} ROI → {", ".join(self.calisan_modeller) or "—"}')
 
@@ -77,13 +98,17 @@ def _kirp(frame, kutu: Kutu, pay: float = ROI_PAY):
 
 def roi_kutusunu_cevir(kutu_roi: Kutu, roi_genislik: int, roi_yukseklik: int,
                        ofset_x: int, ofset_y: int,
-                       tam_genislik: int, tam_yukseklik: int) -> Kutu:
+                       tam_genislik: int, tam_yukseklik: int,
+                       organ: str = '') -> Kutu:
     """ROI koordinatındaki kutuyu ORİJİNAL görüntü koordinatına çevirir.
 
     Uzman model kırpıntı üzerinde çalışır ve kutularını 0-1 aralığında
     KIRPINTIYA GÖRE verir. Geri dönüştürülmezse tespit görüntünün yanlış
     yerinde görünür — sessiz ve fark edilmesi zor bir hatadır, bu yüzden
     ayrı fonksiyon ve testle sabitlenmiştir.
+
+    `organ` da burada damgalanır: kutu hangi organın kırpıntısından çıktıysa
+    o bilgi tek yerde, dönüşümün yapıldığı noktada eklenir.
     """
     px = kutu_roi.x * roi_genislik + ofset_x
     py = kutu_roi.y * roi_yukseklik + ofset_y
@@ -93,7 +118,7 @@ def roi_kutusunu_cevir(kutu_roi: Kutu, roi_genislik: int, roi_yukseklik: int,
                 guven=kutu_roi.guven,
                 x=px / tam_genislik, y=py / tam_yukseklik,
                 w=pw / tam_genislik, h=ph / tam_yukseklik,
-                kare=kutu_roi.kare)
+                kare=kutu_roi.kare, organ=organ or kutu_roi.organ)
 
 
 def _tahmin(model, goruntu, esik: float, imgsz: Optional[int] = None) -> List[Kutu]:
@@ -184,7 +209,8 @@ def calistir(frame, imgsz: Optional[int] = None,
             if u.ad not in calisan:
                 calisan.append(u.ad)
             for k in _tahmin(m, roi, u.esik, imgsz):
-                sonuc.append(roi_kutusunu_cevir(k, roi_w, roi_h, ofs_x, ofs_y, w, h))
+                sonuc.append(roi_kutusunu_cevir(k, roi_w, roi_h, ofs_x, ofs_y, w, h,
+                                                organ=organ.sinif_adi))
 
     # --- 3) Hiç uzman çalışmadıysa mirasla tamamla ------------------------
     miras_kullanildi = False
@@ -215,13 +241,16 @@ def goruntu(kaynak_yol: str, cikti_yol: str, urun: Optional[str] = None) -> Sonu
     cizim.sonuc_yaz(frame, kutular, cikti_yol, ad_cevir=dil.sinif_adi)
 
     keskinlik = keskinlik_olc(frame)
-    notlar = [iz.ozet()]
+    # kalite_notu YALNIZCA görüntü kalitesi içindir. Boru hattı izi eskiden
+    # buraya yazılıyordu ve arayüzde "Görüntü kalitesi" kutusunda
+    # "2 organ (Fruit×2) → 2 ROI" gibi geliştirici metni çıkıyordu.
+    kalite = ''
     if keskinlik < config.BULANIKLIK_ESIGI:
-        notlar.append('Görüntü bulanık; sabit tutarak tekrar çekin.')
+        kalite = 'Görüntü bulanık; sabit tutarak tekrar çekin.'
 
     return Sonuc(kutular=kutular, sonuc_yolu=cikti_yol, islenen_kare=1,
                  sure_ms=int((time.time() - t0) * 1000),
-                 keskinlik=keskinlik, kalite_notu=' '.join(notlar))
+                 keskinlik=keskinlik, kalite_notu=kalite, iz=iz.sozluk())
 
 
 def kare(frame, imgsz: Optional[int] = None, urun: Optional[str] = None) -> Sonuc:
@@ -229,5 +258,4 @@ def kare(frame, imgsz: Optional[int] = None, urun: Optional[str] = None) -> Sonu
     t0 = time.time()
     kutular, iz = calistir(frame, imgsz=imgsz, urun=urun)
     return Sonuc(kutular=kutular, islenen_kare=1,
-                 sure_ms=int((time.time() - t0) * 1000),
-                 kalite_notu=iz.ozet())
+                 sure_ms=int((time.time() - t0) * 1000), iz=iz.sozluk())

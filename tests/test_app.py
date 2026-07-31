@@ -345,11 +345,70 @@ def test_kalite_bilgisi_veritabanina_yazilir(client, monkeypatch):
 def test_cekim_rehberi_gosteriliyor(client):
     """Kullanıcı görüntü kalitesi konusunda bilgilendirilmeli."""
     r = client.get('/')
-    assert 'İyi görüntü için' in r.text
+    assert 'Nasıl çekmeli' in r.text
     assert 'Yürürken video' in r.text
     assert 'Bulanık kareler otomatik atlanır' in r.text
     # Cihaz farkı açıklaması (dizüstünde galeri açılması kafa karıştırmasın)
     assert 'kamera uygulamasını açar' in r.text
+
+
+def test_sonuc_sayfasi_organa_gore_gruplar(monkeypatch):
+    """Uçtan uca: hiyerarşik tespitler organ başlıkları altında görünmeli.
+
+    Aynı sınıf (Gray Mold) iki organda çıktığında ikisi AYRI gösterilmeli;
+    tek satırda birleşirse kullanıcı küfün meyvede mi yaprakta mı olduğunu
+    göremez ve yanlış tarımsal karar verir.
+    """
+    kutular = [
+        Kutu(3, 'Gray Mold', 0.88, 0.3, 0.3, 0.1, 0.1, organ='Fruit'),
+        Kutu(3, 'Gray Mold', 0.61, 0.7, 0.7, 0.1, 0.1, organ='Leaf'),
+    ]
+
+    class BoruHattiDetector(SahteDetector):
+        def _sonuc(self, cikti_yol, kare=1):
+            s = super()._sonuc(cikti_yol, kare)
+            s.iz = {'organlar': {'Leaf': 4, 'Fruit': 2},
+                    'modeller': ['yaprak_hastalik', 'meyve_hastalik'], 'roi': 6}
+            return s
+
+    monkeypatch.setattr(main, 'detector', BoruHattiDetector(kutular))
+    with TestClient(main.app) as c:
+        # Yükleme kayıt sayfasına yönlendirir. Sabit /kayit/1 YAZMAYIN:
+        # veritabanı testler arasında paylaşıldığı için o id başka bir
+        # testin kaydına ait olabilir.
+        r = c.post('/analiz/dosya', files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')},
+                   follow_redirects=True)
+
+    assert r.status_code == 200
+    assert 'Sahnede ne var' in r.text
+    assert '4 yaprak' in r.text and '2 meyve' in r.text
+    # İki organ başlığı da ayrı ayrı olmalı
+    assert 'Meyvelerde' in r.text and 'Yapraklarda' in r.text
+    # Boru hattı izi ARTIK "Görüntü kalitesi" kutusunda değil
+    assert 'organ (' not in r.text, 'boru hattı izi kullanıcıya ham gösterilmemeli'
+
+
+def test_organsiz_kayit_sayfasi_da_acilir(client):
+    """Miras/elle etiketlenmiş eski kayıtlarda organ yok — sayfa çökmemeli."""
+    r = client.post('/analiz/dosya', files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')},
+                    follow_redirects=True)
+    assert r.status_code == 200
+    assert 'Sahnede ne var' not in r.text, 'organ bilgisi yokken sahne özeti çıkmamalı'
+    assert 'Gray Mold' in r.text or 'Kurşuni' in r.text
+
+
+def test_rehber_organ_secmeye_yonlendirmez(client):
+    """Gerçek sahnede yaprak/çiçek/meyve bir aradadır.
+
+    Boru hattı hepsini tek karede bulup kendi uzmanına yolluyor. Rehber
+    kullanıcıyı "yaprak mı meyve mi çekiyorsun" seçimine iterse, karışık
+    kareyi hatalı çekim sanar ve sistemin asıl gücünü kullanmaz.
+    """
+    r = client.get('/')
+    assert 'seçmenize gerek yok' in r.text
+    # İki mod MESAFEYE göre ayrılır, organa göre değil
+    assert 'Tarama' in r.text and 'Teşhis' in r.text
+    assert '80-150 cm' in r.text and '30-60 cm' in r.text
 
 
 # ────────────────────────────────────────── elle etiketleme (Roboflow benzeri)

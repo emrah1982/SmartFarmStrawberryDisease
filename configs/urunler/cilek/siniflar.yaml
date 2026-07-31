@@ -139,6 +139,23 @@ Weeds:
   grup: diger
   egitimde: false
 
+# ─────────────────────────────────── organ modelinin sınıfları
+# Bunlar hastalık değil, bitkinin KISIMLARIDIR. Boru hattının giriş modeli
+# üretir ve sonuç ekranında "sahnede ne var" satırında görünürler.
+# `id` verilmez: organ modeli kendi dataset'inde 0-2 kullanır.
+Leaf:
+  tr: Yaprak
+  en: Leaf
+  grup: organ
+Fruit:
+  tr: Meyve
+  en: Fruit
+  grup: organ
+Flower:
+  tr: Çiçek
+  en: Flower
+  grup: organ
+
 # ─────────────────────── böcek teşhis modeli (ayrı akış, ROI'ye girmez)
 # Bu sınıflar bocek_teshis.pt modelinin ürettiği adlardır. `id` VERİLMEZ:
 # ID alanı birleşik modelin etiket dosyalarındaki sayıyı temsil eder, bu

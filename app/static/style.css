@@ -192,6 +192,43 @@ th { color: var(--soluk); font-weight: 600; font-size: .85rem; }
 .oneri ul { margin: .3rem 0 .3rem 1.1rem; padding: 0; }
 .oneri li { margin-bottom: .25rem; }
 
+/* sahne özeti — "sistem neye baktı" */
+.sahne-satir {
+  font-size: 1.05rem;
+  letter-spacing: .02em;
+  margin: .2rem 0 0;
+}
+
+/* organa göre bulgu grupları
+   Sol kenar rengi grubun ACİLİYETİNİ taşır; kullanıcı listeye bakmadan
+   hangi organda acil durum olduğunu görsün. */
+.organ-grubu { border-left: 4px solid var(--cizgi); }
+.organ-grubu.yuksek { border-left-color: var(--ana); }
+.organ-grubu.orta { border-left-color: var(--sari); }
+.organ-grubu.bilgi { border-left-color: var(--yesil); }
+.organ-grubu h3 { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+
+.oneri-kutu {
+  margin-top: .7rem;
+  padding: .6rem .75rem;
+  background: var(--zemin2, #fafafa);
+  border-radius: 8px;
+}
+.oneri-kutu ul { margin: .3rem 0 .3rem 1.1rem; padding: 0; }
+.oneri-kutu li { margin-bottom: .25rem; }
+.oneri-kutu p { margin: .3rem 0; }
+
+/* çekim rehberi: tarama / teşhis */
+.mod-kartlari { display: flex; gap: .8rem; flex-wrap: wrap; margin-top: .6rem; }
+.mod {
+  flex: 1 1 260px;
+  padding: .7rem .8rem;
+  border: 1px solid var(--cizgi);
+  border-radius: 10px;
+}
+.mod h4 { margin: 0 0 .3rem; font-size: .98rem; }
+.mod ul { margin: .3rem 0 0 1.1rem; padding: 0; }
+
 /* panel */
 .kutucuklar { display: flex; gap: .8rem; flex-wrap: wrap; }
 .kutucuk {

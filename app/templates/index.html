@@ -89,36 +89,7 @@
   </div>
 </section>
 
-<section class="kart">
-  <h3>📋 İyi görüntü için</h3>
-  <p class="ipucu">Model, gördüğü kadarını doğru tespit eder. Aşağıdakiler doğruluğu belirgin artırır:</p>
-  <ul class="ipucu" style="margin-top:.2rem">
-    <li><strong>Mesafe:</strong> Yaprak/meyveye 30-60 cm — çok uzaktan çekimde lezyonlar birkaç piksele düşer ve model göremez.</li>
-    <li><strong>Işık:</strong> Gündüz, dengeli ışıkta. Doğrudan güneş ve sert gölge renk ipuçlarını bozar; kahverengi leke / gri küf / beyaz külleme ayrımı renge dayanır.</li>
-    <li><strong>Arkadan ışık almayın:</strong> Yaprağı güneşe/gökyüzüne karşı tutmayın.
-      Işık yapraktan geçince lekeler saydamlaşır, renk ve kontrast tamamen değişir —
-      model bu görünümü eğitimde görmedi. Güneş <em>arkanızda</em> olacak şekilde,
-      yaprağın üstüne bakarak çekin.</li>
-    <li><strong>Sade arka plan:</strong> Yaprağı elinizde tutuyorsanız arkada gökyüzü/ağaç
-      yerine toprak veya düz bir zemin olsun; karmaşık arka plan hatalı tespit üretir.</li>
-    <li><strong>Sabitlik:</strong> Çekim anında bir saniye durun. Hareket bulanıklığı en sık doğruluk kaybı sebebidir.</li>
-    <li><strong>Odak:</strong> Telefonda hedefe dokunup odaklandığından emin olun.</li>
-  </ul>
-
-  <details style="margin-top:.5rem">
-    <summary>🎥 Yürürken video çekecekseniz — okuyun</summary>
-    <ul class="ipucu" style="margin-top:.4rem">
-      <li>Video işlenirken her kare değil, belirli aralıklarla <strong>örnekleme</strong> yapılır. 15-20 saniyelik kayıt yeterlidir; uzun video işlemeyi yavaşlatır.</li>
-      <li><strong>Bulanık kareler otomatik atlanır.</strong> Her örneklenen karenin keskinliği ölçülür; eşiğin altındakiler modele verilmez ve kaç karenin atlandığı sonuç sayfasında bildirilir.</li>
-      <li>Yavaş yürüyün ve <strong>2-3 adımda bir yarım saniye durun</strong> — duraklama anındaki kareler keskin olur, doğruluk belirgin artar.</li>
-      <li>Telefonu göğüs hizasında, bitkiye dönük ve sabit tutun.</li>
-      <li>Kararsız kalınan tespitler <a href="/inceleme">inceleme kuyruğuna</a> düşer; oradan düzeltip modeli geliştirebilirsiniz.</li>
-    </ul>
-    <p class="ipucu">⚠️ Yürürken çekim pratiktir ama <strong>fotoğrafa göre daha düşük doğruluk</strong> verir:
-      hareket bulanıklığı, değişken mesafe ve odak kayması tespit oranını düşürür.
-      Şüpheli bir bölge görürseniz durup ayrıca fotoğraf çekin.</p>
-  </details>
-</section>
+{% include 'parcalar/cekim_rehberi.html' %}
 
 <section class="kart">
   <h2>📹 IP Kameradan Anlık Görüntü</h2>

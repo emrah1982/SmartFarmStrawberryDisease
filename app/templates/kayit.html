@@ -38,6 +38,8 @@
   {% endif %}
 </section>
 
+{% include 'parcalar/sahne_ozeti.html' %}
+
 {% if a.tespit_sayisi == 0 %}
 <section class="kart">
   <h3>⬜ Tespit yok</h3>
@@ -51,63 +53,35 @@
 </section>
 {% else %}
 
-<section class="kart">
-  <h3>Tespit Özeti</h3>
-  <table>
-    <tr><th>Sınıf</th><th>Adet</th><th>En yüksek güven</th></tr>
-    {% for ad, g in gruplar %}
-    <tr>
-      <td>{{ ad|sinif }} <small>({{ ad }})</small></td>
-      <td>{{ g.adet }}</td>
-      <td>
-        <span class="rozet {% if g.max_guven >= 0.75 %}yuksek{% elif g.max_guven >= 0.5 %}orta{% else %}dusuk{% endif %}">
-          %{{ (g.max_guven * 100)|round|int }}
-        </span>
-      </td>
-    </tr>
-    {% endfor %}
-  </table>
-  {% if a.inceleme_gerekli %}
-  <p class="ipucu">⚠️ Düşük güvenli tespit içerdiği için <a href="/inceleme">inceleme kuyruğunda</a>.</p>
-  {% endif %}
-</section>
-
-{% for ad, g in gruplar %}
-{% if g.tedavi %}
-<section class="kart oneri {{ g.tedavi.aciliyet }}">
-  <h3>
-    {{ ad|sinif }}
-    {% if g.tedavi.aciliyet == 'yuksek' %}<span class="rozet dusuk">acil</span>
-    {% elif g.tedavi.aciliyet == 'orta' %}<span class="rozet orta">takip</span>
-    {% elif g.tedavi.aciliyet == 'bilgi' %}<span class="rozet">bilgi</span>{% endif %}
-  </h3>
-  {% if g.tedavi.etken and g.tedavi.etken != '-' %}
-  <p><strong>Etken:</strong> {{ g.tedavi.etken }}</p>
-  {% endif %}
-  {% if g.tedavi.belirti %}<p><strong>Belirti:</strong> {{ g.tedavi.belirti }}</p>{% endif %}
-  {% if g.tedavi.onlem %}
-  <p><strong>Yapılacaklar:</strong></p>
-  <ul>{% for o in g.tedavi.onlem %}<li>{{ o }}</li>{% endfor %}</ul>
-  {% endif %}
-  {% if g.tedavi.uzman %}<p class="ipucu">👨‍🌾 {{ g.tedavi.uzman }}</p>{% endif %}
-</section>
-{% endif %}
+{% for grup in ozet.gruplar %}
+  {% include 'parcalar/organ_grubu.html' %}
 {% endfor %}
+
+{% if a.inceleme_gerekli %}
+<p class="ipucu">⚠️ Düşük güvenli tespit içerdiği için
+  <a href="/inceleme">inceleme kuyruğunda</a>.</p>
+{% endif %}
 
 <section class="kart">
   <details>
     <summary>Tüm tespitler ({{ a.tespit_sayisi }})</summary>
     <table style="margin-top:.6rem">
-      <tr><th>#</th><th>Sınıf</th><th>Güven</th>{% if a.kaynak_tip == 'video' %}<th>Kare</th>{% endif %}</tr>
+      <tr><th>#</th><th>Sınıf</th><th>Organ</th><th>Güven</th>{% if a.kaynak_tip == 'video' %}<th>Kare</th>{% endif %}</tr>
       {% for t in a.tespitler %}
       <tr>
         <td>{{ loop.index }}</td>
         <td>{{ t.sinif_adi|sinif }}</td>
+        <td>{{ t.organ|sinif if t.organ else '—' }}</td>
         <td>%{{ (t.guven * 100)|round|int }}</td>
         {% if a.kaynak_tip == 'video' %}<td>{{ t.kare }}</td>{% endif %}
       </tr>
       {% endfor %}
     </table>
+    {% if ozet.modeller %}
+    <p class="ipucu" style="margin-top:.6rem">
+      Çalışan modeller: {{ ozet.modeller|join(', ') }}
+    </p>
+    {% endif %}
   </details>
 </section>
 {% endif %}

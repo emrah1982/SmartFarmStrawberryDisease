@@ -10,6 +10,7 @@ model tahmin üretsin, sonuçlar veritabanına kaydedilsin.
 """
 
 import hashlib
+import json
 import logging
 import shutil
 import uuid
@@ -190,13 +191,15 @@ def _kaydet(sonuc, db: Session, kaynak_tip: str, kaynak_ad: str,
         keskinlik=getattr(sonuc, 'keskinlik', 0.0),
         bulanik_kare=getattr(sonuc, 'bulanik_kare', 0),
         kalite_notu=getattr(sonuc, 'kalite_notu', ''),
+        boru_izi=json.dumps(getattr(sonuc, 'iz', {}) or {}, ensure_ascii=False),
         inceleme_gerekli=sonuc.inceleme_gerekli,
     )
     db.add(a)
     db.flush()
     for k in sonuc.kutular:
         db.add(Tespit(analiz_id=a.id, sinif_id=k.sinif_id, sinif_adi=k.sinif_adi,
-                      guven=k.guven, x=k.x, y=k.y, w=k.w, h=k.h, kare=k.kare))
+                      guven=k.guven, x=k.x, y=k.y, w=k.w, h=k.h, kare=k.kare,
+                      organ=getattr(k, 'organ', '')))
     db.commit()
     db.refresh(a)
 
@@ -311,14 +314,11 @@ def kayit(analiz_id: int, request: Request, db: Session = Depends(get_db)):
     if not yetki.erisebilir_mi(db, yetki.aktif_kullanici(db), a):
         raise HTTPException(403, 'Bu kayda erişim yetkiniz yok')
 
-    # Sınıf bazlı özet + tedavi önerisi
-    gruplar = {}
-    for t in a.tespitler:
-        g = gruplar.setdefault(t.sinif_adi, {'adet': 0, 'max_guven': 0.0})
-        g['adet'] += 1
-        g['max_guven'] = max(g['max_guven'], t.guven)
-    for ad, g in gruplar.items():
-        g['tedavi'] = TEDAVI.get(ad, {})
+    # ORGANA göre özet — gruplama mantığı app/sonuc_ozeti.py'de.
+    # Sınıf adına göre gruplamak yetmiyordu: "Gray Mold" hem yaprak hem
+    # meyve modelinde var ve ikisinin tarımsal karşılığı farklı.
+    from app import sonuc_ozeti
+    ozet = sonuc_ozeti.kur(a.tespitler, a.boru_izi, TEDAVI, getattr(a, 'urun', None))
 
     # Aynı görüntü daha önce analiz edilmiş mi? (tekrar yükleme uyarısı)
     ayni = []
@@ -328,8 +328,7 @@ def kayit(analiz_id: int, request: Request, db: Session = Depends(get_db)):
                 .order_by(Analiz.id.desc()).all())
 
     return templates.TemplateResponse(request, 'kayit.html', {
-        'request': request, 'a': a, 'ayni': ayni,
-        'gruplar': sorted(gruplar.items(), key=lambda x: -x[1]['adet']),
+        'request': request, 'a': a, 'ayni': ayni, 'ozet': ozet,
     })
 
 

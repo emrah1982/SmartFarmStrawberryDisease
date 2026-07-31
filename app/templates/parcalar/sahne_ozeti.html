@@ -1,0 +1,26 @@
+{# Sahnede ne var? — organ modelinin bulduğu bitki kısımları.
+
+   Gerçek sahnede yaprak/çiçek/meyve bir aradadır. Kullanıcı önce "sistem
+   neye baktı" sorusunun cevabını görmeli; bulgular ondan sonra anlam kazanır.
+   Bu blok TESPİT sayısını değil GÖRÜLEN organ sayısını gösterir. #}
+{% if ozet.sahne_var %}
+<section class="kart sahne">
+  <h3>🔍 Sahnede ne var</h3>
+  <p class="sahne-satir">{{ ozet.sahne_metni }}</p>
+  {% if ozet.kontrol_edilmeyen %}
+  <details class="ipucu" style="margin-top:.5rem">
+    <summary>Bu karede kontrol <strong>edilmeyenler</strong>
+      ({{ ozet.kontrol_edilmeyen|length }})</summary>
+    <ul style="margin-top:.4rem">
+      {% for k in ozet.kontrol_edilmeyen %}<li>{{ k }}</li>{% endfor %}
+    </ul>
+    <p style="margin-top:.4rem">Bulgu çıkmaması bu kısımların sağlıklı olduğu
+      anlamına gelmez — bu karede görülmedikleri için bakılamadı.</p>
+  </details>
+  {% endif %}
+</section>
+{% elif ozet.miras %}
+<section class="kart">
+  <p class="ipucu">ℹ️ Bu kayıt tek modelli (eski) akışla üretildi; organ ayrımı yok.</p>
+</section>
+{% endif %}

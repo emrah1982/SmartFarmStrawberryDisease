@@ -28,6 +28,16 @@ class Kutu:
     w: float
     h: float
     kare: int = 0
+    # Bu tespitin BULUNDUĞU organ (hiyerarşik boru hattında dolar).
+    #
+    # NEDEN GEREKLİ? Aynı sınıf birden çok uzman modelde olabilir: "Gray Mold"
+    # hem yaprak hem meyve modelinde tanımlıdır. Organ bilgisi taşınmazsa
+    # sonuç ekranı ikisini tek satırda birleştirir ve kullanıcı küfün yaprakta
+    # mı meyvede mi olduğunu göremez. İkisinin tarımsal karşılığı farklıdır:
+    # meyvedeki kurşuni küf acil hasat/imha, yapraktaki havalandırma demektir.
+    #
+    # Tek modelli (miras) akışta ve elle etiketlemede boş kalır.
+    organ: str = ''
 
 
 @dataclass
@@ -39,6 +49,10 @@ class Sonuc:
     keskinlik: float = 0.0        # Laplacian varyansı — düşükse bulanık
     bulanik_kare: int = 0         # videoda atlanan bulanık kare sayısı
     kalite_notu: str = ''         # kullanıcıya gösterilecek uyarı
+    # Boru hattının ne yaptığı: hangi organlar görüldü, hangi modeller çalıştı.
+    # Tespit ÜRETİLMEYEN organlar da burada durur — "5 yaprak gördüm, hastalık
+    # bulmadım" ile "hiç yaprak görmedim" arasındaki fark yalnızca burada saklı.
+    iz: dict = field(default_factory=dict)
 
     @property
     def min_guven(self) -> float:
