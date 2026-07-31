@@ -30,6 +30,12 @@
   {% for s in grup.siniflar %}{% if s.tedavi %}
   <div class="oneri-kutu">
     <strong>{{ s.ad|sinif }}</strong>
+    {% if s.organa_ozel %}
+    <span class="rozet"
+          title="Aynı hastalık {{ grup.tekil }} üzerinde farklı seyreder; bu metin ona göre yazıldı">
+      {{ grup.simge }} {{ grup.tekil }} için
+    </span>
+    {% endif %}
     {% if s.tedavi.etken and s.tedavi.etken != '-' %}
     <p><strong>Etken:</strong> {{ s.tedavi.etken }}</p>
     {% endif %}

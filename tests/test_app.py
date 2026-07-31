@@ -387,6 +387,12 @@ def test_sonuc_sayfasi_organa_gore_gruplar(monkeypatch):
     # Boru hattı izi ARTIK "Görüntü kalitesi" kutusunda değil
     assert 'organ (' not in r.text, 'boru hattı izi kullanıcıya ham gösterilmemeli'
 
+    # Aynı sınıfın tedavi metni de organa göre farklı olmalı — yaprak
+    # bulgusuna meyve talimatı gösterilirse kullanıcı olmayan işi yapar
+    assert '🍓 meyve için' in r.text and '🌿 yaprak için' in r.text
+    assert 'Enfekte meyveleri HEMEN' in r.text        # meyve grubunda
+    assert 'Yaşlanmış ve ölü yaprakları' in r.text    # yaprak grubunda
+
 
 def test_organsiz_kayit_sayfasi_da_acilir(client):
     """Miras/elle etiketlenmiş eski kayıtlarda organ yok — sayfa çökmemeli."""

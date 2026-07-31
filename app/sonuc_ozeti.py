@@ -55,6 +55,9 @@ class SinifSatiri:
     adet: int = 0
     max_guven: float = 0.0
     tedavi: dict = field(default_factory=dict)
+    # Öneri metni bu organ için ÖZELLEŞTİRİLDİ mi? Arayüzde rozet olarak
+    # gösterilir; kullanıcı genel metni mi organa özel metni mi okuduğunu bilsin.
+    organa_ozel: bool = False
 
     @property
     def aciliyet(self) -> str:
@@ -75,6 +78,11 @@ class OrganGrubu:
     @property
     def baslik(self) -> str:
         return gorunum(self.organ)['baslik']
+
+    @property
+    def tekil(self) -> str:
+        """'yaprak' / 'meyve' — cümle içinde kullanılacak biçim."""
+        return gorunum(self.organ)['tekil']
 
     @property
     def tespit_sayisi(self) -> int:
@@ -158,6 +166,8 @@ def kur(tespitler, boru_izi=None, tedavi_kutugu=None, urun=None) -> Ozet:
     organ_sayilari = {k: int(v) for k, v in (iz.get('organlar') or {}).items()}
     tedavi_kutugu = tedavi_kutugu or {}
 
+    from app import tedavi as tedavi_modulu
+
     # Organ → sınıf → satır
     kova = {}
     for t in tespitler:
@@ -165,7 +175,13 @@ def kur(tespitler, boru_izi=None, tedavi_kutugu=None, urun=None) -> Ozet:
         g = kova.setdefault(organ, {})
         s = g.get(t.sinif_adi)
         if s is None:
-            s = SinifSatiri(ad=t.sinif_adi, tedavi=tedavi_kutugu.get(t.sinif_adi, {}))
+            # Öneri ORGANA göre çözülür: aynı sınıf yaprakta ve meyvede
+            # farklı belirti/aciliyet taşıyabilir (bkz. app/tedavi.py).
+            s = SinifSatiri(
+                ad=t.sinif_adi,
+                tedavi=tedavi_modulu.coz(tedavi_kutugu, t.sinif_adi, organ),
+                organa_ozel=bool(organ) and tedavi_modulu.organa_ozel_mi(
+                    tedavi_kutugu, t.sinif_adi))
             g[t.sinif_adi] = s
         s.adet += 1
         s.max_guven = max(s.max_guven, float(t.guven or 0))

@@ -54,11 +54,9 @@ VIDEO_UZANTI = {'.mp4', '.mov', '.avi', '.mkv', '.webm'}
 
 
 def tedavi_yukle(urun=None) -> dict:
-    from app import urunler
-    p = urunler.yapilandirma(urun, 'tedavi_onerileri.yaml')
-    if not p.exists():
-        return {}
-    return yaml.safe_load(p.read_text(encoding='utf-8')) or {}
+    """Tedavi kütüğü — okuma ve organ bazlı çözümleme app/tedavi.py'de."""
+    from app import tedavi as tedavi_modulu
+    return tedavi_modulu.yukle(urun)
 
 
 def siniflari_yukle() -> dict:

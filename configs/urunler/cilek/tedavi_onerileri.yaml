@@ -34,16 +34,42 @@ Blossom Blight:
   uzman: Çiçeklenme kritik dönemdir; koruyucu uygulama zamanlaması için uzman görüşü
     önemlidir.
 Gray Mold:
+  # ORGANA GÖRE DEĞİŞEN İLK KAYIT.
+  # Botrytis hem yaprakta hem meyvede aynı sınıf olarak tespit edilir (model
+  # etiketleri öyle), ama yapılacak iş farklıdır: meyvede acil hasat/imha,
+  # yaprakta kaynak temizliği ve nem yönetimi. Alttaki `organ:` bloğu
+  # yalnızca FARKLI olan alanları yazar; yazılmayanlar buradan gelir.
   ad: Kurşuni Küf (Botrytis)
   etken: Fungal (Botrytis cinerea)
   aciliyet: yuksek
-  belirti: Meyvede gri, tozlu küf tabakası; yumuşama ve hızlı çürüme.
+  belirti: Gri, tozlu küf tabakası; dokuda yumuşama ve çürüme.
   onlem:
-  - Enfekte meyve ve yaprakları seradan uzaklaştırın.
+  - Enfekte kısımları seradan uzaklaştırın (kompost yapmayın).
   - Nem oranını düşürün; gece nem yoğunlaşmasını önleyin.
   - Yaprak ıslaklığını azaltın, damla sulama kullanın.
-  - Hasadı geciktirmeyin; zedelenmiş meyveyi ayırın.
   uzman: Depoda da ilerler; hasat sonrası soğuk zincir ve uzman önerisi önemlidir.
+  organ:
+    fruit:
+      aciliyet: yuksek
+      belirti: Meyvede gri, tozlu küf tabakası; yumuşama ve hızlı çürüme. Temas eden
+        sağlam meyveye günler içinde geçer.
+      onlem:
+      - Enfekte meyveleri HEMEN toplayıp seradan çıkarın — sporlar komşu meyveye
+        temasla geçer.
+      - Hasadı geciktirmeyin; zedelenmiş ve aşırı olgun meyveyi ayırın.
+      - Hasat sonrası meyveyi hızla soğutun; küf soğukta da yavaşça ilerler.
+      - Meyvelerin toprakla ve ıslak yaprakla temasını kesin (malç/askı).
+    leaf:
+      aciliyet: orta
+      belirti: Yaşlı veya yaralı yapraklarda kenardan başlayan kahverengi kuruma;
+        ölü doku üzerinde gri küf. Meyvedeki kadar hızlı ilerlemez.
+      onlem:
+      - Yaşlanmış ve ölü yaprakları temizleyin — yapraktaki küf, MEYVE
+        enfeksiyonunun ana spor kaynağıdır.
+      - Bitki sıklığını seyreltip sıra arası hava akımını artırın.
+      - Sabah erken sulayın; yaprakların gün içinde kurumasını sağlayın.
+      uzman: Yapraktaki odak çiçeklenme dönemine denk gelirse meyve kaybı riski
+        artar; koruyucu program zamanlaması için uzmana danışın.
 Leaf Spot:
   ad: Yaprak Lekesi
   etken: Fungal (Mycosphaerella fragariae vb.)
