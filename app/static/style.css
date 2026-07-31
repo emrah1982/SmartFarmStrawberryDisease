@@ -224,6 +224,25 @@ th { color: var(--soluk); font-weight: 600; font-size: .85rem; }
 .rozet.tur-zararli { background: #ede7f6; color: #4a2f8f; }
 .rozet.tur-olgunluk { background: #e8f5e9; color: var(--yesil); }
 
+/* böcek teşhis — aday güven çubuğu
+   Model kapalı kümedir; tek cevap yerine adayların güven DAĞILIMI gösterilir
+   ki kullanıcı modelin ne kadar emin olduğunu görebilsin. */
+.cubuk {
+  height: 8px;
+  background: var(--cizgi);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.cubuk span {
+  display: block;
+  height: 100%;
+  background: var(--ana);
+  border-radius: 4px;
+}
+tr.ilk-aday { background: #f5faf5; }
+.tur-listesi { columns: 2; column-gap: 1.2rem; }
+@media (max-width: 520px) { .tur-listesi { columns: 1; } }
+
 /* çekim rehberi: tarama / teşhis */
 .mod-kartlari { display: flex; gap: .8rem; flex-wrap: wrap; margin-top: .6rem; }
 .mod {

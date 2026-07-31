@@ -48,10 +48,11 @@ def sablon_ayarla(templates):
 
 def yuklu_moduller() -> List[Modul]:
     """Etkin modüller. Kapatmak için ilgili satırı yorumlamak yeterlidir."""
+    from app.moduller.bocek import modul as bocek_modul
     from app.moduller.canli import modul as canli_modul
     from app.moduller.konum import modul as konum_modul
     from app.moduller.veritabani import modul as veritabani_modul
-    return [canli_modul(), konum_modul(), veritabani_modul()]
+    return [canli_modul(), bocek_modul(), konum_modul(), veritabani_modul()]
 
 
 def kaydet(app: FastAPI, engine=None) -> List[Modul]:

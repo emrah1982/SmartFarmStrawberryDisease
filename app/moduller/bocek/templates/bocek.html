@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block baslik %}Böcek Teşhis{% endblock %}
+{% block icerik %}
+
+<section class="kart">
+  <h2>🐛 Böcek Teşhis</h2>
+  <p class="ipucu">
+    Bulduğunuz böceğin <strong>yakın çekim</strong> fotoğrafını yükleyin; model türünü
+    söyler ve mücadele önerisi gösterir.
+  </p>
+  <p class="ipucu">
+    Bu, bitki analizinden <strong>ayrı bir akıştır</strong>. Yaprak/meyve fotoğrafı için
+    <a href="/">Görüntü Analizi</a> sayfasını kullanın — orada hastalık ve olgunluk
+    aranır, burada böcek türü.
+  </p>
+
+  {% if not hazir %}
+  <div class="uyari">
+    <strong>⚠️ Model henüz kurulu değil.</strong>
+    <p class="ipucu">Eğitip kurmak için:</p>
+    <ol class="ipucu">
+      <li>Colab 4️⃣ hücresi: <code>EGITILECEK = 'bocek_teshis'</code></li>
+      <li>Eğitim bitince <code>bocek_teshis.pt</code> dosyasını indirin</li>
+      <li><code>python scripts/model_kur.py bocek_teshis &lt;dosya&gt;</code></li>
+    </ol>
+  </div>
+  {% else %}
+
+  <form action="/bocek/tani" method="post" enctype="multipart/form-data"
+        id="form" class="butonlar">
+    <label class="btn btn-birincil">
+      <span>📷 Fotoğraf Çek</span>
+      <input type="file" name="dosya" accept="image/*" capture="environment" hidden
+             onchange="this.form.submit()">
+    </label>
+    <label class="btn">
+      <span>🖼️ Dosya Seç</span>
+      <input type="file" name="dosya" accept="image/*" hidden
+             onchange="this.form.submit()">
+    </label>
+  </form>
+  {% endif %}
+
+  {% if hata %}<div class="uyari"><strong>⚠️</strong> {{ hata }}</div>{% endif %}
+</section>
+
+{# ─────────────────────────────────────────────── sonuç #}
+{% if sonuc %}
+<section class="kart">
+  <h3>Sonuç</h3>
+  {% if gorsel %}<img class="buyuk" src="{{ gorsel }}" alt="Yüklenen fotoğraf">{% endif %}
+
+  {% if sonuc.hata %}
+  <div class="uyari">{{ sonuc.hata }}</div>
+
+  {% elif not sonuc.bulundu %}
+  <div class="uyari">
+    <strong>Böcek bulunamadı.</strong>
+    <p class="ipucu">Böcek kadraja hâkim olacak şekilde, net ve yakın çekin.
+      Çok uzaktan çekilen fotoğrafta model hiçbir şey göremez.</p>
+  </div>
+
+  {% else %}
+    {% if sonuc.kararsiz %}
+    <div class="uyari">
+      <strong>⚠️ Model kararsız.</strong> İlk iki aday birbirine çok yakın —
+      tek bir sonuca güvenmeyin, aşağıdaki adayları karşılaştırın.
+    </div>
+    {% endif %}
+
+    {# Tek cevap DEĞİL, aday listesi gösteriliyor: model kapalı kümedir ve
+       bilmediği bir böceği de bu 6 türden birine sokar. Güven dağılımını
+       görmek kullanıcının kendi kararını vermesini sağlar. #}
+    <table>
+      <tr><th>Aday tür</th><th>Güven</th><th></th></tr>
+      {% for a in sonuc.adaylar %}
+      <tr {% if loop.first and not sonuc.kararsiz %}class="ilk-aday"{% endif %}>
+        <td>
+          {% if loop.first %}<strong>{{ a.ad|sinif }}</strong>{% else %}{{ a.ad|sinif }}{% endif %}
+          <small>({{ a.ad }})</small>
+        </td>
+        <td>
+          <span class="rozet {% if a.guven >= 0.75 %}yuksek{% elif a.guven >= 0.5 %}orta{% else %}dusuk{% endif %}">
+            %{{ a.yuzde }}
+          </span>
+        </td>
+        <td style="width:45%">
+          <div class="cubuk"><span style="width:{{ a.yuzde }}%"></span></div>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+</section>
+
+{% for a in sonuc.adaylar %}
+{% set o = onermeler.get(a.ad) %}
+{% if o and loop.first %}
+<section class="kart oneri {{ o.aciliyet }}">
+  <h3>
+    {{ a.ad|sinif }}
+    {% if o.aciliyet == 'yuksek' %}<span class="rozet dusuk">acil</span>
+    {% elif o.aciliyet == 'orta' %}<span class="rozet orta">takip</span>{% endif %}
+  </h3>
+  {% if o.etken and o.etken != '-' %}<p><strong>Etken:</strong> {{ o.etken }}</p>{% endif %}
+  {% if o.belirti %}<p><strong>Belirti:</strong> {{ o.belirti }}</p>{% endif %}
+  {% if o.onlem %}
+  <p><strong>Yapılacaklar:</strong></p>
+  <ul>{% for x in o.onlem %}<li>{{ x }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if o.uzman %}<p class="ipucu">👨‍🌾 {{ o.uzman }}</p>{% endif %}
+  <p class="ipucu">
+    ℹ️ Bu öneri <strong>genel</strong> metindir. Böceğin bitkinin neresinde olduğu
+    fotoğraftan anlaşılamadığı için yaprak/meyve ayrımı yapılmadı.
+  </p>
+</section>
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# ─────────────────────────────── modelin sınırı: KAPALI KÜME #}
+{% if hazir %}
+<section class="kart">
+  <h3>⚠️ Model neyi bilir, neyi bilmez</h3>
+  <p class="ipucu">Model yalnızca aşağıdaki <strong>{{ turler|length }} türü</strong> tanır:</p>
+  <ul class="ipucu tur-listesi">
+    {% for t in turler %}<li>{{ t|sinif }} <small>({{ t }})</small></li>{% endfor %}
+  </ul>
+  <div class="uyari">
+    <strong>Listede olmayan bir böcek için de cevap üretir.</strong>
+    Model "bilmiyorum" diyemez; gördüğü her böceği bu {{ turler|length }} türden birine
+    sokar. Bu yüzden tek bir sonuç değil <strong>aday listesi</strong> gösteriyoruz.
+    Güvenler birbirine yakınsa ya da fotoğraftaki böcek listede yoksa
+    <strong>sonuca güvenmeyin</strong>.
+  </div>
+  <p class="ipucu">
+    <strong>Tarlada zararlı taraması bu sayfa değildir.</strong> Model makro
+    fotoğraflarla eğitildi; geniş kareli saha fotoğrafında böcek birkaç piksel
+    kalır ve görülemez. Saha taraması için ayrı bir model (<code>zararli</code>)
+    gerekiyor, verisi henüz toplanmadı.
+  </p>
+</section>
+
+<section class="kart">
+  <h3>📷 Nasıl çekmeli</h3>
+  <ul class="ipucu">
+    <li><strong>Yakın ve net:</strong> Böcek kareyi büyük ölçüde doldursun. Telefonu
+      10-20 cm mesafeye getirip hedefe dokunarak odaklayın.</li>
+    <li><strong>Sade zemin:</strong> Toprak, avuç içi veya düz bir yüzey. Karışık bitki
+      dokusu üzerinde böceğin sınırları kaybolur.</li>
+    <li><strong>Gölge yok:</strong> Kendi gölgeniz böceğin üstüne düşmesin.</li>
+    <li><strong>Hareketliyse</strong> bir kaba alıp fotoğraflayın; bulanık karede model
+      şekli okuyamaz.</li>
+  </ul>
+</section>
+{% endif %}
+
+{% endblock %}
