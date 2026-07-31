@@ -11,12 +11,22 @@
     {% elif grup.aciliyet == 'orta' %}<span class="rozet orta">takip</span>{% endif %}
   </h3>
 
+{# Bulgu türü rozeti: hastalık ve zararlı aynı organda yan yana çıkabilir.
+   Yapılacak iş türü farklıdır — hastalıkta kültürel önlem/fungisit,
+   zararlıda sayım-eşik ve biyolojik mücadele. #}
+{% set TUR = {'hastalik': ('🦠', 'hastalık'), 'zararli': ('🐛', 'zararlı'),
+              'olgunluk': ('📅', 'olgunluk')} %}
   {% if grup.siniflar %}
   <table>
-    <tr><th>Bulgu</th><th>Adet</th><th>En yüksek güven</th></tr>
+    <tr><th>Bulgu</th><th>Tür</th><th>Adet</th><th>En yüksek güven</th></tr>
     {% for s in grup.siniflar %}
     <tr>
       <td>{{ s.ad|sinif }} <small>({{ s.ad }})</small></td>
+      <td>
+        {% if s.grup in TUR %}
+        <span class="rozet tur-{{ s.grup }}">{{ TUR[s.grup][0] }} {{ TUR[s.grup][1] }}</span>
+        {% else %}—{% endif %}
+      </td>
       <td>{{ s.adet }}</td>
       <td>
         <span class="rozet {% if s.max_guven >= 0.75 %}yuksek{% elif s.max_guven >= 0.5 %}orta{% else %}dusuk{% endif %}">

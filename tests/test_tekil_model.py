@@ -95,6 +95,45 @@ class TestKutukTutarli:
         assert z.aktif is False, 'zararli modelinin verisi yok, aktif olmamalı'
 
 
+class TestSinifAdlariTekil:
+    """Aynı canlı iki farklı sınıf adıyla anılmamalı.
+
+    GERÇEK HATA: böcek teşhis dataseti kırmızı örümceği "Red Spider Mite",
+    saha zararlı modeli "Spider Mites" diyordu. İkisinin Türkçe adı da
+    "Kırmızı Örümcek"ti. Sonucu:
+      - arayüzde iki ayrı "Kırmızı Örümcek" satırı
+      - iki ayrı tedavi metni yazma zorunluluğu
+      - geçmiş sorgusunda aynı zararlının kayıtlarının ikiye bölünmesi
+
+    Modeller ayrı kalır (girdi alanları farklı), sınıf ADI paylaşılır.
+    """
+
+    def test_ayni_turkce_ad_iki_sinifa_verilmemis(self):
+        tr_haritasi = {}
+        for t in modeller.tanimlar('cilek').values():
+            for ad in t.siniflar:
+                tr = siniflar.bilgi(ad, 'cilek').get('tr')
+                if tr:
+                    tr_haritasi.setdefault(tr, set()).add(ad)
+        cakisan = {tr: sorted(adlar) for tr, adlar in tr_haritasi.items()
+                   if len(adlar) > 1}
+        assert not cakisan, f'aynı Türkçe ad birden çok sınıfta: {cakisan}'
+
+    def test_kirmizi_orumcek_tek_sinif_adiyla(self):
+        zararli = modeller.tanim('zararli', 'cilek').siniflar
+        bocek = modeller.tanim('bocek_teshis', 'cilek').siniflar
+        ortak = set(zararli) & set(bocek)
+        assert ortak == {'Spider Mites'}, (
+            f'iki modelin ortak sınıfı yalnızca kırmızı örümcek olmalı: {ortak}')
+        assert 'Red Spider Mite' not in bocek
+
+    def test_ortak_sinif_tek_tedavi_kaydi_kullanir(self):
+        from app import tedavi
+        kutuk = tedavi.yukle('cilek')
+        assert 'Spider Mites' in kutuk
+        assert 'Red Spider Mite' not in kutuk, 'ikinci kayıt tekrar üretir'
+
+
 class TestPaketTemizlendi:
     """harici_paket_duzelt.py sızıntıyı gerçekten kesti mi?
 

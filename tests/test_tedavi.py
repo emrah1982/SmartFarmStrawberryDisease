@@ -145,3 +145,86 @@ class TestGercekYapilandirma:
             for organ in ((v or {}).get('organ') or {}):
                 assert organ in sonuc_ozeti.ORGAN_GORUNUM, (
                     f'{ad}: tanınmayan organ {organ!r} — bu blok hiç kullanılmaz')
+
+
+class TestZararliAltyapisi:
+    """Zararlı modeli EĞİTİLMEDEN önce arayüz hazır mı?
+
+    Model devreye girdiği anda Thrips/Aphids/Spider Mites gibi sınıflar HEM
+    yaprakta HEM meyvede çıkacak. O gün metin yazmaya başlamak, ilk saha
+    kullanımının boş öneri kutularıyla geçmesi demektir. Metinler önceden
+    yazıldı; bu testler kütükle tutarlı kalmasını sağlar.
+    """
+
+    @pytest.fixture
+    def kutuk(self):
+        return tedavi.yukle('cilek')
+
+    @pytest.fixture
+    def zararli_siniflar(self):
+        from app import modeller
+        modeller.bosalt_kutuk()
+        t = modeller.tanim('zararli', 'cilek')
+        assert t is not None, 'zararli modeli kütükte tanımlı olmalı'
+        return t.siniflar
+
+    def test_her_zararlinin_onerisi_var(self, kutuk, zararli_siniflar):
+        eksik = [s for s in zararli_siniflar if s not in kutuk]
+        assert not eksik, f'öneri metni olmayan zararlı: {eksik}'
+
+    def test_her_zararli_iki_organda_da_tanimli(self, kutuk, zararli_siniflar):
+        """modeller.yaml'da tetik [leaf, fruit] — ikisi de yazılmış olmalı."""
+        for s in zararli_siniflar:
+            organ = (kutuk[s] or {}).get('organ') or {}
+            assert set(organ) >= {'leaf', 'fruit'}, (
+                f'{s}: eksik organ bloğu {sorted(organ)}')
+
+    def test_iki_organin_metni_gercekten_farkli(self, kutuk, zararli_siniflar):
+        """Kopyala-yapıştır metin işe yaramaz; ayrım anlamlı olmalı."""
+        for s in zararli_siniflar:
+            yaprak = tedavi.coz(kutuk, s, 'Leaf')
+            meyve = tedavi.coz(kutuk, s, 'Fruit')
+            assert yaprak['belirti'] != meyve['belirti'], f'{s}: belirti aynı'
+            assert yaprak['onlem'] != meyve['onlem'], f'{s}: önlem aynı'
+
+    def test_zararlilarin_turkce_adi_ve_grubu_var(self, zararli_siniflar):
+        from app import siniflar as sk
+        sk.bosalt_onbellek()
+        for s in zararli_siniflar:
+            bilgi = sk.bilgi(s, 'cilek')
+            assert bilgi.get('tr'), f'{s}: Türkçe ad yok'
+            assert sk.grup(s, 'cilek') == 'zararli', f'{s}: grup zararlı olmalı'
+
+    def test_kutuk_ve_model_sinif_adlari_birebir(self, kutuk, zararli_siniflar):
+        """Ad bir harf saparsa öneri hiç bulunamaz, kutu boş çıkar."""
+        for s in zararli_siniflar:
+            assert kutuk[s]['ad'], f'{s}: görünen ad yok'
+
+    def test_model_egitilince_calisacak_uctan_uca(self, kutuk, zararli_siniflar):
+        """Zararlı tespiti geldiğinde özet doğru kurulmalı — şimdiden dene."""
+        from dataclasses import dataclass
+
+        from app import sonuc_ozeti
+
+        @dataclass
+        class T:
+            sinif_adi: str
+            guven: float
+            organ: str
+
+        tespitler = [T('Spider Mites', 0.7, 'Leaf'), T('Spider Mites', 0.6, 'Fruit'),
+                     T('Leaf Spot', 0.5, 'Leaf')]
+        o = sonuc_ozeti.kur(tespitler, {'organlar': {'Leaf': 4, 'Fruit': 2}},
+                            kutuk, 'cilek')
+        yaprak = next(g for g in o.gruplar if g.organ == 'Leaf')
+        meyve = next(g for g in o.gruplar if g.organ == 'Fruit')
+
+        # Aynı zararlı iki organda AYRI metinle
+        y_akar = next(s for s in yaprak.siniflar if s.ad == 'Spider Mites')
+        m_akar = next(s for s in meyve.siniflar if s.ad == 'Spider Mites')
+        assert y_akar.tedavi['belirti'] != m_akar.tedavi['belirti']
+        assert y_akar.organa_ozel and m_akar.organa_ozel
+
+        # Hastalık ve zararlı aynı organda ayırt edilebilmeli
+        assert y_akar.grup == 'zararli'
+        assert next(s for s in yaprak.siniflar if s.ad == 'Leaf Spot').grup == 'hastalik'

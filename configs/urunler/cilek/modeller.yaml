@@ -101,7 +101,12 @@ bocek_teshis:
   rol: tekil
   tetik: []              # BOŞ BIRAKILMALI — ROI akışına karışmasın
   # Sıra dataset'ten gelir (datasets/cilek/bocek_teshis/data.yaml).
-  siniflar: [Army Worm, Black Cutworm, Grub, Mole Cricket, Peach Borer, Red Spider Mite]
+  #
+  # `Spider Mites` BİLEREK zararli modeliyle AYNI adı taşır: aynı canlıdır.
+  # Farklı ad verilseydi (Red Spider Mite) aynı böcek arayüzde iki isimle
+  # görünür, iki ayrı tedavi metni gerekir ve geçmiş sorgusu ikiye bölünürdü.
+  # Sınıf ADI paylaşılır; MODEL ayrı kalır, çünkü girdi alanları farklıdır.
+  siniflar: [Army Worm, Black Cutworm, Grub, Mole Cricket, Peach Borer, Spider Mites]
   esik: 0.35
   aktif: true
   aciklama: >

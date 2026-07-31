@@ -58,6 +58,14 @@ class SinifSatiri:
     # Öneri metni bu organ için ÖZELLEŞTİRİLDİ mi? Arayüzde rozet olarak
     # gösterilir; kullanıcı genel metni mi organa özel metni mi okuduğunu bilsin.
     organa_ozel: bool = False
+    # hastalik | zararli | olgunluk | diger — siniflar.yaml'dan gelir.
+    #
+    # NEDEN GEREKLİ? Zararlı modeli devreye girdiğinde aynı organ grubunda
+    # hastalık ve zararlı YAN YANA çıkacak (örn. yaprakta hem Yaprak Lekesi
+    # hem Trips). Yapılacak iş türü tamamen farklıdır: hastalıkta kültürel
+    # önlem ve fungisit, zararlıda sayım-eşik ve biyolojik mücadele.
+    # Ayırt edilmezse kullanıcı listeyi tek tip bir "sorun" listesi sanar.
+    grup: str = 'diger'
 
     @property
     def aciliyet(self) -> str:
@@ -166,6 +174,7 @@ def kur(tespitler, boru_izi=None, tedavi_kutugu=None, urun=None) -> Ozet:
     organ_sayilari = {k: int(v) for k, v in (iz.get('organlar') or {}).items()}
     tedavi_kutugu = tedavi_kutugu or {}
 
+    from app import siniflar as sinif_kutugu
     from app import tedavi as tedavi_modulu
 
     # Organ → sınıf → satır
@@ -181,7 +190,8 @@ def kur(tespitler, boru_izi=None, tedavi_kutugu=None, urun=None) -> Ozet:
                 ad=t.sinif_adi,
                 tedavi=tedavi_modulu.coz(tedavi_kutugu, t.sinif_adi, organ),
                 organa_ozel=bool(organ) and tedavi_modulu.organa_ozel_mi(
-                    tedavi_kutugu, t.sinif_adi))
+                    tedavi_kutugu, t.sinif_adi),
+                grup=sinif_kutugu.grup(t.sinif_adi, urun))
             g[t.sinif_adi] = s
         s.adet += 1
         s.max_guven = max(s.max_guven, float(t.guven or 0))

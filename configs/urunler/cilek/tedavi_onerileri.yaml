@@ -124,3 +124,192 @@ strawberry_unripe:
   onlem:
   - Hasat için erken; olgunluk takibine devam edin.
   uzman: ''
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ZARARLILAR
+#
+#  Bu sınıfların hepsi HEM YAPRAKTA HEM MEYVEDE bulunabilir (modeller.yaml:
+#  zararli → tetik: [leaf, fruit]). Aynı böceğin iki organdaki anlamı
+#  farklıdır ve çoğu zaman beslenme bir organda, ürün kaybı diğerindedir:
+#
+#      Kırmızı örümcek YAPRAKTA beslenir → asıl zarar orada
+#      Meyvede ağ görülmesi AĞIR bulaşma göstergesidir, ayrı bir uyarıdır
+#
+#      Trips zararı ÇİÇEKLENMEDE oluşur → meyvede görüldüğünde iş işten geçmiş,
+#      yapılacak şey bir sonraki partinin izlemesini öne almaktır
+#
+#  Bu yüzden her kayıtta `organ:` bloğu vardır. Ortak alanlar böceği tanıtır;
+#  organ blokları o organdaki BELİRTİYİ ve YAPILACAK İŞİ anlatır.
+#
+#  ⚠️ Zararlı modeli HENÜZ EĞİTİLMEDİ (modeller.yaml: zararli → aktif: false).
+#  Bu metinler model devreye girdiği anda çalışsın diye önceden hazırlandı.
+#  Sınıf adları modeller.yaml içindeki zararli.siniflar ile birebir aynıdır;
+#  test bunu doğrular (tests/test_tedavi.py).
+# ═══════════════════════════════════════════════════════════════════════════
+
+Spider Mites:
+  ad: Kırmızı Örümcek
+  etken: Akar (Tetranychus urticae)
+  aciliyet: yuksek
+  belirti: Yaprak altında ince ağ; üst yüzeyde sarı-beyaz nokta nokta beslenme izleri.
+  onlem:
+  - Nemi artırın; kuru ve sıcak ortam çoğalmayı hızlandırır.
+  - Bulaşık bitkileri işaretleyin; aletle ve elle sıralar arası taşımayın.
+  uzman: Akar direnç geliştirir; etken madde rotasyonu için uzmana danışın.
+  organ:
+    leaf:
+      aciliyet: yuksek
+      belirti: Yaprak ALTINDA ince ağ ve kırmızı-sarı bireyler; üst yüzeyde iğne ucu
+        sarı noktalar. İlerleyince yaprak bronzlaşır ve kurur. Asıl beslenme burada.
+      onlem:
+      - Yaprak ALTINI kontrol edin — üstten bakınca fark edilmez, büyüteç kullanın.
+      - Yaprak başına birey sayın; eşik aşılmadan ilaçlama yapmayın.
+      - Tozu ve kuraklığı azaltın; sıra aralarını nemlendirin.
+      - Avcı akar (Phytoseiulus persimilis) salımı erken dönemde etkilidir.
+    fruit:
+      aciliyet: yuksek
+      belirti: Meyve ve çiçek sapı üzerinde ağ; meyve tozlu-mat görünür. Meyvede ağ
+        görülmesi bulaşmanın AĞIRLAŞTIĞINI gösterir.
+      onlem:
+      - Meyvede ağ varsa yaprak popülasyonu çoktan yüksektir — hemen yaprak altı
+        sayımı yapın.
+      - Ağlı meyveyi hasat edip ayırın; pazarlanabilir değildir.
+      - Hasat öncesi ilaçlamada bekleme süresine mutlaka uyun.
+
+Thrips:
+  ad: Trips
+  etken: Böcek (Frankliniella occidentalis)
+  aciliyet: orta
+  belirti: Çok küçük, ince uzun böcekler; beslenme yerinde gümüşi-pas rengi doku.
+  onlem:
+  - Mavi yapışkan tuzakla izleyin; karar tuzak sayımına dayansın.
+  - Sera çevresindeki yabancı otları temizleyin — ana barınaktır.
+  uzman: Virüs taşıyabilir; yoğunluk artarsa uzman görüşü alın.
+  organ:
+    leaf:
+      aciliyet: orta
+      belirti: Genç yapraklarda gümüşi parlaklık, kıvrılma ve şekil bozukluğu;
+        yaprakta siyah nokta halinde dışkı izleri.
+      onlem:
+      - Mavi yapışkan tuzakları bitki tacı hizasına asın, haftalık sayın.
+      - Yeni sürgünleri kontrol edin; trips en genç dokuyu tercih eder.
+      - Yabancı ot ve bitki artıklarını temizleyin.
+    fruit:
+      aciliyet: yuksek
+      belirti: Meyve yüzeyinde PAS RENGİ kabalaşma (russeting), mat ve çatlak görünüm;
+        çekirdekler belirginleşir. Meyve pazarlanamaz hale gelir.
+      onlem:
+      - Zarar ÇİÇEKLENMEDE oluşur; meyvede görüldüğünde iş işten geçmiştir —
+        bir sonraki partide çiçek dönemi izlemesini öne alın.
+      - Çiçekleri beyaz kâğıda silkeleyip birey sayın.
+      - Pas rengi meyveyi ayırın; tüketilebilir ama pazar değeri düşer.
+      uzman: Çiçeklenme dönemi ilaçlaması tozlaşmayı ve arıları etkiler; zamanlama
+        için mutlaka uzmana danışın.
+
+Aphids:
+  ad: Yaprak Biti
+  etken: Böcek (Aphis gossypii, Chaetosiphon fragaefolii)
+  aciliyet: orta
+  belirti: Sürgün uçlarında kümelenen küçük yeşil-sarı böcekler; yapışkan tatlımsı
+    salgı ve üzerinde is tabakası (fumajin).
+  onlem:
+  - Sarı yapışkan tuzakla uçuşu izleyin.
+  - Doğal düşmanları (gelin böceği, Aphidius) koruyun; geniş etkili ilaçtan kaçının.
+  uzman: Virüs vektörüdür; yaygınlaşırsa uzman görüşü önemlidir.
+  organ:
+    leaf:
+      aciliyet: orta
+      belirti: Genç yaprak ve sürgün uçlarında koloniler; yaprak kıvrılır ve büzüşür.
+        Salgı üzerinde siyah is tabakası oluşur.
+      onlem:
+      - Sürgün uçlarını haftalık kontrol edin — koloni orada başlar.
+      - Bulaşık genç yaprakları koparıp uzaklaştırın.
+      - Azotlu gübreyi azaltın; aşırı azot sulu sürgün ve yoğun bulaşma yapar.
+    fruit:
+      aciliyet: yuksek
+      belirti: Meyve üzerinde yapışkan salgı ve üzerinde siyah is tabakası; meyve
+        kirli görünür.
+      onlem:
+      - Fumajinli meyve yıkamayla temizlenmez, pazarlanamaz — ayırın.
+      - Üstteki yaprakları kontrol edin; salgı yukarıdan damlar, kaynak orada.
+      - Hasat öncesi bekleme süresine uyun.
+
+Whiteflies:
+  ad: Beyaz Sinek
+  etken: Böcek (Trialeurodes vaporariorum)
+  aciliyet: orta
+  belirti: Bitkiye dokununca havalanan küçük beyaz sinekler; yaprak altında larvalar.
+  onlem:
+  - Sarı yapışkan tuzakla izleyin; sera girişlerine tül takın.
+  - Bitki artıklarını seradan uzaklaştırın.
+  uzman: Direnç gelişimi hızlıdır; etken madde rotasyonu için uzmana danışın.
+  organ:
+    leaf:
+      aciliyet: orta
+      belirti: Yaprak ALTINDA beyaz erginler ve saydam yeşil larvalar; yaprak sararır,
+        salgı üzerinde fumajin oluşur.
+      onlem:
+      - Yaprak altını kontrol edin; erginler dokununca havalanır, larvalar kalır.
+      - Sarı tuzakları bitki üstü hizasında tutun.
+      - Alt yaprakları seyreltip havalandırmayı artırın.
+    fruit:
+      aciliyet: yuksek
+      belirti: Meyve üzerinde yapışkan salgı ve siyah is tabakası.
+      onlem:
+      - Kirlenmiş meyveyi ayırın; fumajin yıkamayla çıkmaz.
+      - Kaynak üstteki yapraklardadır; temizliğe oradan başlayın.
+
+Slug:
+  ad: Sümüklü Böcek
+  etken: Yumuşakça (Deroceras, Arion spp.)
+  aciliyet: orta
+  belirti: Düzensiz kenarlı yenmiş dokular ve kuruyunca parlayan salgı izleri.
+  onlem:
+  - Gece veya sabah erken kontrol edin; gündüz saklanırlar.
+  - Malç altını, saksı diplerini ve nemli köşeleri temizleyin.
+  - Tuzak (tahta parçası, kabuk) koyup altında toplananları elle toplayın.
+  uzman: Yem uygulaması gerekirse evcil hayvan ve fauna güvenliği için uzmana danışın.
+  organ:
+    leaf:
+      aciliyet: dusuk
+      belirti: Yaprakta düzensiz, kenardan içeri doğru delikler; üzerinde parlak
+        salgı izi. Bitkiyi nadiren tehdit eder.
+      onlem:
+      - Nemli ortamı azaltın; sulamayı sabaha alın.
+      - Sıra aralarındaki bitki artıklarını temizleyin.
+    fruit:
+      aciliyet: yuksek
+      belirti: Olgun meyvede derin, düzensiz oyuklar ve parlak salgı izi. Zarar
+        DOĞRUDAN ürün kaybıdır; oyulan meyve ayrıca çürümeye açılır.
+      onlem:
+      - Zarar görmüş meyveyi hemen toplayın — çürüme ve kurşuni küf odağı olur.
+      - Meyvelerin toprakla temasını kesin (malç, askı, siyah örtü).
+      - Sulamayı sabaha alın; gece nemi beslenmeyi artırır.
+
+Weevil:
+  ad: Çilek Hortumlu Böceği
+  etken: Böcek (Anthonomus rubi, Otiorhynchus sulcatus)
+  aciliyet: orta
+  belirti: Yaprak kenarında kertik biçimli yenikler veya kesilip sarkan çiçek sapları.
+  onlem:
+  - Akşam saatlerinde bitki dibini kontrol edin; erginler gece beslenir.
+  - Kesilmiş çiçek saplarını toplayıp imha edin — larva içindedir.
+  uzman: Toprak altındaki larva mücadelesi ayrı bir programdır; uzmana danışın.
+  organ:
+    leaf:
+      aciliyet: orta
+      belirti: Yaprak KENARINDA yarım daire kertikler (ergin beslenmesi). Kertik
+        görülmesi toprakta KÖK YİYEN LARVA bulunabileceğinin işaretidir.
+      onlem:
+      - Bitki gelişimi yavaşladıysa kök bölgesini kontrol edin — asıl zarar orada.
+      - Ergin beslenmesi tek başına verim kaybı yapmaz; larva kontrolü önceliklidir.
+      - Faydalı nematod uygulaması larvaya karşı etkilidir.
+    fruit:
+      aciliyet: yuksek
+      belirti: Çiçek sapı hortumla kesilmiş, tomurcuk sarkmış veya kurumuş; o
+        çiçekten meyve OLUŞMAZ.
+      onlem:
+      - Sarkan ve kesilmiş tomurcukları toplayıp imha edin — içinde larva vardır,
+        bırakılırsa gelecek nesli besler.
+      - Zarar tomurcuk döneminde olur; izlemeyi çiçeklenme ÖNCESİNE alın.
+      - Kayıp doğrudan meyve sayısına yansır; erken müdahale kritiktir.
