@@ -111,14 +111,16 @@ bocek_teshis:
     benzemez. Bu yüzden ROI boru hattına BAĞLANMAZ — bağlansaydı yanlış
     ölçekte çalışıp yanlış tespit üretirdi.
 
-# Uzman modeller hazır olana kadar kullanılan mevcut 10 sınıflı model.
-# Boru hattı, uzman model bulamadığı her adımda buna düşer.
+# Uzman modeller hazır olana kadar kullanılan eski 10 sınıflı model.
+# 2026-07-31: organ + yaprak_hastalik + meyve_hastalik + olgunluk eğitilip
+# kuruldu, models/cilek/best.pt kaldırıldı. Geçiş tamamlandı, bu model
+# devre dışı. Geri dönmek gerekirse best.pt'yi koyup aktif: true yapın.
 miras:
   dosya: best.pt
   rol: miras
   esik: 0.20
-  aktif: true
-  zorunlu: true
+  aktif: false
+  zorunlu: false
   aciklama: >
-    Tek modelli eski mimari. Uzman modeller eğitildikçe rolü azalır;
-    hepsi hazır olduğunda aktif: false yapılabilir.
+    Tek modelli eski mimari. Dört uzman model hazır olduğu için kapatıldı;
+    boru hattı artık her adımda kendi uzmanını kullanıyor.

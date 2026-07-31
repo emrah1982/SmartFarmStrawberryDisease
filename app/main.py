@@ -86,11 +86,24 @@ MODULLER = moduller.kaydet(app, engine)
 def baslangic():
     init_db()
     logger.info(f'Veritabanı hazır: {config.DATABASE_URL}')
-    if detector.hazir:
-        logger.info(f'Model bulundu: {config.MODEL_PATH}')
+    # Analiz iki yoldan yapılabilir: hiyerarşik boru hattı (organ → ROI →
+    # uzman model) veya eski tek model. `detector.hazir` YALNIZCA tek modeli
+    # bilir; hiyerarşiye geçtikten sonra best.pt kaldırıldığında "analiz
+    # yapılamaz" diye yanıltıcı uyarı basıyordu. Karar ikisine birden bakmalı.
+    from app import modeller
+    hiyerarsik = modeller.hiyerarsik_hazir()
+    if hiyerarsik:
+        eksik = modeller.eksikler()
+        logger.info('Hiyerarşik boru hattı AKTİF: '
+                    + ', '.join(t['ad'] for t in modeller.durum() if t['var']))
+        if eksik:
+            logger.info(f'   Henüz eğitilmemiş uzman modeller: {", ".join(eksik)}')
+    elif detector.hazir:
+        logger.info(f'Tek model (miras) kullanılıyor: {config.MODEL_PATH}')
     else:
-        logger.warning(f'⚠️ Model YOK: {config.MODEL_PATH} — analiz yapılamaz. '
-                       'Eğitilmiş best.pt dosyasını models/ klasörüne koyun.')
+        logger.warning('⚠️ Hiçbir model yok — analiz yapılamaz. En az organ modeli '
+                       '(models/<urun>/organ.pt) veya eski best.pt gerekir. '
+                       'Kurulum: python scripts/model_kur.py --listele')
 
 
 def icerik_hash(yol: Path) -> str:
