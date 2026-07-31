@@ -184,7 +184,11 @@ def calistir(frame, imgsz: Optional[int] = None,
     # --- 1) Organ tespiti --------------------------------------------------
     organ_tanim = organ_tanimlari[0]
     organ_model = modeller.yukle(organ_tanim.ad, urun)
-    organlar = _tahmin(organ_model, frame, organ_tanim.esik, imgsz) if organ_model else []
+    # Model kendi çıkarım çözünürlüğünü bildiriyorsa O kullanılır: ölçüldü,
+    # organ modeli 640'ta 1024'e göre belirgin daha çok meyve buluyor.
+    organlar = (_tahmin(organ_model, frame, organ_tanim.esik,
+                        organ_tanim.imgsz or imgsz)
+                if organ_model else [])
 
     sonuc: List[Kutu] = []
     calisan: List[str] = []
@@ -208,7 +212,7 @@ def calistir(frame, imgsz: Optional[int] = None,
                 continue
             if u.ad not in calisan:
                 calisan.append(u.ad)
-            for k in _tahmin(m, roi, u.esik, imgsz):
+            for k in _tahmin(m, roi, u.esik, u.imgsz or imgsz):
                 sonuc.append(roi_kutusunu_cevir(k, roi_w, roi_h, ofs_x, ofs_y, w, h,
                                                 organ=organ.sinif_adi))
 

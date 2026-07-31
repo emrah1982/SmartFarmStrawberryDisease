@@ -95,6 +95,43 @@ class TestKutukTutarli:
         assert z.aktif is False, 'zararli modelinin verisi yok, aktif olmamalı'
 
 
+class TestCikarimCozunurlugu:
+    """Her model kendi ÇIKARIM imgsz'ini taşımalı.
+
+    GERÇEK HATA: tek genel imgsz (1024) bütün modellere dayatılıyordu.
+    Uzman modeller TAM görüntüyü değil ROI KIRPINTISINI görür (60-250 px);
+    1024'e büyütülünce neredeyse çöküyorlardı. Bir sera fotoğrafında
+    ölçüldü:
+
+        1024 dayatılmış : 1 tespit
+        model başına    : 4 tespit
+
+    Kırpıntıdaki olgunluk modeli 1024'te 0.066, 128'de 0.906 güven veriyordu.
+    """
+
+    @pytest.mark.parametrize('ad', ['organ', 'yaprak_hastalik',
+                                    'meyve_hastalik', 'olgunluk'])
+    def test_kurulu_modellerin_imgszi_tanimli(self, ad):
+        t = modeller.tanim(ad, 'cilek')
+        assert t.imgsz, f'{ad}: imgsz tanımsız — genel 1024 dayatılır'
+
+    def test_uzman_modeller_organdan_kucuk_cozunurlukte(self):
+        """ROI kırpıntısı tam görüntüden küçüktür; imgsz de öyle olmalı."""
+        organ = modeller.tanim('organ', 'cilek').imgsz
+        for ad in ('yaprak_hastalik', 'meyve_hastalik', 'olgunluk'):
+            t = modeller.tanim(ad, 'cilek')
+            assert t.imgsz < organ, f'{ad}: {t.imgsz} >= organ {organ}'
+
+    def test_imgsz_32nin_kati(self):
+        for t in modeller.tanimlar('cilek').values():
+            if t.imgsz:
+                assert t.imgsz % 32 == 0, f'{t.ad}: {t.imgsz}'
+
+    def test_organ_esigi_comert(self):
+        """Kaçırılan organ tüm zinciri keser; yanlış ROI ise zararsızdır."""
+        assert modeller.tanim('organ', 'cilek').esik <= 0.25
+
+
 class TestSinifAdlariTekil:
     """Aynı canlı iki farklı sınıf adıyla anılmamalı.
 

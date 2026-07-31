@@ -51,6 +51,14 @@ class ModelTanimi:
     zorunlu: bool = False
     aciklama: str = ''
     urun: str = ''          # hangi ürünün modeli (boş = varsayılan)
+    # Bu modelin ÇIKARIM çözünürlüğü. None ise config.IMGSZ kullanılır.
+    #
+    # NEDEN MODEL BAŞINA? Ölçüldü: organ modeli 1024'te bir serada 2 meyve,
+    # 640'ta 3 meyve buluyor ve HER kutuda güven daha yüksek çıkıyor
+    # (0.841/0.793/0.608 karşı 0.738/0.669/0.339). Tek genel imgsz bütün
+    # modellere dayatılınca bazıları kaybediyor; her model kendi ölçülmüş
+    # değerini taşımalı.
+    imgsz: Optional[int] = None
 
     @property
     def yol(self) -> Path:
@@ -86,6 +94,7 @@ def _kutugu_oku(urun=None) -> Dict[str, ModelTanimi]:
             zorunlu=bool(d.get('zorunlu', False)),
             aciklama=(d.get('aciklama') or '').strip(),
             urun=urun or '',
+            imgsz=int(d['imgsz']) if d.get('imgsz') else None,
         )
     return tanimlar
 

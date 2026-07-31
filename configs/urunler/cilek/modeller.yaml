@@ -35,17 +35,47 @@ organ:
   # duyarsızdır (bkz. app/modeller.py: tetiklenen).
   # stem ve runner bu veride YOK; gerekirse sonradan etiketlenip eklenir.
   siniflar: [Flower, Fruit, Leaf]
-  esik: 0.35
+  # ÖLÇÜLDÜ (sera fotoğrafı, 640x640 kaynak):
+  #   imgsz 1024 → 2 meyve, güvenler 0.738 / 0.669 / 0.339
+  #   imgsz  640 → 3 meyve, güvenler 0.841 / 0.793 / 0.608
+  # Büyütmek her kutuda güveni DÜŞÜRÜYOR. 640 aynı zamanda organ
+  # dataset'inin kaynak çözünürlüğü.
+  imgsz: 640
+  # 0.35'te sahada çok meyve kaçıyordu. Organ modeli yalnızca ROI seçer;
+  # yanlış bir ROI zararsızdır (uzman model orada bir şey bulamaz), oysa
+  # KAÇIRILAN organ tüm zinciri kesiyor — meyve bulunmazsa olgunluk da
+  # hastalık da hiç çalışmıyor. Bu yüzden burada cömert olmak doğrudur.
+  esik: 0.20
   aktif: true
   zorunlu: false
   aciklama: >
     Bitkinin hangi kısmının görüldüğünü bulur. Hastalık/olgunluk bilmez;
     yalnızca organ kutuları üretir ve akışı yönlendirir.
 
+# ─────────────────────────────────────────────────────────────────────────
+# UZMAN MODELLERİN ÇIKARIM ÇÖZÜNÜRLÜĞÜ
+#
+# Uzman modeller TAM görüntüyü değil ROI KIRPINTISINI görür; kırpıntılar
+# 60-250 piksel arasındadır. Genel imgsz (1024) bu kırpıntıları 4-15 kat
+# büyütüyordu ve model neredeyse çöküyordu.
+#
+# 27 gerçek fotoğraftan çıkarılan 83 ROI üzerinde ölçüldü
+# (skor = ortalama güven × kaç ROI'de tespit çıktığı):
+#
+#   olgunluk        1024: 34/50 ROI, ort 0.380   →   128: 47/50, ort 0.459
+#   meyve_hastalik  1024: 12/50 ROI, ort 0.236   →   192: 36/50, ort 0.533
+#   yaprak_hastalik 1024: 17/33 ROI, ort 0.497   →   256: 27/33, ort 0.518
+#
+# UYARI: bu ölçüm GÜVENİ optimize eder, DOĞRULUĞU değil — elde etiketli
+# saha ROI'si yok. Yön kesin (1024 yanlış), tam optimum ise 128-256
+# aralığında ve etiketli veriyle yeniden ölçülmeli.
+# ─────────────────────────────────────────────────────────────────────────
+
 yaprak_hastalik:
   dosya: leaf_disease.pt
   rol: yaprak_hastalik
   tetik: [leaf]
+  imgsz: 256
   # SIRA ÖNEMLİ: dataset'teki sırayla birebir aynı olmalı — eğitim ID'lerini
   # dataset belirler (datasets/<urun>/leaf_disease/data.yaml). Sıra kayarsa
   # scripts/model_kur.py kurulumu reddeder.
@@ -58,6 +88,7 @@ meyve_hastalik:
   dosya: fruit_disease.pt
   rol: meyve_hastalik
   tetik: [fruit]
+  imgsz: 192
   # Sıra dataset'ten gelir (datasets/<urun>/fruit_disease/data.yaml)
   siniflar: [Anthracnose Fruit Rot, Powdery Mildew Fruit, Blossom Blight, Gray Mold]
   esik: 0.20
@@ -68,6 +99,7 @@ olgunluk:
   dosya: fruit_ripeness.pt
   rol: olgunluk
   tetik: [fruit]
+  imgsz: 128
   siniflar: [strawberry_unripe, strawberry_semi_ripe, strawberry_ripe]
   esik: 0.30
   aktif: true
