@@ -181,7 +181,15 @@ def test_gecmis_sinif_filtresi(client):
 
 
 def test_model_yoksa_uyari(client, monkeypatch):
+    """HİÇBİR model yokken uyarılmalı.
+
+    Artık iki yol var: hiyerarşik boru hattı veya eski tek model. Uyarının
+    çıkması için İKİSİ birden kapalı olmalı — yalnızca `detector.hazir`ı
+    kapatmak yetmez, uzman modeller kuruluysa analiz zaten yapılabilir.
+    """
+    from app import modeller
     monkeypatch.setattr(main, 'detector', SahteDetector(hazir=False))
+    monkeypatch.setattr(modeller, 'hiyerarsik_hazir', lambda urun=None: False)
     r = client.get('/')
     assert 'Model bulunamadı' in r.text
     y = client.post('/analiz/dosya', files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')})
@@ -401,6 +409,54 @@ def test_organsiz_kayit_sayfasi_da_acilir(client):
     assert r.status_code == 200
     assert 'Sahnede ne var' not in r.text, 'organ bilgisi yokken sahne özeti çıkmamalı'
     assert 'Gray Mold' in r.text or 'Kurşuni' in r.text
+
+
+class TestMirasModelsizCalisir:
+    """GERÇEK HATA: hiyerarşiye geçip best.pt kaldırılınca yükleme 400 verdi.
+
+        {"detail":"Model bulunamadı: /app/models/cilek/best.pt"}
+
+    Dört uzman model kurulu, boru hattı çalışıyor, ama kontrol yalnızca
+    `detector.hazir`e bakıyordu — o da SADECE eski tek modeli tanır.
+    Mimarinin hedefi miras modelden kurtulmaktı; kontrolün onu zorunlu
+    tutması geçişi imkânsız kılıyordu.
+    """
+
+    @pytest.fixture
+    def hiyerarsik(self, monkeypatch):
+        """Miras model YOK, organ modeli VAR."""
+        from app import modeller
+        monkeypatch.setattr(main, 'detector', SahteDetector(hazir=False))
+        monkeypatch.setattr(modeller, 'hiyerarsik_hazir', lambda urun=None: True)
+        with TestClient(main.app) as c:
+            yield c
+
+    def test_yukleme_miras_model_olmadan_calisir(self, hiyerarsik):
+        r = hiyerarsik.post('/analiz/dosya',
+                            files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')},
+                            follow_redirects=False)
+        assert r.status_code != 400, r.text
+
+    def test_anasayfa_modeli_hazir_gosterir(self, hiyerarsik):
+        assert main.analiz_yapilabilir() is True
+
+    def test_hicbir_model_yoksa_yol_gosteren_hata(self, monkeypatch):
+        """Model gerçekten yokken hata NE YAPILACAĞINI söylemeli."""
+        from app import modeller
+        monkeypatch.setattr(main, 'detector', SahteDetector(hazir=False))
+        monkeypatch.setattr(modeller, 'hiyerarsik_hazir', lambda urun=None: False)
+        with TestClient(main.app) as c:
+            r = c.post('/analiz/dosya',
+                       files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')})
+        assert r.status_code == 400
+        assert 'organ.pt' in r.text and 'model_kur.py' in r.text
+
+    def test_miras_model_tek_basina_da_yeterli(self, monkeypatch):
+        """Eski kurulumlar bozulmamalı: best.pt varsa hiyerarşi olmadan çalışır."""
+        from app import modeller
+        monkeypatch.setattr(main, 'detector', SahteDetector(hazir=True))
+        monkeypatch.setattr(modeller, 'hiyerarsik_hazir', lambda urun=None: False)
+        assert main.analiz_yapilabilir() is True
 
 
 def test_rehber_organ_secmeye_yonlendirmez(client):

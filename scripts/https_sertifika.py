@@ -20,7 +20,9 @@ KULLANIM
     - Docker  : docker compose up -d      (certs/ klasörü konteynere bağlıdır)
 """
 
+import argparse
 import ipaddress
+import re
 import socket
 import subprocess
 import sys
@@ -135,10 +137,58 @@ def cryptography_ile(adlar) -> bool:
     return True
 
 
-def main():
-    adlar = sys.argv[1:] or yerel_ipler()
-    CERT_DIR.mkdir(exist_ok=True)
+def _adres_dogrula(adaylar):
+    """Verilen adresleri süzer; bayrak ve saçma değerleri SERTİFİKAYA SOKMAZ.
 
+    GERÇEK HATA: adresler `sys.argv[1:]` ile doğrudan alınıyordu. Biri
+    `python scripts/https_sertifika.py --help` yazınca `--help` bir SAN
+    girdisi (DNS:--help) oldu ve otomatik IP tespiti hiç çalışmadı. Sonuç:
+    sertifika yalnızca `localhost` kapsıyordu, telefondan her bağlantıda
+    "Bağlantınız gizli değil" uyarısı çıkıyordu — sebebi görünmüyordu,
+    çünkü betik hata vermeden "✅ Hazır" diyordu.
+    """
+    gecerli, atilan = [], []
+    for a in adaylar:
+        a = a.strip()
+        if not a or a.startswith('-'):
+            atilan.append(a or '(boş)')
+            continue
+        try:
+            ipaddress.ip_address(a)
+            gecerli.append(a)
+            continue
+        except ValueError:
+            pass
+        # Ad: harf/rakam/nokta/tire — başka bir şey varsa yazım hatasıdır
+        if re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9.\-]{0,252}', a):
+            gecerli.append(a)
+        else:
+            atilan.append(a)
+    return gecerli, atilan
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description='Yerel ağ için HTTPS sertifikası üretir '
+                    '(telefonda kamera açmak güvenli bağlam ister).')
+    ap.add_argument('adres', nargs='*',
+                    help='Sertifikanın kapsayacağı IP/ad. Boş bırakılırsa bu '
+                         'makinenin yerel ağ adresleri otomatik bulunur.')
+    args = ap.parse_args()
+
+    adlar, atilan = _adres_dogrula(args.adres)
+    if atilan:
+        print(f'⚠️ Geçersiz adres yok sayıldı: {", ".join(atilan)}')
+    if not adlar:
+        adlar = yerel_ipler()
+
+    # Kendi adresimizi HER ZAMAN ekle: kullanıcı elle bir adres verse bile
+    # makinenin gerçek IP'si kapsam dışı kalırsa telefon uyarı verir.
+    for ip in yerel_ipler():
+        if ip not in adlar:
+            adlar.append(ip)
+
+    CERT_DIR.mkdir(exist_ok=True)
     print('Sertifika şu adresler için üretiliyor:', ', '.join(adlar))
     if not (openssl_ile(adlar) or cryptography_ile(adlar)):
         print('\n❌ Sertifika üretilemedi.\n'

@@ -215,6 +215,34 @@ def _kaydet(sonuc, db: Session, kaynak_tip: str, kaynak_ad: str,
 
 
 # ────────────────────────────────────────────────────────────────── sayfalar
+def analiz_yapilabilir() -> bool:
+    """Analiz mümkün mü? İKİ yoldan biri yeterlidir.
+
+    GERÇEK HATA: bu kontrol yalnızca `detector.hazir`e bakıyordu; o da
+    YALNIZCA eski tek modeli (models/<urun>/best.pt) tanır. Hiyerarşik
+    mimariye geçip miras modeli kaldırınca dört uzman model kurulu olmasına
+    rağmen fotoğraf yükleme 400 veriyordu:
+
+        {"detail":"Model bulunamadı: /app/models/cilek/best.pt"}
+
+    Boru hattı organ modeli varsa çalışır; miras model artık gerekli değil.
+    """
+    from app import modeller
+    return modeller.hiyerarsik_hazir() or detector.hazir
+
+
+def _analiz_kontrol():
+    """Analiz edilemiyorsa NE YAPILACAĞINI söyleyerek durur."""
+    if analiz_yapilabilir():
+        return
+    from app import modeller
+    eksik = ', '.join(modeller.eksikler()) or '—'
+    raise HTTPException(400,
+                        'Analiz için model yok. En az organ modeli '
+                        f'(models/<urun>/organ.pt) gerekir. Eksik: {eksik}. '
+                        'Kurulum: python scripts/model_kur.py --listele')
+
+
 @app.get('/', response_class=HTMLResponse)
 def anasayfa(request: Request, db: Session = Depends(get_db)):
     # Veriye doğrudan değil yetki katmanı üzerinden erişilir: giriş sistemi
@@ -225,7 +253,7 @@ def anasayfa(request: Request, db: Session = Depends(get_db)):
     son = yetki.analiz_sorgusu(db, kullanici).order_by(Analiz.zaman.desc()).limit(6).all()
     return templates.TemplateResponse(request, 'index.html', {
         'request': request, 'kameralar': kameralar, 'seralar': seralar, 'son': son,
-        'model_hazir': detector.hazir, 'model_yolu': config.MODEL_PATH,
+        'model_hazir': analiz_yapilabilir(), 'model_yolu': config.MODEL_PATH,
         'docker_icinde': DOCKER_ICINDE,
     })
 
@@ -236,8 +264,7 @@ async def analiz_dosya(request: Request, dosyalar: List[UploadFile] = File(...),
                        detayli: Optional[str] = Form(None),
                        db: Session = Depends(get_db)):
     """Telefondan/bilgisayardan yüklenen fotoğraf ve videoları işler."""
-    if not detector.hazir:
-        raise HTTPException(400, f'Model bulunamadı: {config.MODEL_PATH}')
+    _analiz_kontrol()
 
     kayitlar = []
     for up in dosyalar:
@@ -281,8 +308,7 @@ async def analiz_dosya(request: Request, dosyalar: List[UploadFile] = File(...),
 def analiz_kamera(kamera_id: Optional[int] = Form(None), url: str = Form(''),
                   db: Session = Depends(get_db)):
     """IP kameradan anlık görüntü alıp analiz eder."""
-    if not detector.hazir:
-        raise HTTPException(400, f'Model bulunamadı: {config.MODEL_PATH}')
+    _analiz_kontrol()
 
     kam = db.get(Kamera, kamera_id) if kamera_id else None
     hedef_url = (kam.url if kam else url).strip()

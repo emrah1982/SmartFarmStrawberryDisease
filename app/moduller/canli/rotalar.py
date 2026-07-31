@@ -46,7 +46,9 @@ def izle(request: Request):
     from app import main as cekirdek
     return templates.TemplateResponse(request, 'canli/izle.html', {
         'request': request,
-        'model_hazir': cekirdek.detector.hazir,
+        # detector.hazir YALNIZCA eski tek modeli bilir; hiyerarşik boru hattı
+        # kuruluyken de "model yok" der ve sayfa boşuna uyarı gösterirdi.
+        'model_hazir': cekirdek.analiz_yapilabilir(),
         'seralar': depo.seralar(),
         # Sayfa http'den açıldıysa kullanıcıyı güvenli adrese yönlendirebilmek için
         'https_port': config.HTTPS_PORT,
