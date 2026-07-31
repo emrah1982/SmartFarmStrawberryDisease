@@ -243,6 +243,36 @@ tr.ilk-aday { background: #f5faf5; }
 .tur-listesi { columns: 2; column-gap: 1.2rem; }
 @media (max-width: 520px) { .tur-listesi { columns: 1; } }
 
+/* sekme çubuğu — her sekme ayrı rota, JS yok */
+.sekmeler {
+  display: flex;
+  gap: .3rem;
+  margin-bottom: .8rem;
+  border-bottom: 2px solid var(--cizgi);
+}
+.sekmeler a {
+  padding: .55rem .9rem;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: -2px;
+  border-bottom: 2px solid transparent;
+}
+.sekmeler a:hover { background: var(--zemin2, #fafafa); }
+.sekmeler a.etkin {
+  font-weight: 600;
+  border-bottom-color: var(--ana);
+}
+
+/* böcek geçmiş kaydı */
+.kayit-ust { display: flex; gap: .8rem; align-items: flex-start; flex-wrap: wrap; }
+.kucuk-gorsel {
+  width: 110px; height: 110px; object-fit: cover;
+  border-radius: 10px; flex: 0 0 auto;
+}
+.bocek-kayit .dogrulama { margin-top: .6rem; }
+.bocek-kayit .dogrulama .satir { gap: .6rem; }
+
 /* çekim rehberi: tarama / teşhis */
 .mod-kartlari { display: flex; gap: .8rem; flex-wrap: wrap; margin-top: .6rem; }
 .mod {

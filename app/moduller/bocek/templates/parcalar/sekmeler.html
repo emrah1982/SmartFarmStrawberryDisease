@@ -1,0 +1,7 @@
+{# Sekme çubuğu — her sekme AYRI ROTA.
+   Tek sayfada JS ile gizlenen paneller değil: telefonda geçmiş listesi
+   büyüdükçe teşhis akışının açılışını yavaşlatırdı. #}
+<nav class="sekmeler">
+  <a href="/bocek" class="{% if sekme == 'teshis' %}etkin{% endif %}">🔍 Teşhis</a>
+  <a href="/bocek/gecmis" class="{% if sekme == 'gecmis' %}etkin{% endif %}">🗂️ Geçmiş</a>
+</nav>

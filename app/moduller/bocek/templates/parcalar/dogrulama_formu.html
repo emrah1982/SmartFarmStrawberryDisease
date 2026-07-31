@@ -1,0 +1,44 @@
+{# Kullanıcı doğrulaması.
+
+   NEDEN ÖNEMLİ? Model kapalı kümedir: bilmediği bir böceği de bu 6 türden
+   birine sokar ve bunu yüksek güvenle yapabilir. Kullanıcının işareti iki
+   işe yarar:
+     1. Kayıt düzelir — geçmişte yanlış tür yazılı kalmaz
+     2. Modelin SAHADAKİ isabeti ölçülebilir hale gelir
+
+   'listede yok' işaretli kayıtlar, ileride toplanacak saha zararlı
+   verisinin çekirdeğidir. #}
+<form action="/bocek/kayit/{{ k.id }}/dogrula" method="post" class="dogrulama">
+  <input type="hidden" name="nereye" value="{{ nereye|default('gecmis') }}">
+  <div class="satir">
+    <label style="flex:1">Bu teşhis doğru mu?
+      <select name="dogrulama" onchange="turAlani(this)">
+        <option value="" {% if not k.dogrulama %}selected{% endif %}>— değerlendirilmedi</option>
+        <option value="dogru" {% if k.dogrulama == 'dogru' %}selected{% endif %}>✅ Doğru</option>
+        <option value="yanlis" {% if k.dogrulama == 'yanlis' %}selected{% endif %}>❌ Yanlış — doğrusu şu</option>
+        <option value="listede_yok" {% if k.dogrulama == 'listede_yok' %}selected{% endif %}>❓ Bu böcek listede yok</option>
+      </select>
+    </label>
+    <label style="flex:1" class="dogru-tur" {% if k.dogrulama != 'yanlis' %}hidden{% endif %}>
+      Doğru tür
+      <input type="text" name="dogru_tur" value="{{ k.dogru_tur }}"
+             placeholder="örn. Yaprak Biti" list="bilinen-turler">
+    </label>
+  </div>
+  <label>Not (isteğe bağlı)
+    <input type="text" name="notlar" value="{{ k.notlar }}"
+           placeholder="A blok, kök çevresinde bulundu">
+  </label>
+  <button class="btn" type="submit">Kaydet</button>
+</form>
+
+<datalist id="bilinen-turler">
+  {% for t in turler %}<option value="{{ t|sinif }}">{% endfor %}
+</datalist>
+
+<script>
+function turAlani(sec) {
+  var alan = sec.closest('form').querySelector('.dogru-tur');
+  alan.hidden = sec.value !== 'yanlis';
+}
+</script>

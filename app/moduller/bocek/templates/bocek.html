@@ -2,6 +2,8 @@
 {% block baslik %}Böcek Teşhis{% endblock %}
 {% block icerik %}
 
+{% include 'parcalar/sekmeler.html' %}
+
 <section class="kart">
   <h2>🐛 Böcek Teşhis</h2>
   <p class="ipucu">
@@ -90,6 +92,19 @@
       </tr>
       {% endfor %}
     </table>
+  {% endif %}
+
+  {% if kayit %}
+  {# Doğrulama HEMEN burada sorulur: böcek hâlâ elinizdeyken cevap
+     verebilirsiniz. Geçmişe bırakılsaydı çoğu kayıt değerlendirilmeden
+     kalır ve sahadaki isabeti ölçemezdik. #}
+  <hr style="margin:1rem 0;border:0;border-top:1px solid var(--cizgi)">
+  <p class="ipucu"><strong>Bu teşhis doğru mu?</strong> Model yalnızca 6 tür
+    bilir; işaretlemeniz hem kaydı düzeltir hem modelin sahadaki isabetini
+    ölçmemizi sağlar.</p>
+  {% with k = kayit, nereye = 'gecmis' %}
+    {% include 'parcalar/dogrulama_formu.html' %}
+  {% endwith %}
   {% endif %}
 </section>
 

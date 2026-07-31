@@ -17,6 +17,7 @@ SINIRI AÇIKÇA SÖYLER
     listeler ve kararsızlık durumunu ayrıca uyarır. Ayrıntı: servis.py
 """
 
+from app.moduller.bocek.modeller import tablolar_olustur
 from app.moduller.bocek.rotalar import router
 
 
@@ -28,7 +29,8 @@ def modul():
         yol='/bocek',
         grup='ana', ikon='🐛',
         router=router,
+        tablolar_olustur=tablolar_olustur,
     )
 
 
-__all__ = ['modul', 'router']
+__all__ = ['modul', 'router', 'tablolar_olustur']

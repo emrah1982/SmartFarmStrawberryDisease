@@ -13,12 +13,15 @@ NEDEN TEST?
 
 from pathlib import Path
 
+import cv2
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
-from app import main, modeller
+from app import config, main, modeller
+from app.database import SessionLocal
 from app.moduller.bocek import servis
+from app.moduller.bocek.modeller import BocekKaydi
 
 KOK = Path(__file__).resolve().parent.parent
 
@@ -36,6 +39,16 @@ def temiz():
 def client():
     with TestClient(main.app) as c:
         yield c
+
+
+@pytest.fixture
+def db(client):
+    """client'tan SONRA açılır: tablolar uygulama başlarken kurulur."""
+    o = SessionLocal()
+    try:
+        yield o
+    finally:
+        o.close()
 
 
 class SahteKutu:
@@ -200,8 +213,185 @@ class TestBoruHattinaGirmez:
 
         Analiz tablosuna yazılsaydı hastalık istatistiklerine ve yaygınlık
         haritasına karışır, "şu serada 12 tespit" sayısı anlamını yitirirdi.
+        Kendi tablosu var: bocek_kayitlari.
         """
         kaynak = (KOK / 'app' / 'moduller' / 'bocek' / 'rotalar.py').read_text(
             encoding='utf-8')
         assert 'Analiz(' not in kaynak
         assert 'Tespit(' not in kaynak
+
+    def test_kendi_tablosunu_kullanir(self):
+        from app.moduller.bocek.modeller import BocekKaydi
+        assert BocekKaydi.__tablename__ == 'bocek_kayitlari'
+
+
+# ═════════════════════════════════════════════════════ kayıt ve doğrulama
+def _tani_ettir(client, monkeypatch, kutular):
+    """Bir teşhis yapıp kaydı döndürür."""
+    _model_kur(monkeypatch, kutular)
+    monkeypatch.setattr(servis, 'hazir', lambda urun=None: True)
+    r = client.post('/bocek/tani',
+                    files={'dosya': ('a.jpg', _kucuk_jpeg(), 'image/jpeg')})
+    assert r.status_code == 200
+    return r
+
+
+def _kucuk_jpeg() -> bytes:
+    """Gerçek, çözülebilir bir JPEG — cv2.imdecode None dönmemeli."""
+    ok, tampon = cv2.imencode('.jpg', np.full((32, 32, 3), 128, np.uint8))
+    assert ok
+    return tampon.tobytes()
+
+
+class TestKayit:
+    def test_teshis_kaydediliyor(self, client, monkeypatch, db):
+        _tani_ettir(client, monkeypatch, [SahteKutu(3, 0.82)])
+        k = db.query(BocekKaydi).order_by(BocekKaydi.id.desc()).first()
+        assert k is not None
+        assert k.tur == 'Mole Cricket'
+        assert round(k.guven, 2) == 0.82
+        assert k.gorsel, 'fotoğraf yolu kaydedilmeli'
+
+    def test_adaylar_da_saklaniyor(self, client, monkeypatch, db):
+        """Sonradan 'model neyi karıştırmış' sorusu ancak böyle cevaplanır."""
+        _tani_ettir(client, monkeypatch, [SahteKutu(3, 0.55), SahteKutu(2, 0.45)])
+        k = db.query(BocekKaydi).order_by(BocekKaydi.id.desc()).first()
+        assert [a['ad'] for a in k.adaylar] == ['Mole Cricket', 'Grub']
+        assert k.kararsiz is True
+
+    def test_bocek_bulunamasa_da_kaydediliyor(self, client, monkeypatch, db):
+        """'Model bir şey göremedi' bilgisi de modeli değerlendirmek için gerekli."""
+        _tani_ettir(client, monkeypatch, [])
+        k = db.query(BocekKaydi).order_by(BocekKaydi.id.desc()).first()
+        assert k is not None and k.tur == ''
+
+    def test_sonuc_sayfasinda_dogrulama_sorulur(self, client, monkeypatch):
+        """Böcek hâlâ elinizdeyken sorulmalı; geçmişe bırakılırsa kimse
+        dönüp işaretlemez ve isabet ölçülemez."""
+        r = _tani_ettir(client, monkeypatch, [SahteKutu(3, 0.82)])
+        assert 'Bu teşhis doğru mu?' in r.text
+        assert 'listede_yok' in r.text
+
+
+class TestDogrulama:
+    def test_dogru_isaretlenir(self, client, monkeypatch, db):
+        _tani_ettir(client, monkeypatch, [SahteKutu(3, 0.82)])
+        k = db.query(BocekKaydi).order_by(BocekKaydi.id.desc()).first()
+        client.post(f'/bocek/kayit/{k.id}/dogrula', data={'dogrulama': 'dogru'},
+                    follow_redirects=False)
+        db.expire_all()
+        assert db.get(BocekKaydi, k.id).dogrulama == 'dogru'
+
+    def test_yanlis_isaretinde_dogru_tur_saklanir(self, client, monkeypatch, db):
+        _tani_ettir(client, monkeypatch, [SahteKutu(3, 0.82)])
+        k = db.query(BocekKaydi).order_by(BocekKaydi.id.desc()).first()
+        client.post(f'/bocek/kayit/{k.id}/dogrula',
+                    data={'dogrulama': 'yanlis', 'dogru_tur': 'Yaprak Biti'},
+                    follow_redirects=False)
+        db.expire_all()
+        g = db.get(BocekKaydi, k.id)
+        assert g.dogru_tur == 'Yaprak Biti'
+        assert g.gecerli_tur == 'Yaprak Biti'
+        assert g.tur == 'Mole Cricket', 'modelin cevabı KORUNMALI (isabet ölçümü)'
+
+    def test_dogru_isaretinde_tur_alani_temizlenir(self, client, monkeypatch, db):
+        """'doğru' seçilince eski 'doğru tür' metni kalmamalı."""
+        _tani_ettir(client, monkeypatch, [SahteKutu(3, 0.82)])
+        k = db.query(BocekKaydi).order_by(BocekKaydi.id.desc()).first()
+        client.post(f'/bocek/kayit/{k.id}/dogrula',
+                    data={'dogrulama': 'yanlis', 'dogru_tur': 'X'},
+                    follow_redirects=False)
+        client.post(f'/bocek/kayit/{k.id}/dogrula', data={'dogrulama': 'dogru'},
+                    follow_redirects=False)
+        db.expire_all()
+        assert db.get(BocekKaydi, k.id).dogru_tur == ''
+
+    def test_gecersiz_deger_yazilmaz(self, client, monkeypatch, db):
+        _tani_ettir(client, monkeypatch, [SahteKutu(3, 0.82)])
+        k = db.query(BocekKaydi).order_by(BocekKaydi.id.desc()).first()
+        client.post(f'/bocek/kayit/{k.id}/dogrula',
+                    data={'dogrulama': 'saçma_değer'}, follow_redirects=False)
+        db.expire_all()
+        assert db.get(BocekKaydi, k.id).dogrulama == ''
+
+    def test_olmayan_kayit_cokmez(self, client):
+        r = client.post('/bocek/kayit/999999/dogrula',
+                        data={'dogrulama': 'dogru'}, follow_redirects=False)
+        assert r.status_code == 303
+
+
+class TestIsabetOzeti:
+    def test_oran_yalnizca_degerlendirilenlerden(self):
+        """'listede yok' isabete katılmamalı: model yanılmadı, soru dışıydı."""
+        from app.moduller.bocek.modeller import isabet
+
+        class K:
+            def __init__(self, d):
+                self.dogrulama = d
+
+        o = isabet([K('dogru'), K('dogru'), K('dogru'), K('yanlis'),
+                    K('listede_yok'), K('')])
+        assert o['toplam'] == 6
+        assert o['oran'] == 75.0        # 3 doğru / 4 değerlendirilen
+        assert o['dogrulanmamis'] == 1
+
+    def test_hic_degerlendirilmemisse_oran_yok(self):
+        from app.moduller.bocek.modeller import isabet
+
+        class K:
+            dogrulama = ''
+
+        assert isabet([K(), K()])['oran'] is None
+
+    def test_gecmis_sayfasi_acilir(self, client):
+        r = client.get('/bocek/gecmis')
+        assert r.status_code == 200
+        assert 'Sahadaki isabet' in r.text
+
+    def test_sekmeler_her_iki_sayfada(self, client):
+        for yol in ('/bocek', '/bocek/gecmis'):
+            t = client.get(yol).text
+            assert '/bocek/gecmis' in t and 'Teşhis' in t
+
+    def test_gecmis_isabeti_suzgecten_etkilenmez(self, client, monkeypatch, db):
+        """Özet TÜM kayıtlardan hesaplanmalı, süzülmüş listeden değil.
+
+        'yanlış' süzgecinde isabet %0 görünseydi kullanıcı modelin hiç
+        tutturamadığını sanırdı.
+        """
+        _tani_ettir(client, monkeypatch, [SahteKutu(3, 0.82)])
+        k = db.query(BocekKaydi).order_by(BocekKaydi.id.desc()).first()
+        client.post(f'/bocek/kayit/{k.id}/dogrula', data={'dogrulama': 'dogru'},
+                    follow_redirects=False)
+
+        db.expire_all()
+        from app.moduller.bocek.modeller import isabet
+        beklenen = isabet(db.query(BocekKaydi).all())
+        assert beklenen['dogru'] >= 1
+
+        # Süzgeç hiçbir kayıt döndürmese bile özet aynı sayıları göstermeli
+        r = client.get('/bocek/gecmis?dogrulama=yanlis')
+        assert f'>{beklenen["toplam"]}<' in r.text, 'toplam süzgece göre değişmiş'
+        assert f'>{beklenen["dogru"]}<' in r.text, 'doğru sayısı süzgece göre değişmiş'
+
+
+class TestSilme:
+    def test_kayit_ve_dosya_silinir(self, client, monkeypatch, db):
+        _tani_ettir(client, monkeypatch, [SahteKutu(3, 0.82)])
+        k = db.query(BocekKaydi).order_by(BocekKaydi.id.desc()).first()
+        yol = config.STORAGE_DIR / k.gorsel
+        assert yol.exists()
+        kimlik = k.id
+        client.post(f'/bocek/kayit/{kimlik}/sil', follow_redirects=False)
+        db.expire_all()
+        assert db.get(BocekKaydi, kimlik) is None
+        assert not yol.exists()
+
+    def test_dosya_yoksa_da_kayit_silinir(self, client, monkeypatch, db):
+        _tani_ettir(client, monkeypatch, [SahteKutu(3, 0.82)])
+        k = db.query(BocekKaydi).order_by(BocekKaydi.id.desc()).first()
+        (config.STORAGE_DIR / k.gorsel).unlink()
+        kimlik = k.id
+        client.post(f'/bocek/kayit/{kimlik}/sil', follow_redirects=False)
+        db.expire_all()
+        assert db.get(BocekKaydi, kimlik) is None

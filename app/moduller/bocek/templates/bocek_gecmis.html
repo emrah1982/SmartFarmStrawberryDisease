@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block baslik %}Böcek Teşhis — Geçmiş{% endblock %}
+{% block icerik %}
+
+{% include 'parcalar/sekmeler.html' %}
+
+{# ─────────────────────────── sahadaki isabet
+   Eğitim metriği (mAP) laboratuvar koşuludur: modelin kendi doğrulama
+   setinde ölçülür. Buradaki sayı GERÇEK kullanımı gösterir ve ikisi
+   ciddi şekilde farklı olabilir. Kapalı küme bir modelde bu fark özellikle
+   büyür, çünkü sahada listede olmayan böcekler de fotoğraflanır. #}
+<section class="kart">
+  <h3>📊 Sahadaki isabet</h3>
+  {% if ozet.toplam == 0 %}
+  <p class="ipucu">Henüz kayıt yok. <a href="/bocek">Teşhis sekmesinden</a> başlayın.</p>
+  {% else %}
+  <div class="kutucuklar">
+    <div class="kutucuk"><b>{{ ozet.toplam }}</b><span>teşhis</span></div>
+    <div class="kutucuk"><b>{{ ozet.dogru }}</b><span>doğru</span></div>
+    <div class="kutucuk"><b>{{ ozet.yanlis }}</b><span>yanlış</span></div>
+    <div class="kutucuk"><b>{{ ozet.listede_yok }}</b><span>listede yok</span></div>
+    <div class="kutucuk">
+      <b>{% if ozet.oran is not none %}%{{ ozet.oran|round|int }}{% else %}—{% endif %}</b>
+      <span>isabet</span>
+    </div>
+  </div>
+  {% if ozet.dogrulanmamis %}
+  <p class="ipucu">{{ ozet.dogrulanmamis }} kayıt henüz değerlendirilmedi —
+    işaretledikçe bu oran anlam kazanır.</p>
+  {% endif %}
+  {% if ozet.listede_yok %}
+  <div class="uyari" style="margin-top:.6rem">
+    <strong>{{ ozet.listede_yok }} kayıt "listede yok" işaretli.</strong>
+    Bunlar modelin bilmediği türler — ileride toplanacak saha zararlı
+    verisinin çekirdeği. Notlarına tür adı yazdıysanız o liste doğrudan
+    etiketleme planına dönüşür.
+  </div>
+  {% endif %}
+  {% endif %}
+</section>
+
+{% if ozet.toplam %}
+<section class="kart">
+  <form class="satir" method="get">
+    <select name="tur">
+      <option value="">Tüm türler</option>
+      {% for t in turler %}
+      <option value="{{ t }}" {% if secili.tur == t %}selected{% endif %}>{{ t|sinif }}</option>
+      {% endfor %}
+    </select>
+    <select name="dogrulama">
+      <option value="">Tüm durumlar</option>
+      {% for k, v in dogrulama_secenekleri.items() %}{% if k %}
+      <option value="{{ k }}" {% if secili.dogrulama == k %}selected{% endif %}>{{ v }}</option>
+      {% endif %}{% endfor %}
+    </select>
+    <button class="btn" type="submit">Filtrele</button>
+  </form>
+</section>
+{% endif %}
+
+{% for k in kayitlar %}
+<section class="kart bocek-kayit">
+  <div class="kayit-ust">
+    {% if k.gorsel %}
+    <img src="/media/{{ k.gorsel }}" alt="Böcek fotoğrafı" class="kucuk-gorsel">
+    {% endif %}
+    <div style="flex:1">
+      <h3 style="margin:.1rem 0">
+        {% if k.gecerli_tur %}{{ k.gecerli_tur|sinif }}
+        {% elif k.tur %}<s>{{ k.tur|sinif }}</s>
+        {% else %}<span class="ipucu">böcek bulunamadı</span>{% endif %}
+        {% if k.tur %}
+        <span class="rozet {% if k.guven >= 0.75 %}yuksek{% elif k.guven >= 0.5 %}orta{% else %}dusuk{% endif %}">
+          %{{ (k.guven * 100)|round|int }}
+        </span>
+        {% endif %}
+        {% if k.kararsiz %}<span class="rozet orta">kararsız</span>{% endif %}
+      </h3>
+      <p class="ipucu">
+        {{ k.zaman|yerel }}
+        {% if k.dogrulama == 'dogru' %}· <span class="rozet yuksek">✅ doğrulandı</span>
+        {% elif k.dogrulama == 'yanlis' %}· <span class="rozet dusuk">❌ model yanıldı</span>
+        {% elif k.dogrulama == 'listede_yok' %}· <span class="rozet">❓ listede yok</span>
+        {% else %}· <span class="ipucu">değerlendirilmedi</span>{% endif %}
+      </p>
+      {% if k.dogrulama == 'yanlis' and k.tur %}
+      <p class="ipucu">Model <strong>{{ k.tur|sinif }}</strong> demişti.</p>
+      {% endif %}
+      {% if k.notlar %}<p class="ipucu">📝 {{ k.notlar }}</p>{% endif %}
+    </div>
+  </div>
+
+  {% if k.adaylar|length > 1 %}
+  <details class="ipucu">
+    <summary>Modelin diğer adayları</summary>
+    <table style="margin-top:.4rem">
+      {% for a in k.adaylar %}
+      <tr><td>{{ a.ad|sinif }}</td><td>%{{ (a.guven * 100)|round|int }}</td></tr>
+      {% endfor %}
+    </table>
+  </details>
+  {% endif %}
+
+  {% include 'parcalar/dogrulama_formu.html' %}
+
+  <form action="/bocek/kayit/{{ k.id }}/sil" method="post" style="margin-top:.5rem"
+        onsubmit="return confirm('Kayıt ve fotoğrafı kalıcı olarak silinecek. Devam edilsin mi?')">
+    <button class="btn btn-tehlike" type="submit">🗑️ Sil</button>
+  </form>
+</section>
+{% endfor %}
+
+{% if ozet.toplam and not kayitlar %}
+<p class="ipucu">Bu süzgece uyan kayıt yok.</p>
+{% endif %}
+
+{% endblock %}
