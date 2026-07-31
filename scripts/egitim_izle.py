@@ -31,6 +31,7 @@ import argparse
 import csv
 import io
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -79,15 +80,51 @@ def hedef_epoch(kosu: Path, varsayilan=200) -> int:
     return varsayilan
 
 
-def olcum(kosu: Path) -> dict:
-    """Bir koşunun durumu — tek yerden hesaplanır ki rapor ve --bekle aynı şeyi görsün."""
-    c = kosu / 'results.csv'
-    if not c.exists():
-        return {'ad': kosu.name, 'durum': 'checkpoint yok', 'epoch': 0}
+# Google Drive masaüstü uygulaması eşitleme çakışmasında yerel aynada
+# "<ad> (1)" klasörü üretir. Colab tarafında TEK klasör vardır.
+_KOPYA = re.compile(r'^(?P<taban>.+?) \((?P<n>\d+)\)$')
 
-    sat = egri(c)
+
+def taban_ad(ad: str) -> str:
+    m = _KOPYA.match(ad)
+    return m.group('taban') if m else ad
+
+
+def gruplar(kok: Path) -> dict:
+    """{gerçek koşu adı: [klasörler]} — Drive kopyaları birleştirilir.
+
+    GERÇEK HATA: bir koşu Drive çakışması yüzünden ikiye bölündü:
+        bocek_teshis (1)  → epoch 1-108   (results.csv 108 satır)
+        bocek_teshis      → epoch 109-200 (results.csv  92 satır)
+    Ayrı okununca ikisi de "yarım" göründü ve betik "eğitim ölmüş" dedi.
+    Oysa koşu 200/200 TAMAMLANMIŞTI. Yanlış teşhis, gereksiz yere yeniden
+    eğitim başlatmaya yol açardı.
+    """
+    out = {}
+    for d in kok.iterdir():
+        if d.is_dir():
+            out.setdefault(taban_ad(d.name), []).append(d)
+    return out
+
+
+def olcum(kosu, kopyalar=None) -> dict:
+    """Bir koşunun durumu — tek yerden hesaplanır ki rapor ve --bekle aynı şeyi görsün.
+
+    kopyalar verilirse Drive kopyaları BİRLEŞTİRİLİR: epoch sayısı satır
+    sayısından değil `epoch` sütununun en büyüğünden alınır.
+    """
+    klasorler = list(kopyalar) if kopyalar else [kosu]
+    # En son yazılan klasör "asıl" kabul edilir (args.yaml, canlılık ondan)
+    kosu = max(klasorler, key=lambda p: p.stat().st_mtime)
+
+    sat = []
+    for d in klasorler:
+        c = d / 'results.csv'
+        if c.exists():
+            sat += egri(c)
     if not sat:
-        return {'ad': kosu.name, 'durum': 'boş results.csv', 'epoch': 0}
+        return {'ad': taban_ad(kosu.name), 'durum': 'checkpoint yok', 'epoch': 0,
+                'kopya': len(klasorler)}
 
     hedef = hedef_epoch(kosu)
     t = [_sayi(s.get('time')) for s in sat]
@@ -116,16 +153,30 @@ def olcum(kosu: Path) -> dict:
         if degerler:
             en_iyi, en_iyi_ep = max(degerler)
 
-    yas = time.time() - c.stat().st_mtime
+    # İlerleme: SATIR SAYISI değil `epoch` sütununun en büyüğü. Drive kopyası
+    # varsa satırlar bölünmüştür; epoch numarası gerçek ilerlemeyi verir.
+    epochlar = [_sayi(s.get('epoch')) for s in sat]
+    epochlar = [int(v) for v in epochlar if v is not None]
+    ilerleme = max(epochlar) if epochlar else len(sat)
+
+    # Canlılık: kopyalar arasındaki EN YENİ results.csv
+    en_yeni = max((d / 'results.csv').stat().st_mtime for d in klasorler
+                  if (d / 'results.csv').exists())
+    yas = time.time() - en_yeni
     canli = epoch_sn is not None and yas < epoch_sn * 2.5
 
     return {
-        'ad': kosu.name, 'epoch': len(sat), 'hedef': hedef,
+        'ad': taban_ad(kosu.name), 'epoch': ilerleme, 'hedef': hedef,
         'kesinti': len(kesinti), 'kesinti_epoch': [i + 1 for i in kesinti],
         'gpu_saat': gpu_sn / 3600, 'epoch_sn': epoch_sn,
         'en_iyi': en_iyi, 'en_iyi_epoch': en_iyi_ep,
-        'yas_sn': yas, 'canli': canli,
-        'durum': 'ÇALIŞIYOR' if canli else ('bitti' if len(sat) >= hedef else 'DURDU'),
+        'yas_sn': yas, 'canli': canli, 'kopya': len(klasorler),
+        'klasorler': [d.name for d in klasorler],
+        # SIRA ÖNEMLİ: hedefe ulaşan koşu BİTMİŞTİR, dosyası az önce
+        # yazılmış olsa bile. Canlılık kontrolü önce gelseydi, biten koşu
+        # birkaç dakika "ÇALIŞIYOR" görünür ve --bekle boşuna beklerdi.
+        'durum': ('bitti' if ilerleme >= hedef
+                  else ('ÇALIŞIYOR' if canli else 'DURDU')),
     }
 
 
@@ -155,8 +206,8 @@ def olu_zaman(kosu: Path, epoch_sn):
     return kayip
 
 
-def yazdir(kosu: Path, ayrintili=False):
-    o = olcum(kosu)
+def yazdir(kosu, ayrintili=False, kopyalar=None):
+    o = olcum(kosu, kopyalar)
     if o.get('epoch', 0) == 0:
         print(f"  {o['ad']:<26} {o['durum']}")
         return o
@@ -167,6 +218,12 @@ def yazdir(kosu: Path, ayrintili=False):
           f"mAP50-95 {o['en_iyi'] or 0:.4f}  "
           f"{o['gpu_saat']:.1f} sa GPU"
           + (f"  ⚠️ {o['kesinti']} kesinti" if o['kesinti'] else ''))
+
+    if o.get('kopya', 1) > 1:
+        print(f"      ℹ️ Drive eşitleme kopyası: {o['kopya']} klasör birleştirildi "
+              f"({', '.join(o['klasorler'])})")
+        print('         Colab tarafında tek klasör var; yereldeki fazlalık '
+              'silinebilir.')
 
     if o['durum'] == 'DURDU':
         print(f"      son yazım {o['yas_sn'] / 60:.0f} dakika önce — "
@@ -203,40 +260,43 @@ def main():
         raise SystemExit(f'Koşu klasörü yok: {kok}')
 
     def kosular():
-        d = [p for p in kok.iterdir() if p.is_dir()]
+        """[(ad, [klasörler])] — Drive kopyaları tek koşu olarak birleşir."""
+        g = gruplar(kok)
         if a.kosu:
-            d = [p for p in d if p.name == a.kosu]
-            if not d:
+            hedef = taban_ad(a.kosu)
+            if hedef not in g:
                 raise SystemExit(f'Koşu bulunamadı: {a.kosu}\n'
-                                 f"Mevcut: {sorted(p.name for p in kok.iterdir() if p.is_dir())}")
-        return sorted(d, key=lambda p: p.stat().st_mtime, reverse=True)
+                                 f'Mevcut: {sorted(g)}')
+            g = {hedef: g[hedef]}
+        return sorted(g.items(),
+                      key=lambda x: -max(p.stat().st_mtime for p in x[1]))
 
     if not a.bekle:
         print(f'📂 {kok}\n')
-        for k in kosular():
-            yazdir(k, ayrintili=bool(a.kosu))
+        for _, kopyalar in kosular():
+            yazdir(kopyalar[0], ayrintili=bool(a.kosu), kopyalar=kopyalar)
         return 0
 
     # --bekle: yalnızca DURUM DEĞİŞİNCE yaz, yoksa ekranı kirletir
     onceki = {}
     print(f'👁️  İzleniyor (her {a.aralik} sn) — Ctrl+C ile çık\n')
     while True:
-        for k in kosular():
-            o = olcum(k)
+        for ad, kopyalar in kosular():
+            o = olcum(kopyalar[0], kopyalar)
             imza = (o['durum'], o.get('epoch'))
-            if onceki.get(k.name) == imza:
+            if onceki.get(ad) == imza:
                 continue
-            eski = onceki.get(k.name)
-            onceki[k.name] = imza
+            eski = onceki.get(ad)
+            onceki[ad] = imza
             if eski is None:
-                yazdir(k)
+                yazdir(kopyalar[0], kopyalar=kopyalar)
                 continue
             if eski[0] != o['durum']:
                 print(f"\n{'=' * 62}")
-                print(f"⚠️  {k.name}: {eski[0]} → {o['durum']}  "
+                print(f"⚠️  {ad}: {eski[0]} → {o['durum']}  "
                       f"({time.strftime('%H:%M:%S')})")
                 print('=' * 62)
-                yazdir(k)
+                yazdir(kopyalar[0], kopyalar=kopyalar)
             sys.stdout.flush()
         time.sleep(a.aralik)
 
