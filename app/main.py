@@ -229,6 +229,7 @@ def _kaydet(sonuc, db: Session, kaynak_tip: str, kaynak_ad: str,
         bulanik_kare=getattr(sonuc, 'bulanik_kare', 0),
         kalite_notu=getattr(sonuc, 'kalite_notu', ''),
         boru_izi=json.dumps(getattr(sonuc, 'iz', {}) or {}, ensure_ascii=False),
+        kare_basina_en_cok=getattr(sonuc, 'kare_basina_en_cok', 0),
         inceleme_gerekli=sonuc.inceleme_gerekli,
     )
     db.add(a)

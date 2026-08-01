@@ -49,6 +49,13 @@ class Sonuc:
     keskinlik: float = 0.0        # Laplacian varyansı — düşükse bulanık
     bulanik_kare: int = 0         # videoda atlanan bulanık kare sayısı
     kalite_notu: str = ''         # kullanıcıya gösterilecek uyarı
+    # Videoda AYNI nesne her örneklenen karede yeniden sayılır. `kutular`
+    # bu yüzden "kaç nesne var" sorusunun cevabı DEĞİLDİR: 4 meyveli sabit
+    # bir sahneden 4 kare örneklendiğinde 11 kutu birikir (ölçüldü).
+    #
+    # Kareler arası eşleştirme (takip) yapılmadığı sürece dürüst olan alt
+    # sınırı vermektir: EN AZ bu kadar nesne vardır.
+    kare_basina_en_cok: int = 0
     # Boru hattının ne yaptığı: hangi organlar görüldü, hangi modeller çalıştı.
     # Tespit ÜRETİLMEYEN organlar da burada durur — "5 yaprak gördüm, hastalık
     # bulmadım" ile "hiç yaprak görmedim" arasındaki fark yalnızca burada saklı.
@@ -264,9 +271,21 @@ class Detector:
         elif bulanik:
             not_ = f'{bulanik} bulanık kare atlandı; kalan {islenen} kare işlendi.'
 
+        # Sayım uyarısı: kullanıcı "43 tespit" görüp 43 hastalıklı meyve
+        # olduğunu sanmamalı. Aynı meyve her karede yeniden sayılıyor.
+        en_cok = max(en_iyi_sayi, 0)
+        if islenen > 1 and len(kutular) > en_cok:
+            sayim_notu = (f'Bu bir video: {islenen} kare örneklendi ve aynı nesne '
+                          f'her karede yeniden sayıldı. Toplam {len(kutular)} kutu '
+                          f'bulundu ama bu {len(kutular)} ayrı nesne DEĞİLDİR — '
+                          f'tek karede en çok {en_cok} nesne görüldü, gerçek sayı '
+                          'en az o kadardır.')
+            not_ = f'{not_} {sayim_notu}'.strip()
+
         return Sonuc(kutular=kutular, sonuc_yolu=cikti_yol if en_iyi_kare is not None else '',
                      islenen_kare=islenen, sure_ms=int((time.time() - t0) * 1000),
-                     keskinlik=ort_keskinlik, bulanik_kare=bulanik, kalite_notu=not_)
+                     keskinlik=ort_keskinlik, bulanik_kare=bulanik, kalite_notu=not_,
+                     kare_basina_en_cok=en_cok)
 
     # ------------------------------------------------------- ayrıntılı analiz
     def goruntu_detayli(self, kaynak_yol: str, cikti_yol: str) -> Sonuc:

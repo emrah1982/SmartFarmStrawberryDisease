@@ -243,6 +243,10 @@ tr.ilk-aday { background: #f5faf5; }
 .tur-listesi { columns: 2; column-gap: 1.2rem; }
 @media (max-width: 520px) { .tur-listesi { columns: 1; } }
 
+/* sayım uyarısı — yanlış okunması pahalı bir bilgi */
+.uyari-kart { border-left: 4px solid var(--sari); }
+.uyari-kart h3 { margin-top: 0; }
+
 /* telefondan bağlan sayfası */
 .baglan-satir { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
 .qr { flex: 0 0 auto; background: #fff; padding: .5rem; border-radius: 10px; }

@@ -3,6 +3,30 @@
    Gerçek sahnede yaprak/çiçek/meyve bir aradadır. Kullanıcı önce "sistem
    neye baktı" sorusunun cevabını görmeli; bulgular ondan sonra anlam kazanır.
    Bu blok TESPİT sayısını değil GÖRÜLEN organ sayısını gösterir. #}
+{# Videoda SAYIM uyarısı — kutu sayısı nesne sayısı DEĞİLDİR.
+   Ölçüldü: 4 meyveli sabit sahneden 4 kare örneklenince 11 kutu birikiyor.
+   Kareler arası takip yapılmadığı için dürüst olan alt sınırı vermek. #}
+{% if a.kaynak_tip == 'video' and a.kare_basina_en_cok
+      and a.tespit_sayisi > a.kare_basina_en_cok %}
+<section class="kart uyari-kart">
+  <h3>🔢 Bu sayı kaç nesne var demek değil</h3>
+  <p>
+    <strong>{{ a.tespit_sayisi }} kutu</strong> bulundu ama bu
+    {{ a.tespit_sayisi }} ayrı nesne değildir: video {{ a.islenen_kare }} karede
+    örneklendi ve aynı meyve/yaprak <strong>her karede yeniden sayıldı</strong>.
+  </p>
+  <p>
+    Tek karede en çok <strong>{{ a.kare_basina_en_cok }}</strong> nesne görüldü —
+    gerçek sayı <strong>en az o kadardır</strong>, yürüyerek çektiyseniz daha fazla.
+  </p>
+  <p class="ipucu">
+    Kesin sayım için kareler arası takip (aynı nesneyi kare kare izleme)
+    gerekir; şu an yapılmıyor. Sayım önemliyse <strong>tek fotoğraf</strong>
+    çekin — orada her nesne bir kez sayılır.
+  </p>
+</section>
+{% endif %}
+
 {% if ozet.sahne_var %}
 <section class="kart sahne">
   <h3>🔍 Sahnede ne var</h3>

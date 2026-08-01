@@ -165,6 +165,14 @@ class Analiz(Base):
     bulanik_kare = Column(Integer, default=0)
     kalite_notu = Column(Text, default='')
 
+    # Videoda tek karede görülen EN ÇOK nesne sayısı.
+    #
+    # NEDEN AYRI SÜTUN? `tespit_sayisi` videoda kutu sayısıdır ve aynı nesne
+    # her örneklenen karede yeniden sayıldığı için gerçek nesne sayısı
+    # DEĞİLDİR (ölçüldü: 4 meyveli sabit sahne → 11 kutu). Kareler arası
+    # takip yapılmadığı sürece dürüst olan alt sınırı da saklamaktır.
+    kare_basina_en_cok = Column(Integer, default=0)
+
     # Boru hattı izi (JSON): {"organlar": {"Leaf": 5}, "modeller": [...], ...}
     # Tespit listesi yalnızca BULUNANLARI içerir; "5 yaprak gördüm ama
     # hastalık bulmadım" bilgisi başka hiçbir yerde durmuyor. Sonuç ekranı
@@ -247,7 +255,8 @@ def _eksik_sutunlari_ekle():
         'analizler': {'urun': "VARCHAR(60) DEFAULT 'cilek'", 'sera_id': 'INTEGER', 'keskinlik': 'FLOAT',
                       'bulanik_kare': 'INTEGER', 'kalite_notu': 'TEXT',
                       'elle_etiketlendi': 'BOOLEAN', 'disa_aktarildi': 'BOOLEAN',
-                      'dosya_hash': 'VARCHAR(16)', 'boru_izi': 'TEXT'},
+                      'dosya_hash': 'VARCHAR(16)', 'boru_izi': 'TEXT',
+                      'kare_basina_en_cok': 'INTEGER DEFAULT 0'},
         # Eski tespitlerde organ boş kalır — hiyerarşiden önce kaydedildiler.
         'tespitler': {'organ': "VARCHAR(30) DEFAULT ''"},
     }
