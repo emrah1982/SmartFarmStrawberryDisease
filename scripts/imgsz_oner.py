@@ -85,6 +85,10 @@ def olc(kok: Path, ornek: int = 300, tohum: int = 0) -> dict:
     secilen = rng.sample(goruntuler, min(ornek, len(goruntuler)))
 
     uzun_kenarlar, kutu_paylari, kutu_px = [], [], []
+    # ALAN TESPİTİ için: bu dataset saha görüntüsü mü, stüdyo/makro tek
+    # nesne çekimi mi? Karar boru hattına bağlanıp bağlanmayacağını belirler
+    # (bkz. docs/HATA-YONETIMI.md § 2.6).
+    kutu_sayilari, merkez_kacikligi, kutu_alanlari = [], [], []
     okunamayan = 0
     for g in secilen:
         boyut = _boyut_oku(g)
@@ -97,12 +101,13 @@ def olc(kok: Path, ornek: int = 300, tohum: int = 0) -> dict:
         etiket = Path(str(g.parent).replace('images', 'labels')) / (g.stem + '.txt')
         if not etiket.exists():
             continue
+        bu_goruntude = 0
         for satir in etiket.read_text(encoding='utf-8', errors='ignore').splitlines():
             p = satir.split()
             if len(p) < 5:
                 continue
             try:
-                w, h = float(p[3]), float(p[4])
+                cx, cy, w, h = (float(p[1]), float(p[2]), float(p[3]), float(p[4]))
             except ValueError:
                 continue
             if w <= 0 or h <= 0:
@@ -111,6 +116,12 @@ def olc(kok: Path, ornek: int = 300, tohum: int = 0) -> dict:
             # kısa kenarı görünmez olduğunda tespit edilemez.
             kutu_paylari.append(min(w, h))
             kutu_px.append(min(w * gen, h * yuk))
+            bu_goruntude += 1
+            # Kadraj merkezinden sapma. Stüdyo çekiminde nesne hep ortadadır;
+            # sahada dağılır.
+            merkez_kacikligi.append(max(abs(cx - 0.5), abs(cy - 0.5)))
+            kutu_alanlari.append(w * h)
+        kutu_sayilari.append(bu_goruntude)
 
     return {
         'goruntu_sayisi': len(goruntuler),
@@ -119,6 +130,63 @@ def olc(kok: Path, ornek: int = 300, tohum: int = 0) -> dict:
         'uzun_kenar': sorted(uzun_kenarlar),
         'kutu_payi': sorted(kutu_paylari),
         'kutu_px': sorted(kutu_px),
+        'kutu_sayisi': sorted(kutu_sayilari),
+        'merkez_kacikligi': sorted(merkez_kacikligi),
+        'kutu_alani': sorted(kutu_alanlari),
+    }
+
+
+# Alan sınıflandırma eşikleri — MEVCUT DATASET'LER ÖLÇÜLEREK seçildi,
+# uydurulmadı. 400 görüntü örneklenerek:
+#
+#   dataset               kutuMax  kutu>1%  merkez~   alan%   alan
+#   findik_kalite               1       0%    0.036    4.8%   stüdyo
+#   cilek/bocek_teshis         14      12%    0.089   18.7%   makro
+#   ─────────────────────────────────────────────────────────────────
+#   cilek/organ_detection       8      24%    0.196   32.7%   saha
+#   cilek/fruit_disease         7      29%    0.171   22.3%   saha
+#   cilek/leaf_disease         11      37%    0.229   17.7%   saha
+#   cilek/fruit_ripeness       30      60%    0.227    2.6%   saha
+#
+# Ayıran iki sinyal MERKEZ SAPMASI ve ÇOK-KUTULU ORANI: ikisinde de
+# boşluk geniş (0.089↔0.171 ve %12↔%24).
+#
+# KUTU ALANI AYIRT ETMİYOR — böcek %18.7 iken saha organ %32.7. İlk
+# denemede alan eşiği kullanıldı ve organ_detection'ı yanlışlıkla "makro"
+# saydı; ölçüm bunu yakaladı, eşik atıldı.
+TEKIL_MERKEZ_ESIGI = 0.15   # kutular kadraj ortasına bu kadar yakınsa
+TEKIL_COKLU_ORANI = 0.20    # ve görüntülerin bu kadarından azı çok kutuluysa
+
+
+def alan_tespiti(o: dict) -> dict:
+    """Saha görüntüsü mü, stüdyo/makro tek nesne çekimi mi?
+
+    ROI boru hattına bağlanacak model SAHA verisiyle eğitilmelidir. Stüdyo
+    verisi `rol: tekil, tetik: []` ile ayrı akışta durmalıdır — yoksa model
+    hiç görmediği bir ölçekte çalıştırılır (ölçülen iki olay:
+    bocek_teshis ve hazelnut detection v9; docs/HATA-YONETIMI.md § 2.6).
+
+    Bu bir SEZGİSEL UYARIDIR, karar değil: sınırda kalan bir pakette
+    görüntülere bakıp kendiniz karar verin.
+    """
+    ks, mk, ka = o.get('kutu_sayisi'), o.get('merkez_kacikligi'), o.get('kutu_alani')
+    if not ks or not mk:
+        return {}
+    kutu_maks = ks[-1]
+    coklu_oran = sum(1 for k in ks if k > 1) / len(ks)
+    merkez_med = _yuzdelik(mk, 0.5)
+
+    # Tek kutudan fazlası HİÇ yoksa tartışma yok: her görüntüde tam bir nesne.
+    tek_nesne = kutu_maks <= 1
+    ortalanmis = merkez_med < TEKIL_MERKEZ_ESIGI and coklu_oran < TEKIL_COKLU_ORANI
+    tekil = tek_nesne or ortalanmis
+    return {
+        'kutu_medyan': _yuzdelik(ks, 0.5), 'kutu_maks': kutu_maks,
+        'coklu_oran': coklu_oran, 'merkez_medyan': merkez_med,
+        'alan_medyan': _yuzdelik(ka, 0.5) if ka else 0.0,
+        'alan': ('stüdyo/tek nesne' if tek_nesne
+                 else 'makro/yakın çekim' if tekil else 'saha'),
+        'boru_hattina_uygun': not tekil,
     }
 
 
@@ -206,6 +274,29 @@ def rapor(ad: str, o: dict, s: dict, mevcut: int = None):
               f'(kaynak çözünürlükte)')
         print(f'  En küçük %10 nesne  : görüntünün %{s["kucuk_nesne_payi"] * 100:.1f}\'i '
               f'= kaynakta {s["kaynak_nesne_px"]:.0f} px')
+
+    a = alan_tespiti(o)
+    if a:
+        print()
+        print('  --- ALAN TESPİTİ (boru hattına bağlanır mı?) ---')
+        print(f'  Görüntü başına kutu : medyan {a["kutu_medyan"]:.0f}, '
+              f'maksimum {a["kutu_maks"]}  '
+              f'(%{a["coklu_oran"] * 100:.0f}\'i çok kutulu)')
+        print(f'  Merkezden sapma     : medyan {a["merkez_medyan"]:.3f} '
+              f'(0 = kadraj ortası, saha ≈ 0.20)')
+        print(f'  Kutu alanı          : medyan karenin %{a["alan_medyan"] * 100:.1f}\'i'
+              '   (ayırt edici DEĞİL, bilgi amaçlı)')
+        print(f'  → ALAN: {a["alan"]}')
+        if a['boru_hattina_uygun']:
+            print('  ✅ Saha verisi görünüyor — ROI boru hattına bağlanabilir.')
+        else:
+            print('  ⛔ ROI BORU HATTINA BAĞLAMAYIN.')
+            print(f'     Ölçüm "{a["alan"]}" diyor: nesne kadraja ortalanmış,')
+            print('     görüntülerin çoğunda tek bulgu var. Boru hattı ise uzman')
+            print('     modele bahçe fotoğrafından kesilmiş ROI verir — model')
+            print('     hiç görmediği bir ölçekte çalışır.')
+            print('     modeller.yaml → rol: tekil, tetik: []  (yapısal kilit)')
+            print('     Ölçülen emsaller: docs/HATA-YONETIMI.md § 2.6')
 
     print()
     print(f'  {"imgsz":>6}  {"küçük nesne":>12}  {"durum":<26} {"RAM önbellek":>12}')

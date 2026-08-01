@@ -1,0 +1,266 @@
+# FINDIK — Tedavi önerileri
+#
+# ══════════════════════════════════════════════════════════════════════════
+# BU DOSYA ÇİLEKTEN AYRIDIR ÇÜNKÜ HASTALIK ADLARI ÇAKIŞIR
+#   'Leaf Spot' / 'Anthracnose' / 'Powdery Mildew' her iki kütükte de var
+#   ama etkenleri farklı, dolayısıyla önlemleri de farklı. Ortak dosyada
+#   toplansaydı fındık yaprağındaki lekeye çilek önerisi çıkardı — sistem
+#   hiç hata vermeden. Bkz. docs/COK_BITKILI_YAPI.md
+# ══════════════════════════════════════════════════════════════════════════
+#
+# ALANLAR
+#   ad, etken, belirti, uzman : metin
+#   aciliyet                  : yuksek | orta | bilgi
+#   onlem                     : madde listesi
+#   organ:                    : organa özgü EZME. Yalnızca FARKLI olan
+#                               alanlar yazılır; yazılmayan üstten gelir.
+#                               `onlem` EZİLİR (birleştirilmez) — yarısı
+#                               yaprak yarısı fındık önerisi olmasın diye.
+#
+# DURUM (2026-08-01): İSKELET. Metinler genel tarımsal bilgidir; ürüne
+# özgü ilaç/doz YAZILMAZ — ruhsatlı ilaç listesi bölgeye ve yıla göre
+# değişir, o yüzden her kayıt kullanıcıyı uzmana yönlendirir.
+
+Powdery Mildew Leaf:
+  ad: Külleme (Yaprak)
+  etken: Fungal (Phyllactinia guttata) — çilekteki Podosphaera aphanis DEĞİL
+  aciliyet: orta
+  belirti: Yaprak ALTINDA beyaz-gri unumsu tabaka; ilerleyince yaprak sararır
+    ve erken dökülür.
+  onlem:
+  - Ocak içi havalanmayı artırın; aşırı sık dalları budayarak seyreltin.
+  - Dökülen yaprakları toplayıp bahçeden uzaklaştırın — kışlama kaynağıdır.
+  - Aşırı azotlu gübrelemeden kaçının; sürgün yumuşaklığı hastalığı artırır.
+  uzman: Ruhsatlı fungisit ve uygulama zamanı için il/ilçe tarım müdürlüğüne
+    danışın.
+
+Leaf Spot:
+  ad: Yaprak Lekesi
+  etken: Fungal (Piggotia coryli) — çilekteki aynı adlı hastalıkla ilgisi yok
+  aciliyet: orta
+  belirti: Yaprakta kahverengi, düzensiz kenarlı lekeler; lekeler birleşerek
+    yaprağın kurumasına yol açar.
+  onlem:
+  - Yere dökülen yaprakları toplayın; etmen bitki artığında kışlar.
+  - Ocak tabanındaki dip sürgünlerini temizleyip hava akışını artırın.
+  - Sabah sulayın, yaprak ıslaklık süresini kısaltın.
+  uzman: Yayılım hızlıysa koruyucu program için uzman görüşü alın.
+
+Bacterial Blight:
+  ad: Bakteriyel Yanıklık
+  etken: Bakteriyel (Xanthomonas arboricola pv. corylina)
+  aciliyet: yuksek
+  belirti: Yaprakta suymuş görünümlü koyu lekeler, sürgünlerde kararma ve
+    geriye doğru ölüm; genç ocaklarda ölüme kadar gidebilir.
+  onlem:
+  - Hastalıklı sürgünleri kuru havada, sağlam dokudan kesip yakın.
+  - Budama aletlerini HER ocak arasında dezenfekte edin — en yaygın bulaşma yolu.
+  - Yaralanmayı azaltın; dolu ve don sonrası bahçeyi kontrol edin.
+  - Fidan alırken sertifikalı, hastalıksız materyal kullanın.
+  uzman: Bakteriyel hastalıklarda kimyasal seçenek sınırlıdır; yayılım varsa
+    mutlaka uzman görüşü alın.
+
+Anthracnose:
+  ad: Antraknoz
+  etken: Fungal (Colletotrichum spp.) — fındıkta dal ve zurufta görülür
+  aciliyet: orta
+  belirti: Dalda çöküntülü koyu lekeler, zurufta kahverengi çürüklük; nemli
+    havada leke üzerinde sporlanma.
+  onlem:
+  - Enfekte dal ve zurufları toplayıp bahçeden uzaklaştırın.
+  - Ocakları seyrelterek nemin uzun süre kalmasını önleyin.
+  - Aşırı sulamadan ve taban suyu yüksek alanlarda dikimden kaçının.
+  uzman: Koruyucu uygulama zamanlaması için uzmana danışın.
+  organ:
+    branch:
+      belirti: Dalda çöküntülü koyu lekeler; leke dalı çepeçevre sararsa
+        üst kısım kurur.
+      onlem:
+      - Lekeli dalı sağlam dokudan 15-20 cm aşağıdan kesin.
+      - Kesim aletini her kesimde dezenfekte edin.
+      - Kesilen dalları bahçede bırakmayın, yakın.
+    husk:
+      belirti: Zurufta kahverengi çürüklük; iç fındığa geçerse ürün kaybı olur.
+      onlem:
+      - Erken dökülen zuruflu fındıkları toplayın — spor kaynağıdır.
+      - Hasadı geciktirmeyin; nemli zurufta çürüklük ilerler.
+
+Nutrient Deficiency:
+  ad: Besin Eksikliği
+  etken: Beslenme bozukluğu — HASTALIK DEĞİLDİR, ilaçlama işe yaramaz
+  aciliyet: bilgi
+  # Bu kayıt bilerek 'besin' grubundadır (siniflar.yaml). Belirtisi
+  # hastalığa benzediği için arayüzde ayrı rozetle (🧪 besin) gösterilir;
+  # yapılacak iş gübrelemedir, ilaçlama değil.
+  belirti: Damar araları sararması, yaprak kenarında yanma, sürgün gelişiminde
+    duraklama. Leke keskin kenarlı değildir ve sporlanma görülmez.
+  onlem:
+  - ÖNCE toprak ve yaprak analizi yaptırın — hangi element eksik, ölçmeden
+    bilinmez.
+  - Analiz sonucuna göre gübreleyin; tahminle gübre atmak dengeyi bozar.
+  - 'Toprak pH''ını kontrol edin: element toprakta olsa bile yanlış pH''ta
+    alınamaz.'
+  - Sulama düzenini gözden geçirin; kök bölgesi kuruysa alım durur.
+  uzman: Yaprak analizi sonucunu ziraat mühendisiyle yorumlayın.
+
+Weevil Damage:
+  ad: Kurt Zararı (Çıkış Deliği)
+  etken: Fındık kurdu (Curculio nucum) larvasının zararı
+  aciliyet: yuksek
+  belirti: Fındık kabuğunda düzgün yuvarlak çıkış deliği; iç boşalmış veya
+    kurtlu. Delik varsa larva çoktan çıkmıştır.
+  onlem:
+  - Erken dökülen fındıkları TOPLAYIP İMHA EDİN — larva toprağa geçmeden.
+  - Ocak altını temiz tutun; larva toprakta kışlar.
+  - Ergin çıkış dönemini takip edin; mücadele zamanlaması buna bağlıdır.
+  uzman: Zamanlama kritiktir ve bölgeye göre değişir; ilçe tarım
+    müdürlüğünün uyarı bültenini izleyin.
+
+Stink Bug Damage:
+  ad: Kokarca Zararı (İç Karartı)
+  etken: Kahverengi kokarca ve akrabalarının emgi zararı
+  aciliyet: orta
+  belirti: İç fındıkta çökük kahverengi-siyah lekeler, buruk tat. Dışarıdan
+    çoğu zaman anlaşılmaz.
+  onlem:
+  - Bahçe kenarındaki yabancı ot ve çalıları temizleyin — kokarca oralarda barınır.
+  - Popülasyonu tuzakla izleyin; eşik aşılmadan ilaçlama yapmayın.
+  - Erken dönem emgisi meyve dökümüne, geç dönem emgisi iç karartıya yol açar.
+  uzman: Eşik ve ruhsatlı ilaç için uzmana danışın.
+
+Mold:
+  ad: Küf
+  etken: Fungal (depo ve hasat sonrası küfler)
+  aciliyet: yuksek
+  belirti: İç fındıkta veya zurufta küf tabakası, küflü koku.
+  onlem:
+  - Hasattan sonra fındığı HIZLA kurutun; nem küfün tek sebebidir.
+  - Depolamada nemi %6'nın altında tutun, havalandırın.
+  - Küflü ürünü sağlamdan ayırın — mikotoksin riski taşır.
+  uzman: Mikotoksin riski nedeniyle şüpheli partiyi analize gönderin.
+
+Cracked Nut:
+  ad: Çatlak Fındık
+  etken: Fizyolojik — sulama düzensizliği veya aşırı sıcak
+  aciliyet: bilgi
+  belirti: Kabukta çatlak. Hastalık değildir ama küf ve zararlıya kapı açar.
+  onlem:
+  - Sulamayı düzenli yapın; kuraklık sonrası ani sulamadan kaçının.
+  - Çatlak fındıkları ayırın — küflenme riski yüksektir.
+  uzman: Yaygınsa sulama programını uzmanla gözden geçirin.
+
+# ─────────────────────────────────────────────────────────────────────────
+# ZARARLILAR — CANLININ KENDİSİ
+#
+# Yukarıdaki 'Weevil Damage' / 'Stink Bug Damage' zararın İZİDİR; aşağıdaki
+# kayıtlar CANLIYI tanır. Aynı fındıkta ikisi birden çıkabilir ve
+# yapılacak iş farklıdır: izde ürün ayıklama, canlıda mücadele.
+#
+# ⚠️ Zararlı modeli HENÜZ EĞİTİLMEDİ (modeller.yaml: zararli → aktif: false).
+# ─────────────────────────────────────────────────────────────────────────
+
+Hazelnut Weevil:
+  ad: Fındık Kurdu
+  etken: Curculio nucum (ergin)
+  aciliyet: yuksek
+  belirti: Uzun hortumlu, kahverengi ergin böcek. Dişi fındığa yumurta bırakır.
+  onlem:
+  - Ergin çıkışını izleyin; mücadele yumurta bırakmadan ÖNCE etkilidir.
+  - Dökülen fındıkları toplayıp imha edin.
+  - Toprak işlemesiyle kışlayan larvayı açığa çıkarın.
+  uzman: Ruhsatlı ilaç ve zamanlama için ilçe tarım müdürlüğüne danışın.
+
+Brown Marmorated Stink Bug:
+  ad: Kahverengi Kokarca
+  etken: Halyomorpha halys
+  aciliyet: yuksek
+  belirti: Kalkan şeklinde, kahverengi-mermer desenli böcek; anten ve
+    bacaklarda açık-koyu bantlar.
+  onlem:
+  - Tuzakla popülasyon izleyin; eşiği aşmadan ilaçlamayın.
+  - Bahçe kenarındaki konukçu bitkileri temizleyin.
+  - Geniş etkili ilaçtan kaçının; doğal düşmanları da öldürür.
+  uzman: İstilacı türdür, bölgesel mücadele gerekir — tarım müdürlüğüne bildirin.
+
+Aphids:
+  ad: Yaprak Biti
+  etken: Aphididae
+  aciliyet: orta
+  belirti: Sürgün ucu ve yaprak altında kümeler; yapışkan tatlımsı salgı,
+    üzerinde is küfü.
+  onlem:
+  - Doğal düşmanları (uğur böceği, avcı sinek) koruyun.
+  - Aşırı azotlu gübrelemeyi bırakın; yumuşak sürgün biti çeker.
+  - Yoğun bulaşık sürgünleri kesin.
+  uzman: Popülasyon hızla artıyorsa uzman görüşü alın.
+  organ:
+    leaf:
+      belirti: Yaprak ALTINDA kümeler; yaprak kıvrılır, tatlımsı salgı ve
+        is küfü görülür.
+      onlem:
+      - Yaprak altını düzenli kontrol edin — koloni orada başlar.
+      - Doğal düşmanları koruyun; geniş etkili ilaçtan kaçının.
+    branch:
+      belirti: Genç sürgünlerde yoğun koloni; sürgün gelişimi durur.
+      onlem:
+      - Bulaşık genç sürgünleri kesip uzaklaştırın.
+      - Karıncaları izleyin; biti korurlar ve yayarlar.
+
+Spider Mites:
+  ad: Kırmızı Örümcek
+  etken: Tetranychidae (fındıktaki tür çilektekinden farklıdır)
+  aciliyet: orta
+  belirti: Yaprakta iğne ucu kadar sarı noktalar, ilerleyince bronzlaşma;
+    yoğunlukta ince ağ.
+  onlem:
+  - Tozlu ve kurak koşullar popülasyonu artırır; toz kontrolü yapın.
+  - Avcı akarları koruyun.
+  - Yaprak altını büyüteçle kontrol edin — çıplak gözle geç fark edilir.
+  uzman: Akarisit direnci yaygındır; ürün seçimi için uzmana danışın.
+
+Scale Insect:
+  ad: Kabuklu Bit
+  etken: Coccoidea
+  aciliyet: orta
+  belirti: Dal ve sürgünlerde kabuk gibi yapışık, hareketsiz kümeler;
+    altında emgi noktaları.
+  onlem:
+  - Kışın budama ile bulaşık dalları temizleyin.
+  - Hareketli larva dönemini izleyin; mücadele yalnızca o dönemde etkilidir.
+  - Ocak içi havalanmayı artırın.
+  uzman: Larva çıkış zamanı bölgeye göre değişir; bülten takip edin.
+
+# ─────────────────────────────────────────────────────────────────────────
+# AYIKLAMA BULGULARI — bahçede değil, hasat sonrası
+# 'Weevil Damage' ve 'Cracked Nut' yukarıda tanımlı; aşağıdakiler yalnızca
+# findik_kalite akışında çıkar.
+# ─────────────────────────────────────────────────────────────────────────
+
+Kernel:
+  ad: İç Fındık (Kabuksuz)
+  etken: Fiziksel — kabuk kırılmış veya açılmış
+  aciliyet: bilgi
+  belirti: Kabuğu olmayan iç fındık.
+  onlem:
+  - Kabuksuz içi ayırın; nem çeker ve küflenmesi hızlıdır.
+  - Harman ve taşıma sırasındaki mekanik darbeyi azaltın.
+  uzman: Oranı yüksekse harman ayarlarını gözden geçirin.
+
+Painted Shell:
+  ad: Boyalı/Lekeli Kabuk
+  etken: Belirsiz — kaynak dataset'te 'Painted' olarak etiketlenmiş
+  aciliyet: bilgi
+  belirti: Kabukta koyu, düzensiz renk lekesi.
+  onlem:
+  - Bu sınıfın anlamı doğrulanmadan ticari karar vermeyin.
+  - Leke küfle karışıyorsa partiyi ayrı tutup analiz ettirin.
+  uzman: Sınıfın tanımı netleşene kadar bulguyu bilgi amaçlı değerlendirin.
+
+Sound Nut:
+  ad: Sağlam Fındık
+  etken: —
+  aciliyet: bilgi
+  belirti: Kusur görülmedi.
+  onlem:
+  - İşlem gerekmez.
+  uzman: —

@@ -1,9 +1,43 @@
 # Çok Bitkili Kurulum — Ürün Kapsamı
 
-Bugün yalnızca çilek var. Bu belge, ikinci bitki eklendiğinde **hiçbir şeyin
-karışmaması** için kurulan yapıyı ve yeni bitki ekleme adımlarını anlatır.
+Bu belge, ikinci bitki eklendiğinde **hiçbir şeyin karışmaması** için kurulan
+yapıyı ve yeni bitki ekleme adımlarını anlatır.
 
-## Çözülen asıl risk: sınıf ID çakışması
+**Durum (2026-08-01):**
+
+| Ürün | Yapılandırma | Dataset | Model |
+|---|---|---|---|
+| `cilek` | tam | 5 dataset | 5 model eğitildi, 4'ü boru hattında |
+| `findik` | tam (iskelet) | `findik_kalite` (7.156 görüntü) | yok — eğitim bekliyor |
+
+## Çözülen asıl risk: hastalık adları bitkiler arasında AYNI
+
+Bitki hastalıklarının adları ortaktır ama **etkenleri ve tedavileri farklıdır.**
+Ölçülen çakışmalar (çilek kütüğü ↔ fındık için önerilen sınıflar):
+
+| Ad | Çilekte | Fındıkta |
+|---|---|---|
+| **Leaf Spot** | *Mycosphaerella fragariae* | *Piggotia coryli* — farklı mantar |
+| **Anthracnose** | *Colletotrichum acutatum*, meyvede | dalda ve kabukta |
+| **Powdery Mildew** | *Podosphaera aphanis* | *Phyllactinia guttata* |
+| **Spider Mite / Aphid** | tür farklı | tür farklı |
+
+Tek kütükte toplansaydı: aynı ada tek kayıt düşerdi, fındık yaprağındaki
+lekeye **çilek tedavisi** önerilirdi. Bu sessiz bir hatadır — sistem hata
+vermez, sadece yanlış ilacı söyler.
+
+**Bu yüzden hem `datasets/` hem `configs/urunler/` bitkiye göre klasörlenir.**
+Aynı adı taşıyan iki hastalık iki ayrı dosyada yaşar, birbirini hiç görmez.
+
+```
+datasets/cilek/leaf_disease/     "Leaf Spot" → çilek yaprak lekesi
+datasets/findik/leaf_disease/    "Leaf Spot" → fındık yaprak lekesi
+```
+
+Dataset'ler asla ortak bir havuzda birleştirilmez; birleştirme girişimi
+yukarıdaki tabloyu geri getirir.
+
+## İkinci risk: sınıf ID çakışması
 
 Sınıf ID'leri etiket dosyalarında **sayı** olarak saklanır. Tek kütükte
 kalsaydı, domates eklendiğinde iki kötü seçenekten biri olurdu:
@@ -81,8 +115,28 @@ YAML
 # 5. Serayı 'Domates' ürünüyle tanımla → kayıtlar otomatik o kapsama düşer
 ```
 
-Kod değişikliği **gerekmez**. Docker'da `configs/urunler` klasörü tek parça
-bağlıdır; yeni bitki eklendiğinde `docker-compose.yml` değişmez.
+Kod değişikliği **neredeyse hiç** gerekmez. Docker'da `configs/urunler`
+klasörü tek parça bağlıdır; yeni bitki eklendiğinde `docker-compose.yml`
+değişmez.
+
+### Fındık eklenirken kodda değişen tek yer
+
+`app/sonuc_ozeti.py: ORGAN_GORUNUM` — organ adının arayüzdeki simgesi ve
+Türkçe başlığı. Fındık için `nut`, `husk`, `branch` eklendi; olmasaydı
+üçü de "📄 Organ ayrımı yapılmadan" başlığına düşecekti (çökme değil,
+sessiz kalite kaybı).
+
+Bu sözlük **ürün adına değil ORGAN adına** bakar: `leaf` hem çilekte hem
+fındıkta aynı satırı kullanır. Yeni bitkinin organları mevcutlarla
+örtüşüyorsa dokunmak gerekmez.
+
+### Fındıktan çıkan somut ders
+
+`hazelnut detection v9` paketi adı doğru olduğu için boru hattına
+bağlanacaktı. Ölçüm durdurdu: görüntü başına **en fazla 1 kutu**, kutular
+kadraj ortasında — bu bahçe verisi değil, hasat sonrası ayıklama verisi.
+`rol: tekil, tetik: []` ile ayrı akışa alındı.
+Bkz. [HATA-YONETIMI.md](HATA-YONETIMI.md) § 2.6.
 
 ## Geriye dönük uyumluluk
 

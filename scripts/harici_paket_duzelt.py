@@ -164,6 +164,53 @@ def yeniden_bol(bolumler, oranlar=(0.80, 0.15, 0.05), tohum=0):
     return yeni, len(grup)
 
 
+def arka_plana_al(bolumler, siniflar, hedef_adlar):
+    """Verilen sınıfları etiketlerden siler; GÖRÜNTÜ KALIR.
+
+    "Healthy" gibi sınıflar bu projede uzman modele sınıf olarak verilmez —
+    sağlıklı durumu organ modelinden türetilir (bkz. docs/MIMARI.md). Ama
+    görüntü atılmaz: etiketsiz görüntü YOLO için negatif örnektir, hatalı
+    pozitifi düşürür.
+
+    Kalan sınıfların ID'leri boşluk kalmayacak şekilde sıkıştırılır.
+    Etiket dosyaları geçici kopyada yerinde yazılır — kaynak dokunulmaz.
+    """
+    istenen = {s.strip().lower() for s in hedef_adlar if s.strip()}
+    bulunamayan = sorted(istenen - {s.lower() for s in siniflar})
+    silinecek = {i for i, s in enumerate(siniflar) if s.lower() in istenen}
+    kalan = [s for i, s in enumerate(siniflar) if i not in silinecek]
+
+    yeni_id = {}
+    for i in range(len(siniflar)):
+        if i not in silinecek:
+            yeni_id[i] = len(yeni_id)
+
+    silinen_kutu = 0
+    bosalan = 0
+    for ciftler in bolumler.values():
+        for _, e in ciftler:
+            if not (e and e.exists()):
+                continue
+            satirlar = [s for s in
+                        e.read_text(encoding='utf-8', errors='ignore').splitlines()
+                        if s.split()]
+            tutulan = []
+            for satir in satirlar:
+                p = satir.split()
+                k = int(p[0])
+                if k in silinecek:
+                    silinen_kutu += 1
+                    continue
+                tutulan.append(' '.join([str(yeni_id[k])] + p[1:]))
+            if satirlar and not tutulan:
+                bosalan += 1
+            e.write_text('\n'.join(tutulan) + ('\n' if tutulan else ''),
+                         encoding='utf-8')
+
+    return kalan, {'silinen_kutu': silinen_kutu, 'bosalan_goruntu': bosalan,
+                   'bulunamayan': bulunamayan}
+
+
 def siniflari_say(bolumler, n_sinif):
     say = {b: Counter() for b in bolumler}
     for b, ciftler in bolumler.items():
@@ -227,6 +274,9 @@ def main():
     ap.add_argument('--ad', default=None, help='Hedef dataset adı (varsayılan: paketin adı)')
     ap.add_argument('--siniflar', default=None,
                     help='Yeni sınıf adları, SIRAYLA, virgülle ayrılmış')
+    ap.add_argument('--arka-plana-al', default=None, dest='arka_plana_al',
+                    help='Bu sınıfların ETİKETİ silinir, görüntü background '
+                         'olarak kalır (ör. "Healthy,Healthy Leaf")')
     ap.add_argument('--urun', default='cilek')
     ap.add_argument('--oran', default='0.80,0.15,0.05', help='train,valid,test')
     ap.add_argument('--tohum', type=int, default=0)
@@ -290,6 +340,25 @@ def main():
                 isaret = '' if e == y2 else '  ←'
                 print(f'  {i}: {e:<22} → {y2}{isaret}')
             siniflar = yeni
+
+        # --- Arka plana alma ------------------------------------------------
+        if a.arka_plana_al:
+            adlar = [s.strip() for s in a.arka_plana_al.split(',') if s.strip()]
+            print('\n--- ARKA PLANA ALINAN SINIFLAR ---')
+            siniflar, ist = arka_plana_al(bolumler, siniflar, adlar)
+            if ist['bulunamayan']:
+                print('  ⛔ Datasette böyle sınıf yok: '
+                      + ', '.join(ist['bulunamayan']))
+                print('     Sınıf adları: ' + ', '.join(eski_siniflar))
+                return 1
+            if not siniflar:
+                print('  ⛔ Tüm sınıflar silindi, geriye eğitilecek sınıf kalmadı.')
+                return 1
+            print(f"  {ist['silinen_kutu']} kutu etiketi silindi")
+            print(f"  {ist['bosalan_goruntu']} görüntü tamamen etiketsiz kaldı "
+                  '→ background örneği olarak kalıyor (silinmedi)')
+            print('  kalan sınıflar (ID\'ler sıkıştırıldı): '
+                  + ', '.join(f'{i}:{s}' for i, s in enumerate(siniflar)))
 
         # --- Yeniden bölme -------------------------------------------------
         oranlar = tuple(float(x) for x in a.oran.split(','))

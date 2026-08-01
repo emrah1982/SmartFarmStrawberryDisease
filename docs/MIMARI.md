@@ -45,6 +45,34 @@ Yeni bir zararlı eklendiğinde yalnızca zararlı modeli yeniden eğitilir;
 hastalık modelleri dokunulmadan kalır. Tek modelde her ekleme, tüm sistemin
 yeniden eğitilmesini gerektiriyordu.
 
+### Üçüncü fayda: SAĞLIKLI durumu ayrı sınıf gerektirmez
+
+**Organ modeli aynı zamanda "sağlıklı mı" sorusunun cevabıdır.**
+
+```
+organ modeli yaprağı buldu  +  yaprak hastalık modeli orada bir şey bulamadı
+                            ↓
+                    yaprak SAĞLIKLIDIR
+```
+
+Arayüz bunu açıkça yazar: *"🌿 Yapraklarda (5 adet) — Bakıldı, bulgu yok"*.
+
+Bu yüzden dataset'lerde **`Healthy Leaf` / `Healthy Nut` diye bir sınıf
+yoktur** ve olmamalıdır. Sağlıklı örnekler etiketsiz (background) görüntü
+olarak eğitime girer.
+
+**Neden sınıf yapılmıyor?**
+
+| Sağlıklıyı sınıf yapmak | Organ modelinden türetmek |
+|---|---|
+| Her sağlıklı yaprağı kutulamak gerekir — etiketleme maliyeti katlanır | Organ zaten kutulanıyor, ek iş yok |
+| "Sağlıklı" tanımı belirsiz: hafif leke sağlıklı mı? | Karar hastalık modelinde, eşikle ayarlanabilir |
+| Hastalıklı yaprak hem `Leaf Spot` hem `Healthy` kutusuna girer — çelişki | Çelişki imkânsız |
+| Yeni hastalık eklenince "sağlıklı" tanımı değişir, eski etiketler bozulur | Etkilenmez |
+
+Ayrıca ayrım korunur: *"5 yaprak gördüm, hastalık bulmadım"* ≠ *"hiç yaprak
+görmedim"*. Bu bilgi `Analiz.boru_izi` içinde saklanır (§ 6).
+
 ---
 
 ## 2. Model kütüğü — tek yetkili liste

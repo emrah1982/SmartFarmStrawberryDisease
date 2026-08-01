@@ -144,6 +144,44 @@ kontrol edin:
 > verilseydi arayüzde iki ayrı "Kırmızı Örümcek" görünür, tedavi metni
 > ikiye bölünürdü. Test bunu koruyor.
 
+> **Ama bu kural ÜRÜN İÇİNDEDİR.** Farklı bitkilerde aynı adı taşıyan
+> hastalıklar birleştirilmez — `Leaf Spot` çilekte ve fındıkta ayrı
+> etkenlerdir, ayrı kütüklerde kalır.
+> Bkz. [COK_BITKILI_YAPI.md](COK_BITKILI_YAPI.md).
+
+### "Healthy" sınıfları — ALINMAZ
+
+Roboflow paketlerinin çoğunda `Healthy`, `Healthy Leaf`, `Fresh` gibi
+sınıflar bulunur. **Bu projede bunlar uzman dataset'e girmez.**
+
+Sebep mimaridir: *sağlıklı* durumu organ modelinden türetilir —
+organ modeli yaprağı bulur, uzman model orada bulgu çıkarmazsa yaprak
+sağlıklıdır. Arayüz bunu *"🌿 Yapraklarda (5 adet) — Bakıldı, bulgu yok"*
+diye yazar. Ayrıntı: [MIMARI.md](MIMARI.md) § "Üçüncü fayda".
+
+Sınıf olarak alınırsa iki somut arıza olur:
+
+1. Hastalıklı bir yaprak hem `Leaf Spot` hem `Healthy` kutusuna girer;
+   iki kutu NMS'te birbirini bastırır, sonuç kararsız olur.
+2. Arayüzde "Healthy Leaf" bir **bulgu** gibi listelenir, tedavi kütüğünde
+   karşılığı olmadığı için boş kart çıkar.
+
+Ne yapılır:
+
+```bash
+# Healthy görüntüleri ATMA — etiketini sil, background olarak bırak
+python scripts/harici_paket_duzelt.py datasets/findik/ham/leaf \
+    --arka-plana-al "Healthy,Healthy Leaf,Fresh Leaf" \
+    --cikti datasets/findik/leaf_disease
+```
+
+Etiketsiz kalan görüntü YOLO için negatif örnektir: modele *"burada hastalık
+yok"* diye öğretir. Görüntü silinirse bu bilgi de kaybolur — hatalı pozitif
+oranı artar.
+
+**İstisna:** Organ dataset'inde `leaf` / `nut` / `flower` sınıfları elbette
+kalır; organ modelinin işi zaten onları bulmaktır.
+
 ---
 
 ## 4. Alınan paket projeye nasıl bağlanır?

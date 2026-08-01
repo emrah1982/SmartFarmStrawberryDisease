@@ -112,7 +112,13 @@ def kabul_edilir_mi(ad: str, guven: float, urun=None) -> bool:
 
 
 def grup(ad: str, urun=None) -> str:
-    """hastalik | zararli | olgunluk | diger — arayüzde gruplama için."""
+    """hastalik | zararli | olgunluk | besin | diger — arayüzde gruplama.
+
+    Grup, YAPILACAK İŞİ ayırır: hastalıkta fungisit/kültürel önlem,
+    zararlıda sayım-eşik ve biyolojik mücadele, besinde gübreleme.
+    Bu yüzden 'besin' ayrı bir gruptur — belirtisi hastalığa benzer
+    (yaprakta sararma/leke) ama çözümü tamamen farklıdır.
+    """
     return bilgi(ad, urun).get('grup', 'diger')
 
 

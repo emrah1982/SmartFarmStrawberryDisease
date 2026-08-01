@@ -32,11 +32,22 @@ from typing import List
 # Organ adları organ modelinin dataset'inden gelir (Flower/Fruit/Leaf).
 # Görünüm bilgisi (simge, çoğul başlık) yalnızca sunuma aittir; sınıf
 # kütüğüne değil buraya yazılır.
+#
+# ÜRÜNDEN BAĞIMSIZDIR: burada organ ADI eşleşir, hangi bitkiye ait olduğu
+# değil. Aynı organı iki bitki kullanabilir (leaf hem çilekte hem fındıkta).
+# Bitkiye özgü olan sınıf kütüğüdür (configs/urunler/<urun>/siniflar.yaml),
+# organ görünümü değil.
 ORGAN_GORUNUM = {
     'leaf':   {'simge': '🌿', 'baslik': 'Yapraklarda', 'tekil': 'yaprak'},
     'fruit':  {'simge': '🍓', 'baslik': 'Meyvelerde', 'tekil': 'meyve'},
     'flower': {'simge': '🌸', 'baslik': 'Çiçeklerde', 'tekil': 'çiçek'},
     'stem':   {'simge': '🌱', 'baslik': 'Gövdede', 'tekil': 'gövde'},
+    # Fındık organları. 'nut' meyvenin kendisi, 'husk' onu saran yeşil
+    # zuruf — zuruftaki leke ile içteki kurttan zarar farklı bulgulardır,
+    # ayrı organ olarak tutulur.
+    'nut':    {'simge': '🌰', 'baslik': 'Fındıklarda', 'tekil': 'fındık'},
+    'husk':   {'simge': '🍃', 'baslik': 'Zuruflarda', 'tekil': 'zuruf'},
+    'branch': {'simge': '🪵', 'baslik': 'Dallarda', 'tekil': 'dal'},
 }
 BILINMEYEN = {'simge': '📄', 'baslik': 'Organ ayrımı yapılmadan',
               'tekil': 'bölge'}

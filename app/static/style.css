@@ -228,6 +228,8 @@ th { color: var(--soluk); font-weight: 600; font-size: .85rem; }
 .rozet.tur-hastalik { background: #fff3e0; color: #a05a00; }
 .rozet.tur-zararli { background: #ede7f6; color: #4a2f8f; }
 .rozet.tur-olgunluk { background: #e8f5e9; color: var(--yesil); }
+/* Besin eksikligi: hastalik da zararli da degil, yapilacak is gubreleme */
+.rozet.tur-besin { background: #e3f2fd; color: #16548c; }
 
 /* böcek teşhis — aday güven çubuğu
    Model kapalı kümedir; tek cevap yerine adayların güven DAĞILIMI gösterilir

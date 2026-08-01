@@ -147,6 +147,108 @@ bölünmüş, geçmiş sorgusu ayrılmış.
 Test: `test_tekil_model.py::TestSinifAdlariTekil` — iki sınıfa aynı Türkçe
 ad verilirse suite kırılır.
 
+> **Ama bu yalnızca ÜRÜN İÇİNDE geçerlidir.** Farklı bitkilerde aynı adı
+> taşıyan sınıflar birleştirilmez — `Leaf Spot` çilekte *Mycosphaerella*,
+> fındıkta *Piggotia*'dır. Birleştirilseydi fındık yaprağına çilek
+> tedavisi önerilirdi ve sistem hiç hata vermezdi. Bkz. § 2.7.
+
+### 2.6 Paketin adı doğru, ALANI yanlış
+
+**Belirti:** Model eğitimde iyi, sahada hiçbir şey bulamıyor — ya da
+tamamen alakasız şeyler buluyor.
+
+**Sebep:** Paketin adı ürüne uyuyor diye alan uyumu varsayıldı. Dataset'in
+görüntü alanı (studio/makro/uydu) hedef akışın girdisinden farklıysa model
+öğrendiğini sahada göremez. Ölçülen iki olay:
+
+> `bocek_teshis`: 416×416 makro böcek fotoğrafı, kutu alanı medyanı
+> karenin %15'i. ROI boru hattına bağlansaydı 60-250 px'lik yaprak
+> kırpıntısında çalışacaktı — hiç benzemiyor. **Ayrı akış yapıldı.**
+
+> `hazelnut detection v9`: adı fındık, verisi bahçe değil. Ölçüm:
+> görüntü başına kutu medyanı **1**, maksimumu **1**; kutu merkezleri
+> hepsi (0.50, 0.48); beyaz zeminde tek fındık. Bu bir **hasat sonrası
+> ayıklama** verisidir. `tetik: [nut, husk]` ile boru hattına bağlanmak
+> üzereydi; ölçüm bunu durdurdu. **`rol: tekil, tetik: []` yapıldı.**
+
+**Koruma — paketi kütüğe bağlamadan ÖNCE ölçün:**
+
+```bash
+python scripts/imgsz_oner.py datasets/<urun>/<paket>
+```
+
+Betik artık `--- ALAN TESPİTİ ---` bölümü basar ve boru hattına uygun
+olmayan paket için ⛔ verir. Ayıran iki sinyal, mevcut beş dataset
+ölçülerek seçildi:
+
+| dataset | kutuMax | çok kutulu | merkez sapması | alan |
+|---|---|---|---|---|
+| `findik/findik_kalite` | 1 | %0 | 0.035 | **stüdyo** |
+| `cilek/bocek_teshis` | 14 | %13 | 0.093 | **makro** |
+| `cilek/organ_detection` | 8 | %24 | 0.199 | saha |
+| `cilek/leaf_disease` | 11 | %37 | 0.233 | saha |
+| `cilek/fruit_ripeness` | 30 | %59 | 0.223 | saha |
+
+Kural: `kutuMax == 1` **veya** (merkez < 0.15 **ve** çok kutulu < %20)
+→ ayrı akış.
+
+> **Kutu ALANI ayırt etmez.** İlk denemede alan eşiği (>%10 → makro)
+> kullanıldı ve `organ_detection`'ı (%32.7) yanlışlıkla makro saydı.
+> Böcek %18.7 iken saha organ %32.7 — sinyal yok. Eşik atıldı.
+> Alan yüzdesi raporda hâlâ basılır ama "ayırt edici değil" etiketiyle.
+
+`tetik: []` yazmak bir tercih değil, **yapısal kilittir**:
+`app/modeller.py: tetiklenen()` yalnızca tetik listesinde organ adı geçen
+modelleri döndürür, o yüzden bu model ROI akışında asla çalıştırılamaz.
+
+### 2.7 Bitkiler arası sınıf karışması
+
+**Belirti:** Yok — hata vermez. Yanlış bitkinin tedavisi önerilir.
+
+**Sebep:** Hastalık adları bitkiler arasında ortaktır, etkenleri değil.
+Ölçülen çakışma (çilek kütüğü ↔ fındık): `Leaf Spot` birebir aynı;
+`Anthracnose`, `Powdery Mildew`, `Spider Mites`, `Mold`, `Weevil`
+kısmen çakışıyor.
+
+**Koruma:** Ürüne göre klasörleme — hem veri hem yapılandırma:
+
+```
+datasets/cilek/…        configs/urunler/cilek/…
+datasets/findik/…       configs/urunler/findik/…
+```
+
+Sınıf ID'leri ürün **içinde** `0..n-1`'dir. Dataset'ler ortak havuzda
+**birleştirilmez**. Doğrulandı: `Leaf Spot` çilekte "Fungal
+(Mycosphaerella fragariae)", fındıkta "Fungal (Piggotia coryli)" döner —
+aynı ad, ayrı kayıt. Bkz. [COK_BITKILI_YAPI.md](COK_BITKILI_YAPI.md).
+
+### 2.8 `Healthy` sınıfı uzman modele sızıyor
+
+**Belirti:** Hastalıklı yaprakta kararsız sonuç; arayüzde "Healthy Leaf"
+bir bulgu gibi listeleniyor ve tedavi kartı boş çıkıyor.
+
+**Sebep:** Roboflow paketlerinin çoğunda `Healthy` sınıfı vardır ve
+düşünülmeden alınır. Bu mimaride sağlıklı durumu **organ modelinden
+türetilir**: organ yaprağı bulur, uzman model bulgu çıkarmazsa yaprak
+sağlıklıdır. Sınıf olarak da eklenirse aynı yaprak iki kutuya girer.
+
+**Koruma:** Etiketi sil, **görüntüyü tut** — etiketsiz görüntü negatif
+örnektir, silinirse hatalı pozitif artar:
+
+```bash
+python scripts/harici_paket_duzelt.py <paket> --urun <urun> \
+    --arka-plana-al "Healthy,Healthy Leaf,Fresh"
+```
+
+Betik yazım hatasında sessizce geçmez: olmayan sınıf adı verilirse
+durur ve dataset'teki adları listeler.
+Test: `test_harici_paket.py`
+
+**İSTİSNA — `rol: tekil` akışları.** Orada organ modeli çalışmaz, bu
+yüzden "nesne var ve kusursuz" ile "fotoğrafta nesne yok" başka türlü
+ayrılamaz. `findik_kalite` modelindeki `Sound Nut` bu yüzden sınıftır:
+sağlık sınıfı değil, **varlık** sınıfıdır — o akıştaki organ karşılığı.
+
 ---
 
 ## 3. Eğitim hataları

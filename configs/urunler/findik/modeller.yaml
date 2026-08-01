@@ -1,0 +1,123 @@
+# FINDIK — Model kütüğü (hiyerarşik mimari)
+#
+# DURUM (2026-08-01): İSKELET. Hiçbir model eğitilmedi, hepsi aktif: false.
+# Bir model eğitilip kurulduğunda YALNIZCA onun aktif'i true yapılır;
+# diğerleri false kalır. Yarım kurulumda boru hattı çökmez — eldeki
+# modellerle çalışır (bkz. docs/MIMARI.md).
+#
+# AKIŞ  görüntü → organ → ROI kırpma → ilgili uzman model → birleştirme
+#
+# ALANLAR
+#   dosya      : models/findik/ altındaki ağırlık dosyası
+#   rol        : organ | yaprak_hastalik | meyve_hastalik | zararli | tekil
+#   tetik      : bu model hangi organ bulunduğunda çalışır
+#   imgsz      : ÇIKARIM çözünürlüğü. Uzman modeller ROI KIRPINTISI görür,
+#                tam görüntü değil. Ölçmeden doldurmayın:
+#                  python scripts/imgsz_oner.py --urun findik --model <ad>
+#   siniflar   : SIRA dataset'in data.yaml'ından gelir, buradan uydurulmaz.
+#                Sıra kayarsa scripts/model_kur.py kurulumu reddeder.
+#   esik       : modelin genel güven eşiği (sınıf bazlı ezme: siniflar.yaml)
+#   aktif      : false ise hiç çalıştırılmaz
+
+organ:
+  dosya: organ.pt
+  rol: organ
+  # Fındıkta çilekten FARKLI organ kümesi: nut ve husk ayrıdır.
+  # Zuruftaki leke ile içteki kurt zararı ayrı bulgulardır; tek organda
+  # toplanırsa hangi uzman modelin çalışacağı belirsizleşir.
+  siniflar: [Leaf, Nut, Husk, Branch, Flower]
+  # Çilekte 640 ÖLÇÜLEREK seçildi (1024 güveni düşürüyordu). Fındık
+  # dataset'i indirilince kendi kaynak çözünürlüğüne göre ölçülmeli;
+  # 640 yalnızca makul başlangıçtır.
+  imgsz: 640
+  # Organ modeli yalnızca ROI seçer. Yanlış ROI zararsızdır (uzman model
+  # orada bir şey bulamaz); KAÇIRILAN organ tüm zinciri keser. Cömert eşik
+  # bu yüzden doğrudur.
+  esik: 0.20
+  aktif: false
+  zorunlu: false
+  aciklama: >
+    Bitkinin hangi kısmının görüldüğünü bulur. Hastalık bilmez; organ
+    kutuları üretir ve akışı yönlendirir. AYRICA "sağlıklı mı" sorusunun
+    yarısını yanıtlar: organ bulunup uzman model bulgu çıkarmazsa o organ
+    sağlıklıdır — bu yüzden Healthy diye bir sınıf yoktur.
+
+yaprak_hastalik:
+  dosya: leaf_disease.pt
+  rol: yaprak_hastalik
+  tetik: [leaf]
+  # Çilekte 256 ölçüldü. Fındık yaprağı daha büyük ve damar dokusu farklı;
+  # eğitimden sonra imgsz_oner.py ile yeniden ölçün.
+  imgsz: 256
+  # Besin eksikliği BİLEREK bu modelde: belirtisi yaprakta çıkar ve
+  # hastalıkla karışır — modelin ikisini ayırt etmesi istenir. Grubu
+  # siniflar.yaml'da 'besin'dir, arayüzde ayrı rozetle görünür.
+  siniflar: [Powdery Mildew Leaf, Leaf Spot, Bacterial Blight, Anthracnose,
+             Nutrient Deficiency]
+  esik: 0.20
+  aktif: false
+  aciklama: Yalnızca yaprak ROI'lerinde çalışır. Fındığı hiç öğrenmez.
+
+zararli:
+  dosya: pest_detection.pt
+  rol: zararli
+  tetik: [leaf, nut, husk, branch]
+  siniflar: [Hazelnut Weevil, Brown Marmorated Stink Bug, Aphids,
+             Spider Mites, Scale Insect]
+  esik: 0.25
+  aktif: false
+  aciklama: >
+    SAHA zararlı tespiti: organ ROI'si içinde canlı zararlı arar.
+    findik_kalite'den farkı: bu CANLIYI bulur, o ZARARIN İZİNİ.
+    Aynı fındıkta ikisi birden çıkabilir.
+
+# ─────────────────────────────────────────────────────────────────────────
+# BORU HATTINA GİRMEYEN MODELLER  (rol: tekil, tetik BOŞ)
+#
+# app/modeller.py: tetiklenen() yalnızca `tetik` listesinde organ adı geçen
+# modelleri döner. Tetik boş olduğu için ROI akışında ASLA çalıştırılmaz.
+# ─────────────────────────────────────────────────────────────────────────
+
+findik_kalite:
+  dosya: findik_kalite.pt
+  rol: tekil
+  tetik: []              # BOŞ BIRAKILMALI — ROI akışına karışmasın
+  # ÖLÇÜLDÜ (datasets/findik/findik_kalite, 7.156 görüntü):
+  #   görüntü başına kutu: medyan 1, ortalama 0.9, MAKSİMUM 1
+  #   kutu merkezleri: hepsi (0.50, 0.48) civarında
+  #   kutu alanı: karenin %3.6-6.0'sı, çözünürlük 640x640
+  #   içerik: beyaz zemin üzerinde TEK fındık, stüdyo çekimi
+  #
+  # NEDEN BORU HATTINA BAĞLANMIYOR?
+  #   Bu bir bahçe verisi değil, HASAT SONRASI AYIKLAMA verisidir. Girdisi
+  #   düz zemine konmuş tek fındıktır; organ modelinin bahçe fotoğrafından
+  #   kestiği ROI'ye hiç benzemez (yaprak gölgesi, dal, değişken ışık,
+  #   kümelenmiş fındık). Bağlansaydı yanlış alan dağılımında çalışıp
+  #   yanlış tespit üretirdi — çilekteki bocek_teshis ile aynı gerekçe.
+  #   Ayrıntı: docs/VERI-ALMA.md, docs/HATA-YONETIMI.md
+  siniflar: [Cracked Nut, Weevil Damage, Kernel, Painted Shell, Sound Nut]
+  esik: 0.35
+  aktif: false           # ağırlık henüz eğitilmedi
+  aciklama: >
+    Hasat sonrası fındık ayıklama: kullanıcı tek fındığın fotoğrafını
+    çeker, kabuk kusuru sınıflandırılır. Bahçe teşhisinden ayrı akıştır.
+
+    'Sound Nut' bu modelde SINIF olarak durur — Healthy yasağına aykırı
+    değildir. Yasak, ROI boru hattındaki uzman modeller içindir: orada
+    varlığı organ modeli bildirir. Burada organ modeli çalışmadığından
+    "fındık var ve kusursuz" ile "fotoğrafta fındık yok" ancak bu sınıfla
+    ayırt edilebilir. Yani 'Sound Nut' bir sağlık sınıfı değil, VARLIK
+    sınıfıdır — bu akıştaki organ karşılığıdır.
+
+bocek_teshis:
+  dosya: bocek_teshis.pt
+  rol: tekil
+  tetik: []              # BOŞ BIRAKILMALI — ROI akışına karışmasın
+  siniflar: []
+  esik: 0.35
+  aktif: false
+  aciklama: >
+    Böceğin YAKIN ÇEKİM fotoğrafı üzerinde çalışan ayrı akış. Girdi ölçeği
+    saha ROI'sinden tamamen farklıdır (makro fotoğraf); bu yüzden boru
+    hattına bağlanmaz. Çilekteki bocek_teshis modeli fındıkta kullanılamaz:
+    ürün kapsamı ayrıdır. Veri henüz YOK.

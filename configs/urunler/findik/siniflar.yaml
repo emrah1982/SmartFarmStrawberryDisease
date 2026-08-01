@@ -1,0 +1,189 @@
+# FINDIK — Sınıf kütüğü
+#
+# ANAHTAR = eğitimdeki İngilizce ad. Etiket dosyaları ve model çıktısı buna
+# bağlıdır; ASLA değiştirmeyin.
+#
+# ══════════════════════════════════════════════════════════════════════════
+# BU DOSYA ÇİLEKTEN TAMAMEN AYRIDIR — ADLAR ÇAKIŞSA BİLE
+#
+#   'Leaf Spot'  çilekte  Mycosphaerella fragariae
+#   'Leaf Spot'  fındıkta Piggotia coryli
+#
+# Aynı ad, farklı etken, farklı ilaç. Tek kütükte toplansaydı fındık
+# yaprağındaki lekeye çilek tedavisi önerilirdi ve sistem hiç hata vermezdi.
+# ID'ler ürün İÇİNDE 0..n-1'dir; çilekteki ID'lerle ilgisi yoktur.
+# Ayrıntı: docs/COK_BITKILI_YAPI.md
+# ══════════════════════════════════════════════════════════════════════════
+#
+# 'Healthy Leaf' / 'Healthy Nut' DİYE SINIF YOKTUR — ARAMAYIN.
+#   Sağlıklı durumu organ modelinden türetilir: organ yaprağı bulur, uzman
+#   model orada bulgu çıkarmazsa yaprak sağlıklıdır. Arayüz bunu
+#   "🌿 Yapraklarda (5 adet) — Bakıldı, bulgu yok" diye yazar.
+#   Dışarıdan gelen pakette Healthy sınıfı varsa etiketi silinir, görüntü
+#   background örneği olarak kalır:
+#     python scripts/harici_paket_duzelt.py <paket> --urun findik \
+#         --arka-plana-al "Healthy,Healthy Leaf"
+#   Ayrıntı: docs/MIMARI.md § "Üçüncü fayda", docs/VERI-ALMA.md
+#
+# ALANLAR
+#   tr / en    : ekranda görünecek ad
+#   grup       : hastalik | zararli | olgunluk | besin | diger
+#   id         : etiket dosyalarındaki sayı. Yoksa sınıf "planlanan" sayılır.
+#   egitimde   : model bu sınıfı tanıyor mu (false = veri/eğitim bekliyor)
+#   esik       : sınıfa özel güven eşiği (boşsa modelinki kullanılır)
+#   aktif      : false ise tespit hiç gösterilmez
+#
+# DURUM (2026-08-01): İSKELET. Hiçbir model eğitilmedi, ID atanmadı.
+# ID'ler dataset indirilip sınıf sırası kesinleştiğinde verilecek —
+# sıra dataset'in data.yaml'ından gelir, buradan uydurulmaz.
+
+# ─────────────────────────────────────────────────────── ORGANLAR
+# Organ modelinin sınıfları. Bunlar "bulgu" değildir; ROI üretir ve
+# hangi uzman modelin çalışacağını belirler.
+Leaf:
+  tr: Yaprak
+  en: Leaf
+  grup: organ
+Nut:
+  tr: Fındık
+  en: Nut
+  grup: organ
+Husk:
+  tr: Zuruf
+  en: Husk
+  grup: organ
+  aciklama: >
+    Fındığı saran yeşil kabuk. Zuruftaki leke ile içteki kurt zararı ayrı
+    bulgulardır; bu yüzden Nut'tan ayrı organ olarak tutulur.
+Branch:
+  tr: Dal
+  en: Branch
+  grup: organ
+Flower:
+  tr: Çiçek (Tırfıl)
+  en: Flower
+  grup: organ
+
+# ─────────────────────────────────────────── YAPRAK HASTALIKLARI (planlanan)
+Powdery Mildew Leaf:
+  tr: Külleme (Yaprak)
+  en: Powdery Mildew
+  grup: hastalik
+  aciklama: Phyllactinia guttata — çilekteki Podosphaera aphanis DEĞİL.
+Leaf Spot:
+  tr: Yaprak Lekesi
+  en: Leaf Spot
+  grup: hastalik
+  aciklama: Piggotia coryli — çilekteki aynı adlı hastalıkla ilgisi yok.
+Bacterial Blight:
+  tr: Bakteriyel Yanıklık
+  en: Bacterial Blight
+  grup: hastalik
+  aciklama: Xanthomonas arboricola pv. corylina.
+Anthracnose:
+  tr: Antraknoz
+  en: Anthracnose
+  grup: hastalik
+
+# ─────────────────────────────────────────── BESİN EKSİKLİKLERİ (planlanan)
+# Ayrı grup: belirtisi hastalığa benzer (yaprakta sararma/leke) ama
+# çözümü gübrelemedir, ilaçlama değil.
+Nutrient Deficiency:
+  tr: Besin Eksikliği
+  en: Nutrient Deficiency
+  grup: besin
+
+# ══════════════════════════════════════════════════════════════════════
+# FINDIK AYIKLAMA SINIFLARI — VERİSİ VAR, ID'LERİ KESİN
+#
+# Kaynak: datasets/findik/findik_kalite (7.156 görüntü, sızıntı denetimi
+# temiz). ID'ler O DATASET'İN data.yaml SIRASIDIR — değiştirilemez.
+#
+# Bu sınıflar findik_kalite modeline aittir ve ROI boru hattına GİRMEZ:
+# veri, beyaz zemine konmuş tek fındığın stüdyo çekimidir (ölçüm için
+# bkz. modeller.yaml → findik_kalite). Hasat sonrası ayıklama akışıdır.
+# ══════════════════════════════════════════════════════════════════════
+Cracked Nut:
+  tr: Çatlak Fındık
+  en: Cracked Nut
+  grup: diger
+  id: 0
+  egitimde: false        # veri hazır, model henüz eğitilmedi
+  aciklama: Kabukta çatlak. Hastalık değil ama küf ve zararlıya kapı açar.
+Weevil Damage:
+  tr: Kurt Zararı (Delik)
+  en: Weevil Damage
+  grup: zararli
+  id: 1
+  egitimde: false
+  aciklama: >
+    Curculio nucum larvasının bıraktığı düzgün yuvarlak çıkış deliği.
+    Böceğin KENDİSİ değil, zararın İZİDİR — canlıyı 'Hazelnut Weevil'
+    sınıfı tanır. İkisi aynı fındıkta birlikte çıkmaz: delik varsa larva
+    çoktan çıkmıştır.
+Kernel:
+  tr: İç Fındık (Kabuksuz)
+  en: Kernel
+  grup: diger
+  id: 2
+  egitimde: false
+  aciklama: Kabuğu açılmış/kırılmış fındık. Ayıklamada ayrı sınıftır.
+Painted Shell:
+  tr: Boyalı/Lekeli Kabuk
+  en: Painted Shell
+  grup: diger
+  id: 3
+  egitimde: false
+  aciklama: >
+    Kaynak dataset'te 'Painted'. Kabukta koyu, düzensiz renk lekesi.
+    ⚠️ Kaynağın bunu boya mı yoksa doğal leke mi saydığı belirsizdir;
+    1.380 görüntü (%19) burada. Anlamı netleşince yeniden adlandırılabilir
+    — model eğitilmeden önce karar verin, sonra ID sabitlenir.
+Sound Nut:
+  tr: Sağlam Fındık
+  en: Sound Nut
+  grup: diger
+  id: 4
+  egitimde: false
+  aciklama: >
+    Kusursuz fındık. Bu, yasaklı 'Healthy' sınıfı DEĞİLDİR: findik_kalite
+    ayrı bir akıştır ve orada organ modeli çalışmaz. Varlığı bildiren
+    başka bir model olmadığı için "fındık var, kusursuz" ile "fotoğrafta
+    fındık yok" ancak bu sınıfla ayrılır. Yani sağlık değil VARLIK
+    sınıfıdır. ROI boru hattındaki modellere böyle bir sınıf EKLENMEZ.
+
+# ───────────────────────────────── BAHÇE FINDIK/ZURUF BULGULARI (planlanan)
+# Bunların verisi YOK. Bahçede, dalda, zuruflu fındık fotoğrafı gerekir —
+# ayıklama dataset'i bu iş için kullanılamaz.
+Stink Bug Damage:
+  tr: Kokarca Zararı (İç Karartı)
+  en: Stink Bug Damage
+  grup: zararli
+Mold:
+  tr: Küf
+  en: Mold
+  grup: hastalik
+
+# ─────────────────────────────────────────────── ZARARLILAR (planlanan)
+# DİKKAT: bu adlar çilek kütüğünde de geçebilir. Aynı ad, farklı tür.
+# Ürün kapsamı ayrı olduğu için karışmazlar.
+Hazelnut Weevil:
+  tr: Fındık Kurdu
+  en: Hazelnut Weevil
+  grup: zararli
+Brown Marmorated Stink Bug:
+  tr: Kahverengi Kokarca
+  en: Brown Marmorated Stink Bug
+  grup: zararli
+Aphids:
+  tr: Yaprak Biti
+  en: Aphids
+  grup: zararli
+Spider Mites:
+  tr: Kırmızı Örümcek
+  en: Spider Mites
+  grup: zararli
+Scale Insect:
+  tr: Kabuklu Bit
+  en: Scale Insect
+  grup: zararli
