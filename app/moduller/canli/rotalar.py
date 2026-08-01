@@ -111,6 +111,12 @@ def _isle(veri: bytes, oturum: Optional[servis.OturumKaydi],
         return {'tip': 'hata', 'mesaj': 'Kare çözülemedi'}
 
     sonuc = servis.tespit(frame)
+
+    # Oturum boyunca BENZERSİZ sayım: aynı meyve onlarca karede görünür,
+    # kutuları toplamak anlamsız bir sayı üretir (bkz. app/takip.py).
+    if oturum is not None:
+        oturum.kareyi_izle(sonuc.kutular, time.monotonic())
+
     yanit = {
         'tip': 'sonuc',
         'kutular': [servis.kutu_sozlugu(k) for k in sonuc.kutular],
@@ -120,6 +126,9 @@ def _isle(veri: bytes, oturum: Optional[servis.OturumKaydi],
         'kayit_id': None,
         'sayac': oturum.sayac if oturum else 0,
         'doldu': bool(oturum and oturum.doldu),
+        # Turda şu ana kadar kaç FARKLI nesne görüldü
+        'benzersiz': oturum.benzersiz if oturum else 0,
+        'benzersiz_sinif': oturum.benzersiz_sinif() if oturum else {},
     }
 
     hedef = None

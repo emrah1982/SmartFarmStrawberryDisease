@@ -166,6 +166,161 @@ class TestDayaniklilik:
         assert o['fps'] == 30.0
 
 
+class TestCizgiSayaci:
+    """Sanal çizgi geçiş sayımı — drone/transekt için.
+
+    KULLANICININ FİKRİ, ve doğru bir sezgiyle "bu drone/video için" dedi.
+    Uzun taramalarda benzersiz-iz sayımından sağlamdır: iz kopup yeniden
+    kurulsa bile nesne çizgiyi bir kez geçmiştir. Ama SABİT çekimde
+    hiçbir şey geçmez ve sayı 0 kalır — bu yüzden varsayılan kapalı.
+    """
+
+    def test_gecen_nesne_sayilir(self):
+        c = takip.CizgiSayaci(eksen='x', konum=0.5)
+        t = takip.Takipci(fps=30, cizgi=c)
+        # Hareket takipçinin izin verdiği pencere içinde olmalı (0,5 sn ×
+        # 0,35 = 0,175); daha uzağa atlayan kutu AYRI nesne sayılır.
+        t.ekle(0, [K('strawberry_ripe', 0.42, 0.5)])
+        t.ekle(15, [K('strawberry_ripe', 0.58, 0.5)])     # çizgiyi geçti
+        assert c.toplam == 1
+        assert c.ileri == {'strawberry_ripe': 1}
+
+    def test_gecmeyen_nesne_sayilmaz(self):
+        c = takip.CizgiSayaci(eksen='x', konum=0.5)
+        t = takip.Takipci(fps=30, cizgi=c)
+        t.ekle(0, [K('strawberry_ripe', 0.2, 0.5)])
+        t.ekle(15, [K('strawberry_ripe', 0.3, 0.5)])
+        assert c.toplam == 0
+
+    def test_ayni_iz_IKI_KEZ_sayilmaz(self):
+        """Dur-kalk yürüyüşte nesne çizgi üstünde titreyebilir."""
+        c = takip.CizgiSayaci(eksen='x', konum=0.5)
+        t = takip.Takipci(fps=30, cizgi=c)
+        t.ekle(0, [K('strawberry_ripe', 0.45, 0.5)])
+        t.ekle(15, [K('strawberry_ripe', 0.55, 0.5)])    # geçti
+        t.ekle(30, [K('strawberry_ripe', 0.45, 0.5)])    # geri döndü
+        t.ekle(45, [K('strawberry_ripe', 0.55, 0.5)])    # yine geçti
+        assert c.toplam == 1, 'aynı nesne bir kez sayılmalı'
+
+    def test_yon_ayirt_edilir(self):
+        c = takip.CizgiSayaci(eksen='x', konum=0.5)
+        t = takip.Takipci(fps=30, cizgi=c)
+        t.ekle(0, [K('a', 0.58, 0.5)])
+        t.ekle(15, [K('a', 0.42, 0.5)])                   # sağdan sola
+        assert c.geri == {'a': 1} and not c.ileri
+
+    def test_y_ekseni(self):
+        c = takip.CizgiSayaci(eksen='y', konum=0.5)
+        t = takip.Takipci(fps=30, cizgi=c)
+        t.ekle(0, [K('a', 0.5, 0.42)])
+        t.ekle(15, [K('a', 0.5, 0.58)])
+        assert c.toplam == 1
+
+    def test_SABIT_cekimde_sayim_sifir(self):
+        """Bu sınırın testi: kamera durunca çizgi sayımı 0 verir.
+
+        Kadrajda 3 meyve olsa bile. Bu yüzden çizgi sayımı benzersiz-iz
+        sayımının YERİNE değil YANINDA kullanılmalı.
+        """
+        c = takip.CizgiSayaci(eksen='x', konum=0.5)
+        t = takip.Takipci(fps=30, cizgi=c)
+        kutular = [K('a', 0.2, 0.5), K('a', 0.5, 0.5), K('a', 0.8, 0.5)]
+        for kare in (0, 15, 30, 45):
+            t.ekle(kare, kutular)
+        assert c.toplam == 0, 'sabit sahnede geçiş olmaz'
+        assert t.benzersiz_toplam == 3, 'ama nesneler orada — iz sayımı doğru'
+
+    def test_varsayilan_kapali(self):
+        """Çizgi sayacı yalnızca istenirse çalışmalı."""
+        t = takip.Takipci(fps=30)
+        assert t.cizgi is None
+        assert 'cizgi' not in t.ozet()
+
+    def test_gecersiz_eksen_reddedilir(self):
+        with pytest.raises(ValueError):
+            takip.CizgiSayaci(eksen='z')
+
+    def test_ozet_kaydedilebilir(self):
+        c = takip.CizgiSayaci(eksen='x', konum=0.4)
+        t = takip.Takipci(fps=30, cizgi=c)
+        t.ekle(0, [K('a', 0.33, 0.5)])
+        t.ekle(15, [K('a', 0.47, 0.5)])
+        o = t.ozet()['cizgi']
+        assert o['eksen'] == 'x' and o['konum'] == 0.4 and o['toplam'] == 1
+
+
+class TestHareketOlcumu:
+    """SABİT mi HAREKETLİ mi — kullanıcıya sormadan ÖLÇÜLÜR.
+
+    Çizgi sayımı yalnızca kamera ilerlerken anlamlıdır. "Video mu sabit mi"
+    diye sormak yerine izlerin kayması ölçülür: tutarlı kayma varsa kamera
+    ilerliyordur.
+    """
+
+    def test_sabit_sahne_sabit_bildirilir(self):
+        t = takip.Takipci(fps=30)
+        kutular = [K('a', 0.3, 0.5), K('a', 0.7, 0.5)]
+        for kare in (0, 15, 30, 45):
+            t.ekle(kare, kutular)
+        o = t.sayim_onerisi()
+        assert o['kamera'] == 'sabit'
+        assert o['onerilen'] == 'benzersiz'
+        assert o['kayma'] < t.HAREKET_ESIGI
+
+    def test_kayan_sahne_hareketli_bildirilir(self):
+        t = takip.Takipci(fps=30)
+        for i, x in enumerate([0.70, 0.62, 0.54, 0.46, 0.38]):
+            t.ekle(i * 15, [K('a', x, 0.5)])
+        o = t.sayim_onerisi()
+        assert o['kamera'] == 'hareketli', o
+        assert o['kayma'] >= t.HAREKET_ESIGI
+
+    def test_hareketli_ve_cizgi_varsa_cizgi_onerilir(self):
+        c = takip.CizgiSayaci(eksen='x', konum=0.5)
+        t = takip.Takipci(fps=30, cizgi=c)
+        for i, x in enumerate([0.70, 0.62, 0.54, 0.46, 0.38]):
+            t.ekle(i * 15, [K('a', x, 0.5)])
+        assert t.sayim_onerisi()['onerilen'] == 'cizgi'
+
+    def test_sabit_sahnede_cizgi_ONERILMEZ(self):
+        """ASIL AYRIM: sabit çekimde çizgi 0 verir, önerilmemeli."""
+        c = takip.CizgiSayaci(eksen='x', konum=0.5)
+        t = takip.Takipci(fps=30, cizgi=c)
+        for kare in (0, 15, 30, 45):
+            t.ekle(kare, [K('a', 0.3, 0.5), K('a', 0.7, 0.5)])
+        o = t.sayim_onerisi()
+        assert o['kamera'] == 'sabit'
+        assert o['onerilen'] == 'benzersiz', 'sabit çekimde çizgi önerilmemeli'
+        assert o['cizgi'] == 0
+
+    def test_tek_karelik_iz_hareket_olcumune_girmez(self):
+        """Bir kez görülen izin kayması ölçülemez."""
+        t = takip.Takipci(fps=30)
+        t.ekle(0, [K('a', 0.5, 0.5)])
+        assert t.ortalama_kayma == 0.0
+
+    def test_ozette_oneri_var(self):
+        t = takip.Takipci(fps=30)
+        t.ekle(0, [K('a', 0.5, 0.5)])
+        assert 'oneri' in t.ozet()
+
+
+class TestZamanliEkleme:
+    """Canlı akış: kareler DÜZENSİZ aralıklarla gelir."""
+
+    def test_gercek_zaman_kullanilir(self):
+        t = takip.Takipci(fps=1.0)
+        t.ekle_zamanli(0.0, [K('a', 0.5, 0.5)])
+        t.ekle_zamanli(0.2, [K('a', 0.53, 0.5)])
+        assert t.benzersiz_toplam == 1
+
+    def test_uzun_bosluk_yeni_nesne(self):
+        t = takip.Takipci(fps=1.0, kayip_tolerans_sn=1.0)
+        t.ekle_zamanli(0.0, [K('a', 0.5, 0.5)])
+        t.ekle_zamanli(5.0, [K('a', 0.5, 0.5)])
+        assert t.benzersiz_toplam == 2
+
+
 class TestIou:
     def test_tam_ortusme(self):
         a = K('x', 0.5, 0.5, 0.2, 0.2)

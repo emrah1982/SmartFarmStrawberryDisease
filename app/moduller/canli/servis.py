@@ -122,6 +122,33 @@ class OturumKaydi:
         self.karar = KayitKarari()
         self.sayac = 0
         self._son = None
+        # Oturum boyunca BENZERSİZ nesne sayacı.
+        #
+        # Canlı akışta kareler saniyede birkaç kez gelir; aynı meyve
+        # onlarca karede görünür. Kutuları toplamak "300 çilek gördüm"
+        # gibi anlamsız bir sayı üretirdi. Takipçi aynı nesneyi tek sayar.
+        #
+        # Kareler DÜZENSİZ aralıklarla gelir (ağ, telefon gücü) — bu yüzden
+        # kare numarası değil GERÇEK ZAMAN verilir (ekle_zamanli).
+        from app import takip as takip_modulu
+        self.takipci = takip_modulu.Takipci(fps=1.0)
+        self._basla = None
+
+    def kareyi_izle(self, kutular, simdi: float):
+        """Kareyi takipçiye verir; oturum boyunca benzersiz sayım güncellenir."""
+        if self._basla is None:
+            self._basla = simdi
+        try:
+            self.takipci.ekle_zamanli(simdi - self._basla, kutular)
+        except Exception:                # takip sayım içindir, akışı kesmemeli
+            pass
+
+    @property
+    def benzersiz(self) -> int:
+        return self.takipci.benzersiz_toplam
+
+    def benzersiz_sinif(self) -> dict:
+        return self.takipci.benzersiz_sayim()
 
     @property
     def doldu(self) -> bool:

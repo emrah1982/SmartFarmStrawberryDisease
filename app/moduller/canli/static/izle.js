@@ -39,9 +39,16 @@ function sonucGeldi(s) {
   const kayitBilgi = s.doldu
     ? ` · ⛔ oturum sınırı doldu (${s.sayac}) — kayıt durdu, tespit sürüyor`
     : (s.sayac ? ` · 💾 ${s.sayac}/${A.azami} kayıt` : '');
+  // Ekrandaki kutu sayısı ANLIK, tur boyunca görülen FARKLI nesne sayısı
+  // ayrı bir bilgidir: aynı meyve onlarca karede görünür, kutuları toplamak
+  // anlamsız olurdu (bkz. app/takip.py).
+  const turBilgi = s.benzersiz
+    ? ` · 🍓 turda ${s.benzersiz} farklı nesne`
+    : '';
   durum.textContent = (s.bulanik
     ? '⚠️ Görüntü bulanık — sabit tutun, bu kare atlandı.'
-    : (s.kutular.length ? `${s.kutular.length} tespit` : 'Tespit yok')) + kayitBilgi;
+    : (s.kutular.length ? `${s.kutular.length} tespit (ekranda)` : 'Tespit yok'))
+    + turBilgi + kayitBilgi;
 
   liste.innerHTML = s.kutular.length
     ? s.kutular.map(k => {
