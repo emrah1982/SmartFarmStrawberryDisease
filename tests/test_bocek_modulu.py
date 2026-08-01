@@ -206,6 +206,32 @@ class TestKutuCizimi:
         assert servis.kutuyu_ciz(f, {}) is f
         assert servis.kutuyu_ciz(f, None) is f
 
+    def test_teshis_sayfasi_gorseline_de_cizilir(self, monkeypatch):
+        """Modülün KENDİ sayfası da kutuyu göstermeli — yalnızca yedek
+        akışa eklemek eksik kalıyordu."""
+        _model_kur(monkeypatch, [SahteKutu(0, 0.9, (0.5, 0.5, 0.4, 0.4))])
+        s = servis.tani(np.zeros((200, 200, 3), np.uint8))
+        ciz = servis.adaylari_ciz(np.zeros((200, 200, 3), np.uint8), s)
+        assert ciz.any(), 'teşhis sayfasında kutu çizilmemiş'
+
+    def test_yalnizca_ilk_aday_cizilir(self, monkeypatch):
+        """Üç adayı birden çizmek aynı böceğin üstüne üç kutu bindirirdi."""
+        _model_kur(monkeypatch, [SahteKutu(0, 0.9, (0.3, 0.3, 0.2, 0.2)),
+                                 SahteKutu(2, 0.7, (0.7, 0.7, 0.2, 0.2))])
+        s = servis.tani(np.zeros((200, 200, 3), np.uint8))
+        assert len(s.adaylar) == 2
+        # Yalnızca ilk adayın bölgesi boyanmış olmalı
+        ciz = servis.adaylari_ciz(np.zeros((200, 200, 3), np.uint8), s)
+        ust_sol = ciz[40:80, 40:80].any()      # ilk aday (0.3, 0.3)
+        alt_sag = ciz[150:190, 150:190].any()  # ikinci aday (0.7, 0.7)
+        assert ust_sol and not alt_sag
+
+    def test_kutusuz_sonucta_gorsel_degismez(self, monkeypatch):
+        _model_kur(monkeypatch, [])
+        s = servis.tani(np.zeros((50, 50, 3), np.uint8))
+        f = np.zeros((50, 50, 3), np.uint8)
+        assert servis.adaylari_ciz(f, s) is f
+
 
 class TestYedekAkis:
     """Uçtan uca: tespit yoksa öneri çıkar, tespit varsa ÇIKMAZ."""

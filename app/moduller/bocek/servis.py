@@ -178,6 +178,28 @@ def yedek_tani(goruntu, urun=None) -> dict:
     }
 
 
+def adaylari_ciz(frame, sonuc: 'Sonuc', ad_cevir=None):
+    """Teşhis sayfasının görseli: EN İYİ adayın kutusu çizilir.
+
+    Yalnızca birinci aday çizilir. Üçünü birden çizmek aynı böceğin üstüne
+    üç kutu bindirirdi (hepsi aynı canlıya ait olabilir) ve hangisinin
+    model tarafından seçildiği kaybolurdu. Diğer adaylar tabloda zaten
+    güvenleriyle listeleniyor.
+
+    Etiket "?" ile başlar: model KAPALI KÜMEDİR, kutu "burada bir şey var"
+    demektir, "bu kesinlikle odur" demek değil.
+    """
+    if frame is None or not sonuc or not sonuc.adaylar:
+        return frame
+    en = sonuc.adaylar[0]
+    if not en.kutu_var:
+        return frame
+    return kutuyu_ciz(frame, {'ad': en.ad, 'guven': en.guven,
+                              'kutu': {'x': en.x, 'y': en.y, 'w': en.w,
+                                       'h': en.h, 'sinif_id': en.sinif_id}},
+                      ad_cevir)
+
+
 def kutuyu_ciz(frame, bulgu: dict, ad_cevir=None):
     """Yedek teşhisin kutusunu görüntüye çizer.
 

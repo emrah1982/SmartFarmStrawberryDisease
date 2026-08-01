@@ -84,10 +84,14 @@ async def tani(request: Request, dosya: UploadFile = File(...),
 
     sonuc = servis.tani(frame, urun)
 
+    # Kutu görsele çizilir: kullanıcı modelin karenin NERESİNE baktığını
+    # görmeli. Karede birden çok canlı varsa "hangisini tanıdı" sorusu
+    # ancak kutuyla cevaplanır; yanlış yere bakmışsa da anlaşılır.
+    from app import dil
     kls = config.STORAGE_DIR / KAYIT_DIZINI
     kls.mkdir(parents=True, exist_ok=True)
     ad = f'{uuid.uuid4().hex[:12]}.jpg'
-    cv2.imwrite(str(kls / ad), frame)
+    cv2.imwrite(str(kls / ad), servis.adaylari_ciz(frame, sonuc, dil.sinif_adi))
     goreli = f'{KAYIT_DIZINI}/{ad}'
 
     # Kayıt: böcek bulunamasa bile tutulur. "Model bu fotoğrafta bir şey
