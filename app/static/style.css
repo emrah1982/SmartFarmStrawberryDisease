@@ -4,6 +4,10 @@
   --ana-koyu: #8e0000;
   --zemin: #f6f5f3;
   --kart: #ffffff;
+  /* Kart İÇİNDE gömülü panel (öneri kutusu, adres kutusu, sekme vurgusu).
+     TEMAYA BAĞLI olmak zorunda: sabit açık bir renk verilirse koyu temada
+     açık yazı açık zemine düşer ve metin okunamaz hale gelir. */
+  --zemin2: #f0ece7;
   --metin: #24211f;
   --soluk: #6b6560;
   --cizgi: #e3ded8;
@@ -15,6 +19,7 @@
   :root {
     --zemin: #17150f;
     --kart: #201d18;
+    --zemin2: #2b2721;        /* karttan bir tık açık — gömülü panel hissi */
     --metin: #ece7e0;
     --soluk: #a49c93;
     --cizgi: #34302a;
@@ -211,7 +216,7 @@ th { color: var(--soluk); font-weight: 600; font-size: .85rem; }
 .oneri-kutu {
   margin-top: .7rem;
   padding: .6rem .75rem;
-  background: var(--zemin2, #fafafa);
+  background: var(--zemin2);
   border-radius: 8px;
 }
 .oneri-kutu ul { margin: .3rem 0 .3rem 1.1rem; padding: 0; }
@@ -239,7 +244,14 @@ th { color: var(--soluk); font-weight: 600; font-size: .85rem; }
   background: var(--ana);
   border-radius: 4px;
 }
-tr.ilk-aday { background: #f5faf5; }
+/* İlk aday satırı vurgusu.
+   SABİT açık renk verilemez: koyu temada yazı rengi açık kalır ve satır
+   okunamaz hale gelir (öneri kutusunda aynı hata yaşandı). Ana renkten
+   türetilen saydam bir vurgu her iki temada da çalışır. */
+tr.ilk-aday { background: color-mix(in srgb, var(--yesil) 12%, transparent); }
+@supports not (background: color-mix(in srgb, red 10%, transparent)) {
+  tr.ilk-aday { background: var(--zemin2); }
+}
 .tur-listesi { columns: 2; column-gap: 1.2rem; }
 @media (max-width: 520px) { .tur-listesi { columns: 1; } }
 
@@ -252,7 +264,7 @@ tr.ilk-aday { background: #f5faf5; }
 .qr { flex: 0 0 auto; background: #fff; padding: .5rem; border-radius: 10px; }
 .qr svg { display: block; width: 160px; height: 160px; }
 .adres-kutu {
-  background: var(--zemin2, #fafafa);
+  background: var(--zemin2);
   padding: .5rem .7rem;
   border-radius: 8px;
   word-break: break-all;
@@ -275,7 +287,7 @@ tr.ilk-aday { background: #f5faf5; }
   margin-bottom: -2px;
   border-bottom: 2px solid transparent;
 }
-.sekmeler a:hover { background: var(--zemin2, #fafafa); }
+.sekmeler a:hover { background: var(--zemin2); }
 .sekmeler a.etkin {
   font-weight: 600;
   border-bottom-color: var(--ana);
