@@ -37,15 +37,24 @@ pip install -r requirements.txt
 ### Kullanım
 
 ```bash
-# Tek görüntü ile çalıştır
-python -m strawberry_vision.main --image sample.jpg --model path/to/best.pt
+# Uygulamayı başlat (önerilen)
+docker compose up -d
 
-# Video ile çalıştır
-python -m strawberry_vision.main --video video.mp4 --model path/to/best.pt --max-frames 100
+# Bilgisayardan
+http://localhost:8000
 
-# Smoke test
-python tests/smoke_test.py
+# Telefondan bağlanma adresi ve QR kodu
+http://localhost:8000/baglan
+
+# Docker olmadan
+python -m app.main
+
+# Testler
+python -m pytest tests/ -q
 ```
+
+> Analiz arayüz üzerinden yapılır: fotoğraf/video yükleme, IP kamera anlık
+> görüntü, canlı akış. Ayrıntı: [docs/GORUNTU-KAYNAKLARI.md](docs/GORUNTU-KAYNAKLARI.md)
 
 ### 🚀 Colab Akışı (Adım Adım)
 
@@ -676,51 +685,42 @@ python scripts/sahi_predict.py --model best.pt --source datasets/field_photos --
 
 ```
 SmartFarmBerry/
-├── strawberry_vision/           # Ana uygulama paketi
-│   ├── presentation/            # Görselleştirme katmanı
-│   │   └── visualizer.py
-│   ├── application/             # Uygulama katmanı
-│   │   └── pipeline.py
-│   ├── domain/                  # Domain katmanı
-│   │   ├── entities.py
-│   │   └── services.py
-│   ├── infrastructure/          # Altyapı katmanı
-│   │   ├── detectors.py
-│   │   └── sources.py
-│   └── main.py                  # Giriş noktası
+├── app/                         # Uygulama (FastAPI)
+│   ├── main.py                  # Rotalar, HTTP katmanı
+│   ├── pipeline.py              # Hiyerarşik boru hattı: organ → ROI → uzman
+│   ├── detector.py              # Model çalıştırma, video işleme
+│   ├── modeller.py              # Model kütüğü (lazy yükleme)
+│   ├── takip.py                 # Kareler arası takip, benzersiz sayım
+│   ├── sonuc_ozeti.py           # Sonucu organa göre gruplama
+│   ├── tedavi.py                # Tedavi kütüğü, organ bazlı çözümleme
+│   ├── siniflar.py              # Sınıf kütüğü
+│   ├── urunler.py               # Ürün (bitki) kapsamı
+│   ├── ag.py                    # Sunucu adresleri (mDNS + IP)
+│   ├── database.py              # Veritabanı modelleri
+│   └── moduller/                # İsteğe bağlı modüller
+│       ├── canli/               #   WebSocket canlı akış
+│       ├── bocek/               #   Böcek teşhis (ayrı akış)
+│       ├── konum/               #   EXIF GPS, yaygınlık haritası
+│       └── veritabani/          #   Tarayıcıdan veritabanı inceleme
 │
-├── configs/                     # Konfigürasyon dosyaları
-│   ├── strawberry_data.yaml     # Dataset config (10 sınıf, çoklu kaynak)
-│   ├── train_config.yaml        # Eğitim parametreleri
-│   └── class_aliases.yaml       # Sınıf adı eş anlamlıları (birleştirme için)
-│
-├── scripts/                     # Yardımcı scriptler
-│   ├── download_dataset.py      # Dataset indirme
-│   ├── merge_datasets.py        # Çoklu kaynak birleştirme (sınıf ID çakışmasız)
-│   ├── split_dataset.py         # Grup bazlı (veri sızıntısız) train/val/test split
-│   ├── add_background_images.py # Sağlıklı (background) görüntü ekleme
-│   ├── augment_by_class.py      # Sınıf hedefli augmentation (dengesizlik giderici)
-│   ├── collect_field_data.py    # Saha görüntülerini ön-etiketle + önceliklendir
-│   ├── train_yolo.py            # Model eğitimi
-│   ├── evaluate_model.py        # Model değerlendirme
-│   └── sahi_predict.py          # SAHI ile dilimli inference (küçük lezyonlar)
-│
-├── tests/                       # Test dosyaları
-│   ├── test_domain_entities.py
-│   ├── test_domain_services.py
-│   ├── test_application_pipeline.py
-│   └── smoke_test.py
+├── tests/                       # 528 test — 31 dosya
+│   ├── test_pipeline.py         #   hiyerarşik boru hattı
+│   ├── test_takip.py            #   kareler arası takip, çizgi sayımı
+│   ├── test_tekil_model.py      #   model kütüğü izolasyonu
+│   ├── test_sonuc_ozeti.py      #   organa göre gruplama
+│   ├── test_tedavi.py           #   organ bazlı tedavi çözümleme
+│   └── ...                      #   (tam liste: pytest --collect-only)
 │
 ├── docs/                        # Dokümantasyon
-│   ├── INDEX.md                 # Dokümantasyon ana sayfa
-│   ├── USAGE.md                 # Kullanım kılavuzu
-│   ├── architecture.md          # Mimari tasarım
-│   ├── development-rules.md     # Geliştirme kuralları
-│   ├── 1-gorunuAnalizi.md       # Dataset stratejisi
-│   ├── 2-YOLOegitimiHiperparametre.md
-│   ├── 2.1-roboflowEtiketlemeTalimati.md
-│   ├── 2.2-ModelHataAnaliziIyilestirmePromptu.md
-│   └── 3-RoboflowDatasetKullanimi.md
+│   ├── INDEX.md                 # Giriş — hangi belge ne için
+│   ├── MIMARI.md                # Hiyerarşik yapı ve tasarım gerekçeleri
+│   ├── HATA-YONETIMI.md         # Hata yönetimi ve tekrarlayan tuzaklar
+│   ├── VERI-ALMA.md             # Roboflow/Kaggle veri alma kuralları
+│   ├── GORUNTU-KAYNAKLARI.md    # Fotoğraf/video/drone/canlı koşulları
+│   ├── EGITIM.md                # Eğitim ve model kurulumu
+│   ├── COK_BITKILI_YAPI.md      # Yeni bitki ekleme
+│   ├── GELISTIRME-KURALLARI.md  # Kod yazma kuralları
+│   └── YOL-HARITASI.md          # Durum ve sonraki adımlar
 │
 ├── requirements.txt             # Python bağımlılıkları
 ├── StrawberryVision_Colab_Production.ipynb  # Colab eğitim notebook'u
@@ -734,10 +734,10 @@ SmartFarmBerry/
 pytest tests/
 
 # Coverage ile
-pytest --cov=strawberry_vision tests/
+pytest --cov=app tests/
 
 # Belirli bir test dosyası
-pytest tests/test_domain_entities.py -v
+pytest tests/test_pipeline.py -v
 ```
 
 ## 📚 Dokümantasyon
@@ -746,10 +746,11 @@ Detaylı dokümantasyon için `docs/INDEX.md` dosyasına bakın:
 
 - **[Yol Haritası](docs/YOL-HARITASI.md)**: bugünkü durum, sonraki adımlar, ticari/hukuki notlar
 
-- **Kullanım Kılavuzu**: Kurulum, çalıştırma, örnekler
-- **Mimari Tasarım**: Katmanlı mimari, bağımlılıklar, veri akışı
-- **Geliştirme Kuralları**: SOLID prensipleri, kod stili, test stratejisi
-- **Model Eğitimi**: Dataset hazırlama, eğitim, değerlendirme
+- **[Mimari](docs/MIMARI.md)**: hiyerarşik yapı, model kütüğü, tasarım gerekçeleri
+- **[Hata Yönetimi](docs/HATA-YONETIMI.md)**: yaşanan hatalar, sebepleri ve korumaları
+- **[Veri Alma](docs/VERI-ALMA.md)**: Roboflow/Kaggle paketleri nasıl kabul edilir
+- **[Görüntü Kaynakları](docs/GORUNTU-KAYNAKLARI.md)**: fotoğraf/video/drone/canlı koşulları
+- **[Eğitim](docs/EGITIM.md)**: dataset hazırlama, eğitim, model kurulumu
 - **Roboflow Kullanımı**: Dataset linkleri, augmentation, best practices
 
 ## 🎨 Katmanlı Mimari
@@ -1766,7 +1767,7 @@ Eğitim, [configs/urunler/cilek/veri.yaml](configs/urunler/cilek/veri.yaml) üze
 
 ## 🤝 Katkıda Bulunma
 
-1. Kod yazarken `docs/development-rules.md` kurallarına uyun
+1. Kod yazarken `docs/GELISTIRME-KURALLARI.md` kurallarına uyun
 2. Her değişiklik için test yazın
 3. Docstring ve type hint ekleyin
 4. SOLID prensiplerine uyun

@@ -100,3 +100,11 @@ doğrulandı: aynı görüntü yine aynı 2 tespiti veriyor, kayıtta `urun='cil
   müdahale gerektirebilir.
 - Arayüzde ürün seçici henüz yok; ürün seradan geliyor. Birden çok bitkiyle
   çalışıldığında geçmiş/panel için ürün filtresi eklenmelidir.
+
+---
+
+## İlgili belgeler
+
+- [MIMARI.md](MIMARI.md) — model kütüğü ve boru hattı
+- [VERI-ALMA.md](VERI-ALMA.md) — yeni bitkinin dataset'ini hazırlama
+- [EGITIM.md](EGITIM.md) — eğitim ve model kurulumu

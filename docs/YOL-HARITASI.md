@@ -9,14 +9,26 @@ Projenin bugünkü durumu ve sonraki adımlar. Kararların **gerekçesi** de yaz
 
 | Alan | Durum |
 |---|---|
-| Model | YOLO26 (`yolo26s`), 10 sınıf: 7 hastalık + 3 olgunluk |
-| Veri | 4 kaynak birleşik, ~9.300 train görüntüsü, sınıf hedefli augmentasyon |
-| Eğitim | Colab Pro+ (A100), GPU'ya göre otomatik ayar, kaldığı yerden devam |
-| Arayüz | FastAPI + SQLite, yerel ağ; telefon/webcam/IP kamera |
+| Mimari | **Hiyerarşik çok modelli**: organ → ROI → uzman model ([MIMARI.md](MIMARI.md)) |
+| Modeller | 5 model eğitildi ve kuruldu; `zararli` saha verisi bekliyor |
+| Veri | Model başına ayrı dataset; sızıntı denetimi ve etiket temizliği araçlı |
+| Eğitim | Colab Pro+ (A100); epoch/imgsz/önbellek **ölçülerek** seçiliyor |
+| Sayım | Kareler arası takip (`app/takip.py`) — video/drone/canlıda benzersiz sayım |
+| Arayüz | FastAPI + SQLite; telefon/webcam/IP kamera/canlı akış, QR ile bağlantı |
 | İşletme yapısı | Üretici → Sera → Kamera → Analiz |
-| Dağıtım | Docker (CPU imajı 697 MB), GPU seçeneği hazır |
-| Sürekli iyileştirme | İnceleme kuyruğu, tarayıcıda etiketleme, tek birikimli eğitim havuzu |
-| Konum/yaygınlık | Modül (`app/moduller/konum`): EXIF GPS, kamera konumu, elle blok/sıra, ısı haritası |
+| Ürün kapsamı | Çilek; çok bitkili iskelet hazır ([COK_BITKILI_YAPI.md](COK_BITKILI_YAPI.md)) |
+| Dağıtım | Docker, tek süreçte http:8000 + https:8443 |
+| Test | 528 test |
+
+### Bu turda tamamlananlar
+
+- Hiyerarşik mimariye geçiş tamamlandı; miras (tek) model devre dışı
+- Model başına çıkarım `imgsz`'i ölçülerek belirlendi → bir sera fotoğrafında
+  1 tespit → 4 tespit
+- Sonuçlar **organa göre** gruplanıyor; tedavi önerileri organa özel
+- Böcek teşhis modülü (ayrı akış, kapalı küme uyarılı)
+- Video/drone/canlı için kareler arası takip + isteğe bağlı çizgi sayımı
+- `/baglan` sayfası: mDNS makine adı + QR (IP değişse de çalışır)
 
 ---
 
@@ -45,15 +57,17 @@ Tek noktadan geçiş bu riski ortadan kaldırır.
 
 ---
 
-## 2. HTTPS (telefonda tarayıcı içi kamera için)
+## 2. HTTPS ✅ tamamlandı
 
-Telefondan `http://192.168.x.x` ile bağlanıldığında tarayıcı `getUserMedia`'yı
-**engeller** (güvenli bağlam şartı). Bu yüzden telefonda cihazın kamera uygulaması
-kullanılır — pratikte yeterlidir.
+Telefonda tarayıcı içi kamera **güvenli bağlam** ister. Çözüldü:
 
-Tarayıcı içi kamera/canlı önizleme istenirse: `mkcert` ile yerel ağa güvenilir
-sertifika üretilip uvicorn `--ssl-keyfile/--ssl-certfile` ile başlatılır.
-İnternete açılacaksa zaten HTTPS + kimlik doğrulama şart.
+- Tek süreçte iki dinleyici: `http:8000` + `https:8443`
+- `scripts/https_sertifika.py` kendinden imzalı sertifika üretir; makine
+  adını (`<ad>.local`) ve mevcut IP'leri **her zaman** kapsar
+- `/baglan` sayfası adresleri QR koduyla verir, sertifika kapsamını denetler
+
+**Kalan:** internete açılacaksa gerçek sertifika (Let's Encrypt) + madde 1'deki
+kimlik doğrulama şart.
 
 ---
 
@@ -75,11 +89,17 @@ Kurulu ve çalışıyor: düşük güvenli kayıtlar → inceleme kuyruğu → *
 etiketleme** (Roboflow gerekmez) → eğitim formatında dışa aktarım (`images/`,
 `labels/`, `data.yaml`) → `merge_datasets.py` → yeniden eğitim.
 
-**Sıradaki ölçüm:** eğitim bitince sınıf bazlı recall'a bakılacak. Az örnekli
-sınıflar (Anthracnose 326 kutu, Powdery Mildew Fruit 590) zayıf kalırsa çözüm
-augmentasyon değil **gerçek saha verisi**.
+**Ölçülen durum:** `leaf_disease` 0,40 ile en zayıf halka. Sebep bulundu —
+en küçük %10 kutu **kaynak görüntüde zaten 3 piksel**. Bu imgsz sorunu değil
+veri sorunudur: ya hatalı etiket, ya çok uzaktan çekim, ya küçültülmüş
+dışa aktarım. Çözüm augmentasyon değil **etiket temizliği + gerçek saha verisi**.
 
-Ayrıca: dondurulmuş bir test seti tutulmalı ki model sürümleri adil karşılaştırılsın.
+**Sıradaki:**
+- `leaf_disease` etiketlerini `etiket_temizle.py` ile denetle, 3 piksellik
+  kutuları ayıkla, yeniden eğit
+- Ölçülen `imgsz` değerleriyle yeniden eğitim (10 kat hız kazancı)
+- Dondurulmuş test seti — model sürümleri adil karşılaştırılsın
+  (`model_karsilastir.py` hazır)
 
 ---
 
@@ -88,7 +108,8 @@ Ayrıca: dondurulmuş bir test seti tutulmalı ki model sürümleri adil karşı
 - **Lisans:** YOLO26/Ultralytics **AGPL-3.0**. Kapalı kaynak ticari üründe ya kod
   açılır ya Ultralytics Enterprise lisansı alınır. Alternatif Apache-2.0 modeller:
   RF-DETR, YOLOX, D-FINE.
-- **Tedavi önerileri:** `configs/tedavi_onerileri.yaml` içinde **ilaç adı/dozu yoktur**
+- **Tedavi önerileri:** `configs/urunler/<urun>/tedavi_onerileri.yaml` içinde
+  **ilaç adı/dozu yoktur**
   — bilinçli tercih. Ruhsatlı ilaçlar ülkeye/ürüne/döneme göre değişir; yanlış
   tavsiye yasal sorumluluk ve ürün kaybı doğurur. Metinler kültürel önlem +
   "uzmana danışın" yönlendirmesidir.
@@ -115,3 +136,15 @@ Ayrıca: dondurulmuş bir test seti tutulmalı ki model sürümleri adil karşı
   28 dosya kısaltıldı. Yeni veri eklerken kontrol edin (README'de komut var).
 - Analiz kayıtlarında görüntüler **dosya** olarak tutulur, veritabanında yalnızca yol
   vardır; BLOB kullanmak yedeklemeyi ve servisi ağırlaştırırdı.
+- Böcek yedek teşhisi yalnızca **fotoğrafta** çalışır. Videoda hangi karenin
+  "böcek fotoğrafı" sayılacağı ayrı bir problem — bilinçli erteleme.
+- Çizgi sayımı arayüzden açılabilir ama **varsayılan kapalı**: sabit çekimde
+  0 verir, kendiliğinden açılması yanıltıcı olurdu.
+
+---
+
+## İlgili belgeler
+
+- [MIMARI.md](MIMARI.md) · [HATA-YONETIMI.md](HATA-YONETIMI.md) ·
+  [VERI-ALMA.md](VERI-ALMA.md) · [GORUNTU-KAYNAKLARI.md](GORUNTU-KAYNAKLARI.md) ·
+  [EGITIM.md](EGITIM.md)

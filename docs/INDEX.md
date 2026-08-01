@@ -1,105 +1,82 @@
-# 🍓 Strawberry Vision - Dokümantasyon Ana Sayfa
+# Belgeler
 
-## Proje Özeti
+Çilek hastalık tespit sistemi — hiyerarşik çok modelli görüntü analizi,
+FastAPI arayüzü, yerel ağda çalışır.
 
-Strawberry Vision, Google Colab uyumlu, katmanlı mimariye sahip profesyonel bir çilek görüntü analiz sistemidir. Sistem, YOLO tabanlı nesne tespiti ile çileklerde hastalık belirtilerini tespit eder (7 sınıf), takip eder ve sayım/istatistik üretir.
+---
 
-## Hızlı Başlangıç
+## Ne arıyorsun?
+
+| Soru | Belge |
+|---|---|
+| Sistem nasıl çalışıyor? Neden böyle kurulmuş? | [MIMARI.md](MIMARI.md) |
+| Bir hata aldım / aynı hata tekrar ediyor | [HATA-YONETIMI.md](HATA-YONETIMI.md) |
+| Roboflow'dan/Kaggle'dan veri indirdim, nasıl eklerim? | [VERI-ALMA.md](VERI-ALMA.md) |
+| Video/drone/canlı akışta sayım neden farklı? | [GORUNTU-KAYNAKLARI.md](GORUNTU-KAYNAKLARI.md) |
+| Model nasıl eğitilir ve kurulur? | [EGITIM.md](EGITIM.md) |
+| Yeni bir bitki (domates vb.) eklemek istiyorum | [COK_BITKILI_YAPI.md](COK_BITKILI_YAPI.md) |
+| Kod yazarken neye dikkat etmeliyim? | [GELISTIRME-KURALLARI.md](GELISTIRME-KURALLARI.md) |
+| Sırada ne var? | [YOL-HARITASI.md](YOL-HARITASI.md) |
+
+---
+
+## Bugünkü durum
+
+| Alan | Durum |
+|---|---|
+| Mimari | Hiyerarşik: organ → ROI → uzman model |
+| Modeller | 5 model eğitildi ve kuruldu; `zararli` bekliyor (veri yok) |
+| Ürün kapsamı | Çilek. Çok bitkili iskelet hazır |
+| Arayüz | FastAPI + SQLite, yerel ağ; telefon/webcam/IP kamera/canlı akış |
+| Dağıtım | Docker (http:8000 + https:8443 tek süreçte) |
+| Test | 528 test |
+
+### Model durumu
+
+| Model | mAP50-95 | Durum |
+|---|---|---|
+| `organ` | 0,8326 | ✅ kurulu |
+| `olgunluk` | 0,6157 | ✅ kurulu |
+| `bocek_teshis` | 0,5712 | ✅ kurulu (ayrı akış) |
+| `meyve_hastalik` | 0,5559 | ✅ kurulu |
+| `yaprak_hastalik` | 0,4000 | ✅ kurulu — veri kalitesi sınırlı |
+| `zararli` | — | ⏳ saha verisi toplanacak |
+
+---
+
+## Hızlı başlangıç
 
 ```bash
-# Bağımlılıkları kur
-pip install -r requirements.txt
+# Çalıştır
+docker compose up -d
 
-# Tek görsel ile çalıştır
-python -m strawberry_vision.main --image sample.jpg --model path/to/best.pt
+# Bilgisayardan
+http://localhost:8000
 
-# Smoke test
-python tests/smoke_test.py
+# Telefondan (adres ve QR için)
+http://localhost:8000/baglan
 ```
 
-## Katmanlı Mimari
+Kamera kullanmak için telefonda **https** gerekir; `/baglan` sayfası
+makine adıyla kalıcı adresi verir.
 
-Bu proje 4 katmana ayrılmıştır:
+### Sık kullanılan komutlar
 
-- **Presentation**: Görselleştirme ve çıktı üretimi (`visualizer.py`)
-- **Application**: Pipeline orkestrasyon (`pipeline.py`)
-- **Domain**: İş kuralları ve varlıklar (`entities.py`, `services.py`)
-- **Infrastructure**: Model, veri kaynakları (`detectors.py`, `sources.py`)
-
-## Temel Dokümantasyon
-
-### Kullanım ve Geliştirme
-- **Kullanım Kılavuzu**: `docs/USAGE.md` - Kurulum, çalıştırma, Colab kullanımı
-- **Mimari Tasarım**: `docs/architecture.md` - Katmanlar, bağımlılıklar, veri akışı
-- **Geliştirme Kuralları**: `docs/development-rules.md` - SOLID, kod stili, test kuralları
-
-### Model Eğitimi ve Dataset
-- **Görüntü Analizi**: `docs/1-gorunuAnalizi.md` - Hastalık odaklı dataset stratejisi, etiketleme kuralları
-- **YOLO Eğitimi**: `docs/2-YOLOegitimiHiperparametre.md` - Hiperparametre optimizasyonu (7 sınıf)
-- **Roboflow Etiketleme**: `docs/2.1-roboflowEtiketlemeTalimati.md` - Etiketleme talimatları
-- **Hata Analizi**: `docs/2.2-ModelHataAnaliziIyilestirmePromptu.md` - Model iyileştirme
-- **Roboflow Dataset Kullanımı**: `docs/3-RoboflowDatasetKullanimi.md` - Dataset linkleri, augmentation, eğitim
-
-## Proje Yapısı
-
-```
-strawberry_vision/
-├── presentation/      # Görselleştirme
-├── application/       # Pipeline yönetimi
-├── domain/           # İş kuralları
-├── infrastructure/   # Model ve veri kaynakları
-└── main.py          # Giriş noktası
-
-configs/
-├── strawberry_data.yaml        # Dataset config (10 sınıf, çoklu kaynak)
-├── train_config.yaml           # Eğitim parametreleri
-└── class_aliases.yaml          # Sınıf adı eş anlamlıları
-
-scripts/
-├── download_dataset.py         # Roboflow'dan dataset indir
-├── merge_datasets.py           # Çoklu kaynak birleştirme (ID çakışmasız)
-├── split_dataset.py            # Grup bazlı (sızıntısız) split
-├── add_background_images.py    # Sağlıklı görüntüleri background olarak ekle
-├── augment_by_class.py         # Sınıf hedefli augmentation
-├── train_yolo.py               # YOLO26 eğitimi
-├── evaluate_model.py           # Model değerlendirme
-└── sahi_predict.py             # Dilimli inference (küçük lezyonlar)
-
-tests/
-├── test_domain_entities.py     # Domain testleri
-├── test_domain_services.py     # Service testleri
-├── test_application_pipeline.py # Pipeline testleri
-└── smoke_test.py               # Entegrasyon testi
-```
-
-## 🎓 Eğitim Pipeline
-
-### 1. Dataset Hazırlama
 ```bash
-# Roboflow'dan indir
-python scripts/download_dataset.py --api-key YOUR_KEY --workspace strawberry --project ripeness
-
-# Kaynakları birleştir (sınıf isimlerine göre eşler, ID çakışmasını önler)
-python scripts/merge_datasets.py --inputs datasets/kaynak1 datasets/kaynak2 --output datasets/merged
-
-# Sınıf dengesizliğini gider (az örnekli sınıfları hedefli çoğalt)
-python scripts/augment_by_class.py --update-data-yaml
+python scripts/model_kur.py --listele                 # hangi modeller kurulu?
+python scripts/egitim_izle.py --bekle                 # eğitim izle
+python scripts/imgsz_oner.py --hepsi                  # çözünürlük ölç
+python scripts/harici_paket_duzelt.py <zip> --kuru    # yeni veri setini denetle
+python -m pytest tests/ -q                            # testler
 ```
 
-### 2. Model Eğitimi
-```bash
-# Config ile eğitim
-python scripts/train_yolo.py --data configs/strawberry_data.yaml --config configs/train_config.yaml
+---
 
-# Parametrelerle eğitim
-python scripts/train_yolo.py --data datasets/processed/data.yaml --epochs 100 --batch 16 --model yolov8s.pt
-```
+## Belge yazma kuralı
 
-### 3. Model Değerlendirme
-```bash
-python scripts/evaluate_model.py --model runs/train/strawberry_exp/weights/best.pt --data configs/strawberry_data.yaml
-```
+Bu belgelerde **karar + gerekçe** birlikte yazılır. "Neden böyle
+yapmıştık" sorusuna dönüp bakabilmek ve aynı hataya geri dönmemek için.
 
-## Katkıda Bulunma
-
-Kod yazarken `docs/development-rules.md` ve `docs/architecture.md` dokümanlarına uyun.
+Yeni bir hata bulunca [HATA-YONETIMI.md](HATA-YONETIMI.md) dosyasına
+**belirti / sebep / koruma** üçlüsüyle ekleyin. Testsiz koruma, koruma
+değildir.
