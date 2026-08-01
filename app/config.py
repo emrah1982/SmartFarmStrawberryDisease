@@ -57,6 +57,12 @@ DATABASE_URL = os.environ.get('DATABASE_URL', f"sqlite:///{STORAGE_DIR / 'kayitl
 
 # --- Video ------------------------------------------------------------------
 # Videolarda her kareyi işlemek gereksizdir; bu aralıkla örnekleme yapılır.
+# Örnekleme SÜREYE göre yapılır: sabit kare adımı 30 fps'te 0,5 sn,
+# 60 fps'te 0,25 sn demektir ve aynı ayar farklı videolarda farklı davranır.
+# Takip penceresi de bu süreye bağlı olduğu için sabitlenmesi önemli.
+VIDEO_ORNEK_ARALIK_SN = float(os.environ.get('VIDEO_ORNEK_ARALIK_SN', '0.5'))
+
+# Geriye dönük: fps okunamayan videolarda bu kare adımı kullanılır.
 VIDEO_FRAME_STEP = int(os.environ.get('VIDEO_FRAME_STEP', '15'))
 VIDEO_MAX_FRAMES = int(os.environ.get('VIDEO_MAX_FRAMES', '40'))
 

@@ -6,23 +6,21 @@
 {# Videoda SAYIM uyarısı — kutu sayısı nesne sayısı DEĞİLDİR.
    Ölçüldü: 4 meyveli sabit sahneden 4 kare örneklenince 11 kutu birikiyor.
    Kareler arası takip yapılmadığı için dürüst olan alt sınırı vermek. #}
-{% if a.kaynak_tip == 'video' and a.kare_basina_en_cok
-      and a.tespit_sayisi > a.kare_basina_en_cok %}
+{% if a.kaynak_tip == 'video' and a.benzersiz_sayi
+      and a.tespit_sayisi > a.benzersiz_sayi %}
 <section class="kart uyari-kart">
-  <h3>🔢 Bu sayı kaç nesne var demek değil</h3>
+  <h3>🔢 Kaç ayrı nesne var?</h3>
   <p>
-    <strong>{{ a.tespit_sayisi }} kutu</strong> bulundu ama bu
-    {{ a.tespit_sayisi }} ayrı nesne değildir: video {{ a.islenen_kare }} karede
-    örneklendi ve aynı meyve/yaprak <strong>her karede yeniden sayıldı</strong>.
-  </p>
-  <p>
-    Tek karede en çok <strong>{{ a.kare_basina_en_cok }}</strong> nesne görüldü —
-    gerçek sayı <strong>en az o kadardır</strong>, yürüyerek çektiyseniz daha fazla.
+    <strong>{{ a.benzersiz_sayi }} ayrı nesne</strong> sayıldı.
+    Görüntüde toplam {{ a.tespit_sayisi }} kutu bulundu ama bunların çoğu
+    <strong>aynı nesnenin farklı karelerde</strong> görülmesiydi; kareler
+    arası takip bunları birleştirdi.
   </p>
   <p class="ipucu">
-    Kesin sayım için kareler arası takip (aynı nesneyi kare kare izleme)
-    gerekir; şu an yapılmıyor. Sayım önemliyse <strong>tek fotoğraf</strong>
-    çekin — orada her nesne bir kez sayılır.
+    Video {{ a.islenen_kare }} karede örneklendi. Takip, aynı nesneyi konum
+    ve sınıf yakınlığıyla eşleştirir — kamera çok hızlı hareket ettiyse veya
+    nesneler sık ve benzerse (sıra sıra çilek) sayı bir miktar sapabilir.
+    Kesin sayım gerekiyorsa yavaş çekin ya da tek fotoğraf kullanın.
   </p>
 </section>
 {% endif %}

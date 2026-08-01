@@ -56,6 +56,10 @@ class Sonuc:
     # Kareler arası eşleştirme (takip) yapılmadığı sürece dürüst olan alt
     # sınırı vermektir: EN AZ bu kadar nesne vardır.
     kare_basina_en_cok: int = 0
+    # Kareler arası TAKİP sonrası benzersiz nesne sayısı (app/takip.py).
+    # Asıl cevap budur: aynı meyve kaç karede görünürse görünsün bir sayılır.
+    benzersiz_sayi: int = 0
+    takip_izi: dict = field(default_factory=dict)
     # Boru hattının ne yaptığı: hangi organlar görüldü, hangi modeller çalıştı.
     # Tespit ÜRETİLMEYEN organlar da burada durur — "5 yaprak gördüm, hastalık
     # bulmadım" ile "hiç yaprak görmedim" arasındaki fark yalnızca burada saklı.
@@ -203,6 +207,16 @@ class Detector:
         if not cap.isOpened():
             raise RuntimeError(f'Video açılamadı: {kaynak_yol}')
 
+        # Örnekleme SÜREYE göre: sabit kare adımı farklı fps'lerde farklı
+        # zaman aralığı demektir ve takip penceresi kayar (bkz. app/takip.py).
+        from app import takip as takip_modulu
+        fps = cap.get(cv2.CAP_PROP_FPS) or 0.0
+        if fps and fps > 0:
+            adim = takip_modulu.ornekleme_adimi(fps, config.VIDEO_ORNEK_ARALIK_SN)
+        else:
+            fps, adim = 30.0, config.VIDEO_FRAME_STEP
+        takipci = takip_modulu.Takipci(fps=fps)
+
         t0 = time.time()
         kutular: List[Kutu] = []
         en_iyi_kare, en_iyi_sayi, en_iyi_kutular = None, -1, []
@@ -214,7 +228,7 @@ class Detector:
             ok, frame = cap.read()
             if not ok:
                 break
-            if idx % config.VIDEO_FRAME_STEP == 0:
+            if idx % adim == 0:
                 # Bulanık kareyi modele vermek yanlış tespit üretir — atla.
                 # Yürürken çekimde karelerin bir kısmı hareket bulanıklığı taşır.
                 k = keskinlik_olc(frame)
@@ -237,6 +251,8 @@ class Detector:
                     r = model(frame, conf=siniflar.en_dusuk_esik(), imgsz=config.IMGSZ,
                               verbose=False)[0]
                     kare_kutulari = self._kutulari_al(r, kare=idx)
+                # Kareler arası eşleştirme: aynı nesne bir daha sayılmasın
+                takipci.ekle(idx, kare_kutulari)
                 kutular.extend(kare_kutulari)
                 if len(kare_kutulari) > en_iyi_sayi:
                     en_iyi_sayi = len(kare_kutulari)
@@ -271,21 +287,19 @@ class Detector:
         elif bulanik:
             not_ = f'{bulanik} bulanık kare atlandı; kalan {islenen} kare işlendi.'
 
-        # Sayım uyarısı: kullanıcı "43 tespit" görüp 43 hastalıklı meyve
-        # olduğunu sanmamalı. Aynı meyve her karede yeniden sayılıyor.
         en_cok = max(en_iyi_sayi, 0)
-        if islenen > 1 and len(kutular) > en_cok:
-            sayim_notu = (f'Bu bir video: {islenen} kare örneklendi ve aynı nesne '
-                          f'her karede yeniden sayıldı. Toplam {len(kutular)} kutu '
-                          f'bulundu ama bu {len(kutular)} ayrı nesne DEĞİLDİR — '
-                          f'tek karede en çok {en_cok} nesne görüldü, gerçek sayı '
-                          'en az o kadardır.')
-            not_ = f'{not_} {sayim_notu}'.strip()
+        benzersiz = takipci.benzersiz_toplam
+        if islenen > 1 and len(kutular) > benzersiz:
+            not_ = (f'{not_} Video {islenen} karede örneklendi ({adim} karede bir, '
+                    f'~{adim / fps:.1f} sn). Toplam {len(kutular)} kutu bulundu; '
+                    f'kareler arası takiple bunlar {benzersiz} AYRI nesneye '
+                    'indirgendi.').strip()
 
         return Sonuc(kutular=kutular, sonuc_yolu=cikti_yol if en_iyi_kare is not None else '',
                      islenen_kare=islenen, sure_ms=int((time.time() - t0) * 1000),
                      keskinlik=ort_keskinlik, bulanik_kare=bulanik, kalite_notu=not_,
-                     kare_basina_en_cok=en_cok)
+                     kare_basina_en_cok=en_cok,
+                     benzersiz_sayi=benzersiz, takip_izi=takipci.ozet())
 
     # ------------------------------------------------------- ayrıntılı analiz
     def goruntu_detayli(self, kaynak_yol: str, cikti_yol: str) -> Sonuc:

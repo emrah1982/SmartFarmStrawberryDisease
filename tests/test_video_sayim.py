@@ -1,15 +1,16 @@
-"""Videoda SAYIM — kutu sayısı nesne sayısı değildir.
+"""Videoda SAYIM — kutu sayısı değil, BENZERSİZ nesne sayısı.
 
 NEDEN TEST?
-    Video işlenirken her örneklenen karenin kutuları birikitiriliyor,
-    kareler arası eşleştirme (takip) yapılmıyor. Sonuç: aynı meyve her
-    karede yeniden sayılıyor. Ölçüldü:
+    Video işlenirken her örneklenen karenin kutuları biriktiriliyor ve
+    kareler arası eşleştirme yoktu. Ölçüldü:
 
         4 meyveli SABİT sahne, 4 kare örneklendi → 11 kutu
 
     Kullanıcı bunu "11 hastalıklı meyve" diye okursa yanlış tarımsal karar
-    verir (ilaçlama, hasat, imha). Sayı düzeltilemiyorsa bile NE ANLAMA
-    GELDİĞİ söylenmeli — sessizce yanlış sayı vermek en kötüsü.
+    verir: gereksiz ilaçlama, yanlış hasat planı, boşuna imha.
+
+    Artık app/takip.py kareler arasında eşleştirme yapıyor; arayüz kutu
+    sayısını değil benzersiz nesne sayısını öne çıkarıyor.
 """
 
 import pytest
@@ -21,7 +22,7 @@ from tests.test_app import SahteDetector
 
 
 class VideoDetector(SahteDetector):
-    """Videoda birikmiş kutuları taklit eder: 3 kare × 4 nesne."""
+    """3 kare × 4 kutu = 12 kutu, ama gerçekte 4 nesne."""
 
     def video(self, kaynak, cikti):
         from pathlib import Path
@@ -32,7 +33,9 @@ class VideoDetector(SahteDetector):
                 kutular.append(Kutu(9, 'strawberry_ripe', 0.8,
                                     0.2 + i * 0.15, 0.5, 0.1, 0.1, kare=kare))
         return Sonuc(kutular=kutular, sonuc_yolu=str(cikti), islenen_kare=3,
-                     sure_ms=10, kare_basina_en_cok=4)
+                     sure_ms=10, kare_basina_en_cok=4, benzersiz_sayi=4,
+                     takip_izi={'benzersiz': 4, 'sinif': {'strawberry_ripe': 4},
+                                'fps': 30.0})
 
 
 @pytest.fixture
@@ -42,60 +45,68 @@ def client(monkeypatch):
         yield c
 
 
-class TestSayimUyarisi:
-    def test_video_kaydinda_uyari_gosterilir(self, client):
-        r = client.post('/analiz/dosya',
-                        files={'dosyalar': ('a.mp4', b'x', 'video/mp4')},
-                        follow_redirects=True)
+def _video_yukle(client):
+    return client.post('/analiz/dosya',
+                       files={'dosyalar': ('a.mp4', b'x', 'video/mp4')},
+                       follow_redirects=True)
+
+
+class TestBenzersizSayim:
+    def test_benzersiz_sayi_one_cikar(self, client):
+        r = _video_yukle(client)
         assert r.status_code == 200
-        assert 'kaç nesne var demek değil' in r.text
+        assert 'Kaç ayrı nesne var' in r.text
+        assert '4 ayrı nesne' in r.text
 
-    def test_alt_sinir_yazili(self, client):
-        """Kullanıcı en azından güvenilir bir alt sınır görmeli."""
-        r = client.post('/analiz/dosya',
-                        files={'dosyalar': ('a.mp4', b'x', 'video/mp4')},
-                        follow_redirects=True)
-        assert 'en az o kadar' in r.text
-        assert '>4<' in r.text, 'kare başına en çok değeri gösterilmeli'
+    def test_kutu_sayisiyla_farki_aciklanir(self, client):
+        """Kullanıcı 12 kutu görüp şaşırmamalı; sebebi yazılı olmalı."""
+        r = _video_yukle(client)
+        assert '12 kutu' in r.text
+        assert 'aynı nesnenin farklı karelerde' in r.text
 
-    def test_kutu_sayisi_da_yazili(self, client):
-        r = client.post('/analiz/dosya',
-                        files={'dosyalar': ('a.mp4', b'x', 'video/mp4')},
-                        follow_redirects=True)
-        assert '12 kutu' in r.text, '3 kare × 4 nesne = 12 kutu'
+    def test_takibin_siniri_soyleniyor(self, client):
+        """Takip kesin değil; hızlı kamerada sapabileceği yazılı olmalı."""
+        r = _video_yukle(client)
+        assert 'sapabilir' in r.text
 
-    def test_fotografta_uyari_YOK(self, client):
-        """Fotoğrafta her nesne bir kez sayılır; uyarı kafa karıştırır."""
+    def test_fotografta_kart_YOK(self, client):
+        """Fotoğrafta her nesne bir kez sayılır; kart kafa karıştırır."""
         r = client.post('/analiz/dosya',
                         files={'dosyalar': ('a.jpg', b'x', 'image/jpeg')},
                         follow_redirects=True)
-        assert 'kaç nesne var demek değil' not in r.text
+        assert 'Kaç ayrı nesne var' not in r.text
 
-    def test_deger_veritabanina_yaziliyor(self, client):
+    def test_veritabanina_yaziliyor(self, client):
         from app.database import Analiz, SessionLocal
-        client.post('/analiz/dosya', files={'dosyalar': ('a.mp4', b'x', 'video/mp4')},
-                    follow_redirects=True)
+        _video_yukle(client)
         db = SessionLocal()
         try:
             a = db.query(Analiz).order_by(Analiz.id.desc()).first()
+            assert a.tespit_sayisi == 12, 'ham kutu sayısı korunmalı'
+            assert a.benzersiz_sayi == 4, 'benzersiz sayı kaydedilmeli'
             assert a.kare_basina_en_cok == 4
-            assert a.tespit_sayisi == 12
         finally:
             db.close()
 
 
 class TestGercekVideoAkisi:
-    """detector.video() gerçekten alt sınırı hesaplıyor mu?"""
-
-    def test_kare_basina_en_cok_alani_var(self):
+    def test_sonuc_alanlari_var(self):
         s = Sonuc()
-        assert hasattr(s, 'kare_basina_en_cok')
+        assert s.benzersiz_sayi == 0
+        assert s.takip_izi == {}
         assert s.kare_basina_en_cok == 0
 
-    def test_video_kodu_uyari_metni_uretiyor(self):
-        """Not metni detector içinde kuruluyor — sessizce kaybolmamalı."""
+    def test_video_kodu_takipci_kullaniyor(self):
         from pathlib import Path
         kaynak = (Path(__file__).resolve().parent.parent
                   / 'app' / 'detector.py').read_text(encoding='utf-8')
-        assert 'her karede yeniden sayıldı' in kaynak
-        assert 'kare_basina_en_cok=en_cok' in kaynak
+        assert 'takipci.ekle(idx, kare_kutulari)' in kaynak
+        assert 'benzersiz_sayi=benzersiz' in kaynak
+
+    def test_ornekleme_fpse_gore(self):
+        """Sabit kare adımı yerine süreye göre örnekleme."""
+        from pathlib import Path
+        kaynak = (Path(__file__).resolve().parent.parent
+                  / 'app' / 'detector.py').read_text(encoding='utf-8')
+        assert 'ornekleme_adimi(fps' in kaynak
+        assert 'idx % adim == 0' in kaynak

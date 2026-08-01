@@ -173,6 +173,12 @@ class Analiz(Base):
     # takip yapılmadığı sürece dürüst olan alt sınırı da saklamaktır.
     kare_basina_en_cok = Column(Integer, default=0)
 
+    # Kareler arası TAKİP sonrası benzersiz nesne sayısı (app/takip.py).
+    #
+    # `tespit_sayisi` kutu sayısıdır ve videoda aynı nesneyi her karede
+    # tekrar sayar. Kullanıcıya gösterilmesi gereken sayı budur.
+    benzersiz_sayi = Column(Integer, default=0)
+
     # Boru hattı izi (JSON): {"organlar": {"Leaf": 5}, "modeller": [...], ...}
     # Tespit listesi yalnızca BULUNANLARI içerir; "5 yaprak gördüm ama
     # hastalık bulmadım" bilgisi başka hiçbir yerde durmuyor. Sonuç ekranı
@@ -256,7 +262,8 @@ def _eksik_sutunlari_ekle():
                       'bulanik_kare': 'INTEGER', 'kalite_notu': 'TEXT',
                       'elle_etiketlendi': 'BOOLEAN', 'disa_aktarildi': 'BOOLEAN',
                       'dosya_hash': 'VARCHAR(16)', 'boru_izi': 'TEXT',
-                      'kare_basina_en_cok': 'INTEGER DEFAULT 0'},
+                      'kare_basina_en_cok': 'INTEGER DEFAULT 0',
+                      'benzersiz_sayi': 'INTEGER DEFAULT 0'},
         # Eski tespitlerde organ boş kalır — hiyerarşiden önce kaydedildiler.
         'tespitler': {'organ': "VARCHAR(30) DEFAULT ''"},
     }
