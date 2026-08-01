@@ -34,6 +34,24 @@ CRT = CERT_DIR / 'sunucu.crt'
 KEY = CERT_DIR / 'sunucu.key'
 
 
+def makine_adlari():
+    """Makine adı ve mDNS karşılığı — ASIL KALICI ADRES.
+
+    Router DHCP ile sürekli yeni IP veriyor (.103 → .101 → .104) ve
+    sertifika eski IP'ye göre üretildiği için telefon her seferinde hem
+    adresi bulamıyor hem güvenlik uyarısı alıyordu.
+
+    Makine adı değişmez. Windows 10+ kendi adını mDNS ile yayınlar,
+    telefonlar `<ad>.local` adresini çözer. Sertifika bunu kapsamazsa
+    kalıcı adres kullanmak da uyarı verir — o yüzden HER ZAMAN eklenir.
+    """
+    try:
+        ad = socket.gethostname()
+    except OSError:
+        return []
+    return [a for a in (ad, f'{ad}.local') if a and a != 'localhost']
+
+
 def yerel_ipler():
     """Bu makinenin yerel ağ adreslerini bulur (telefon bu adrese bağlanacak)."""
     adresler = {'127.0.0.1'}
@@ -182,13 +200,27 @@ def main():
     if not adlar:
         adlar = yerel_ipler()
 
-    # Kendi adresimizi HER ZAMAN ekle: kullanıcı elle bir adres verse bile
-    # makinenin gerçek IP'si kapsam dışı kalırsa telefon uyarı verir.
-    for ip in yerel_ipler():
-        if ip not in adlar:
-            adlar.append(ip)
+    # Makine adını ve kendi IP'lerimizi HER ZAMAN ekle: kullanıcı elle bir
+    # adres verse bile eksik kalan adres telefonda uyarı üretir.
+    for a in makine_adlari() + yerel_ipler():
+        if a not in adlar:
+            adlar.append(a)
 
     CERT_DIR.mkdir(exist_ok=True)
+
+    # Uygulama Docker İÇİNDE çalışır ve orada host'un adını/IP'sini göremez.
+    # Bağlantı sayfası (/baglan) doğru adresi gösterebilsin diye buradan
+    # yazıyoruz — bu betik zaten host tarafında ve IP değişince çalıştırılıyor.
+    try:
+        sys.path.insert(0, str(KOK))
+        from app import ag
+        ip_listesi = [a for a in adlar if a not in makine_adlari()]
+        ag.bilgi_yaz(socket.gethostname(), ip_listesi)
+        print(f'Ağ bilgisi yazıldı: {ag._bilgi_dosyasi()}')
+    except Exception as e:
+        print(f'⚠️ Ağ bilgisi yazılamadı ({type(e).__name__}) — '
+              '/baglan sayfası adresleri gösteremeyebilir.')
+
     print('Sertifika şu adresler için üretiliyor:', ', '.join(adlar))
     if not (openssl_ile(adlar) or cryptography_ile(adlar)):
         print('\n❌ Sertifika üretilemedi.\n'

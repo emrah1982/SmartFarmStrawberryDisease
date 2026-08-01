@@ -282,6 +282,68 @@ def _analiz_kontrol():
                         'Kurulum: python scripts/model_kur.py --listele')
 
 
+def _sertifika_adlari() -> set:
+    """Sertifikanın kapsadığı adlar/IP'ler. Okunamazsa boş küme."""
+    try:
+        import ssl
+        yol = config.SSL_CERT
+        if not yol or not Path(yol).exists():
+            return set()
+        return {d for _, d in ssl._ssl._test_decode_cert(str(yol)).get(
+            'subjectAltName', ())}
+    except Exception:
+        return set()
+
+
+@app.get('/baglan', response_class=HTMLResponse)
+def baglan(request: Request):
+    """Telefondan bağlanma sayfası — QR ve güncel adresler.
+
+    NEDEN? Router DHCP ile sürekli yeni IP veriyordu (.103 → .101 → .104);
+    kullanıcı eski adresi yazınca "bu siteye ulaşılamıyor" alıyordu. Adresi
+    her seferinde elle bulmak yerine uygulama kendi adresini söylüyor —
+    ve makine adını (mDNS) ÖNCE gösteriyor, çünkü o hiç değişmez.
+    """
+    from app import ag
+
+    kapsam = _sertifika_adlari()
+    liste = []
+    for a in ag.adresler():
+        hedef = ag.url(a.deger)
+        liste.append({
+            'deger': a.deger, 'kalici': a.kalici, 'aciklama': a.aciklama,
+            'url': hedef, 'qr': _qr(hedef),
+        })
+
+    gereken = ag.sertifika_kapsami()
+    eksik = [x for x in gereken if x not in kapsam]
+    ilk = liste[0]['deger'] if liste else 'localhost'
+    return templates.TemplateResponse(request, 'baglan.html', {
+        'request': request, 'adresler': liste,
+        'sertifika_kapsiyor': not eksik, 'eksik_adresler': eksik,
+        'sertifika_url': f'https://{ilk}:{config.HTTPS_PORT}/canli/sertifika',
+    })
+
+
+def _qr(veri: str) -> str:
+    """QR'ı satır içi SVG olarak üretir (dış dosya/istek yok).
+
+    segno SVG'yi BAYT yazar (StringIO değil BytesIO ister); satır içi
+    gömmek için metne çeviriyoruz.
+    """
+    try:
+        import io as _io
+
+        import segno
+        tampon = _io.BytesIO()
+        segno.make(veri, error='m').save(tampon, kind='svg', scale=4,
+                                         border=2, xmldecl=False, svgns=True)
+        return tampon.getvalue().decode('utf-8')
+    except Exception as e:
+        logger.warning(f'QR üretilemedi: {type(e).__name__}: {e}')
+        return ''
+
+
 @app.get('/', response_class=HTMLResponse)
 def anasayfa(request: Request, db: Session = Depends(get_db)):
     # Veriye doğrudan değil yetki katmanı üzerinden erişilir: giriş sistemi

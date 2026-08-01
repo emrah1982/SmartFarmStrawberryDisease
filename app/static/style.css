@@ -243,6 +243,19 @@ tr.ilk-aday { background: #f5faf5; }
 .tur-listesi { columns: 2; column-gap: 1.2rem; }
 @media (max-width: 520px) { .tur-listesi { columns: 1; } }
 
+/* telefondan bağlan sayfası */
+.baglan-satir { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+.qr { flex: 0 0 auto; background: #fff; padding: .5rem; border-radius: 10px; }
+.qr svg { display: block; width: 160px; height: 160px; }
+.adres-kutu {
+  background: var(--zemin2, #fafafa);
+  padding: .5rem .7rem;
+  border-radius: 8px;
+  word-break: break-all;
+  margin: .3rem 0;
+}
+.adres-kutu code { font-size: 1rem; }
+
 /* sekme çubuğu — her sekme ayrı rota, JS yok */
 .sekmeler {
   display: flex;

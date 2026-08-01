@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block baslik %}Telefondan Bağlan{% endblock %}
+{% block icerik %}
+
+<section class="kart">
+  <h2>📱 Telefondan Bağlan</h2>
+  <p class="ipucu">
+    Telefonun bilgisayarla <strong>aynı Wi-Fi ağında</strong> olması gerekir.
+    Kamerayı açabilmek için tarayıcı <strong>https</strong> ister; aşağıdaki
+    adresler onun için 8443 portunu kullanır.
+  </p>
+</section>
+
+{% for a in adresler %}
+<section class="kart {% if a.kalici %}oneri yuksek{% endif %}">
+  <h3>
+    {% if a.kalici %}⭐ {{ a.deger }}{% else %}{{ a.deger }}{% endif %}
+    <span class="rozet {% if a.kalici %}yuksek{% else %}orta{% endif %}">{{ a.aciklama }}</span>
+  </h3>
+
+  {% if a.kalici %}
+  <p class="ipucu">
+    <strong>Bunu kullanın.</strong> Makine adı IP gibi değişmez —
+    router yeni adres verse bile bu bağlantı çalışmaya devam eder.
+    Telefonun yer imlerine ekleyin, bir daha uğraşmazsınız.
+  </p>
+  {% endif %}
+
+  <div class="baglan-satir">
+    {% if a.qr %}<div class="qr">{{ a.qr|safe }}</div>{% endif %}
+    <div style="flex:1;min-width:220px">
+      <p class="adres-kutu"><code>{{ a.url }}</code></p>
+      <p class="ipucu">QR'ı telefon kamerasıyla okutun ya da adresi elle yazın.</p>
+      {% if not a.kalici %}
+      <p class="ipucu">⚠️ Bu IP'yi yer imlerine eklemeyin — router her
+        bağlanışta değiştirebilir.</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endfor %}
+
+{% if not adresler %}
+<section class="kart">
+  <div class="uyari">
+    <strong>Ağ adresi bulunamadı.</strong> Bilgisayar bir Wi-Fi veya
+    kablolu ağa bağlı değil gibi görünüyor.
+  </div>
+</section>
+{% endif %}
+
+<section class="kart">
+  <h3>🔒 “Bağlantınız gizli değil” uyarısı</h3>
+  <p class="ipucu">
+    Sertifika bu bilgisayarda üretildiği için tarayıcı onu tanımaz. İki yol:
+  </p>
+  <ul class="ipucu">
+    <li><strong>Hızlı:</strong> Gelişmiş → “Yine de devam et”. Her tarayıcıda bir kez.</li>
+    <li><strong>Kalıcı:</strong> <code>{{ sertifika_url }}</code> adresini telefonda
+      açıp sertifikayı kurun — sonrasında hiç uyarı çıkmaz.</li>
+  </ul>
+
+  {% if not sertifika_kapsiyor %}
+  <div class="uyari">
+    <strong>⚠️ Sertifika güncel değil.</strong>
+    Şu anki adresleri kapsamıyor, bu yüzden uyarı çıkacaktır. Bilgisayarda
+    şunu çalıştırıp uygulamayı yeniden başlatın:
+    <p class="adres-kutu"><code>python scripts/https_sertifika.py</code></p>
+    <p class="ipucu">Kapsanmayan: {{ eksik_adresler|join(', ') }}</p>
+  </div>
+  {% endif %}
+</section>
+
+<section class="kart">
+  <h3>🔁 Adres bir daha değişmesin</h3>
+  <p class="ipucu">
+    Yukarıdaki <strong>makine adı</strong> zaten IP değişiminden etkilenmez.
+    Tamamen sabitlemek isterseniz router arayüzünden bu bilgisayara
+    <strong>sabit IP (DHCP rezervasyonu)</strong> tanımlayın — router
+    ayarlarında genelde “DHCP Reservation” veya “Statik DHCP” başlığı altındadır.
+  </p>
+</section>
+
+{% endblock %}
