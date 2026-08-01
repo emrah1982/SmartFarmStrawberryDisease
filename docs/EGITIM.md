@@ -56,6 +56,131 @@ modelin ağırlığı `organ.pt` adıyla kopyalandı.
 
 ---
 
+## 2.5 Model ailesi — **YOLO26**
+
+Bu projedeki bütün tespit modelleri **YOLO26** ile eğitilir.
+Tek yetkili yer `configs/train_config.yaml`:
+
+```yaml
+model: yolo26s.pt   # yolo26n / yolo26s / yolo26m / yolo26l / yolo26x
+```
+
+Boyut seçimi: `n` kenar cihaz, `s` varsayılan, `m`/`l` daha çok veri ve
+GPU gerektirir. Beş uzman modelin hepsi `s` ile eğitildi.
+
+### YOLO26'nın iki mimari farkı — ayar yaparken bilinmesi gerekir
+
+| Özellik | Sonucu |
+|---|---|
+| **NMS-free** | Çıkarımda `iou` eşiği **etkisizdir**. Doğrulamada kutu eşleştirmesinde hâlâ kullanılır, o yüzden yapılandırmada durur ama çıkarım davranışını değiştirmez. |
+| **DFL-free** | `dfl: 1.5` ağırlığı **yok sayılır**. YOLOv8'e dönülürse geçerli olur diye silinmedi. |
+
+Bu ikisi bilinmezse "eşiği değiştirdim ama hiçbir şey değişmedi" diye
+saatler harcanır — yapılandırmada duran her anahtar etkin değildir.
+
+### Veri formatı değişmez
+
+YOLO26'nın dataset formatı **YOLOv8 ile birebir aynıdır**: `images/` +
+`labels/` + `data.yaml`. Roboflow'dan `yolov8` veya `yolov11` biçiminde
+indirilen paketler dönüştürme gerektirmez.
+Bkz. [VERI-ALMA.md](VERI-ALMA.md).
+
+### İstisna — YOLOE yalnızca ETİKETLEME aletidir
+
+`scripts/otomatik_etiketle.py` açık sözlüklü tespit için **YOLOE**
+(veya YOLO-World) ağırlığı kabul eder. Bu YOLO26 değildir ve
+**eğitilmez, kütüğe girmez, çalışma zamanında kullanılmaz**.
+
+Neden gerekli: YOLO26 kapalı sınıf listesiyle çalışır — daha eğitilmemiş
+bir organ modelinden kutu alamayız. YOLOE metinle sınıf kabul ettiği için
+ilk aday etiketleri üretir. Aday etiketler düzeltildikten sonra **organ
+modeli YOLO26 ile eğitilir** ve YOLOE bir daha kullanılmaz.
+
+```
+YOLOE  → aday kutu → insan düzeltir →  YOLO26 eğitimi → organ.pt
+(bir kerelik alet)                     (kalıcı model)
+```
+
+### Sınıflandırıcı ayrı bir soru
+
+Uzman model olarak tespit yerine **sınıflandırma** kullanılabilir
+(ROI kırpıntısı → sınıf). Orada iki aday var: `yolo classify` ve DINOv2
+(`scripts/dinov2_egit.py`). Hangisinin bağlanacağı **aynı ROI kırpıntıları
+üzerinde ölçülerek** seçilir, tahminle değil.
+
+---
+
+## 2.6 Sıfır-atış etiketleme işe yarar mı? — ÖLÇÜLDÜ
+
+`scripts/sifir_atis_siniflandir.py`, 2026-08-01.
+
+**Ana bulgu: görevin tanesi her şeyi değiştiriyor.** Aynı modeller bir
+görevde kullanışsız, ötekinde işe yarar. Birinden ötekine sonuç taşınmaz.
+
+### İnce taneli görev — hastalıklı/sağlıklı çotanak
+
+`datasets/findik/cotanak_saglik/test`, 648 kare.
+Taban çizgisi (hep çoğunluk sınıfını söyle) = **0.5355**.
+
+| yöntem | doğruluk | tabana fark |
+|---|---|---|
+| CLIP sıfır-atış (ViT-B/32) | 0.5664 | **+0.031** ⛔ |
+| DINOv2-small az-atış, k=8 | 0.7179 | +0.182 |
+| DINOv2-small az-atış, k=128 | 0.7716 | +0.236 |
+| DINOv2-small doğrusal (256 örnek) | 0.7932 | +0.258 |
+| DINOv2-base az-atış, k=64 | 0.7910 | +0.256 |
+| **DINOv2-base doğrusal (256 örnek)** | **0.8194** | **+0.284** |
+
+**CLIP sıfır-atış burada kullanılamaz.** Tabana göre +3 puan gürültü
+düzeyinde; ilk iki skor arası fark medyanı **0.0113** — argmax yazı-tura.
+Karışıklık matrisi de bunu söylüyor: 347 hastalıklı çotanağın 260'ına
+"sağlıklı" dedi.
+
+**Az-atış k=32'den sonra düzleşiyor.** 8'den 128'e çıkmak (16 kat daha çok
+etiketleme) yalnızca +5 puan getiriyor. Tavan modelin özniteliğinde:
+tam doğrusal sınıflandırıcı bile 0.82'de duruyor.
+
+> Sonuç: bu görev **eğitilmeli**. `scripts/dinov2_egit.py` varsayılanı
+> ölçüme göre `dinov2-base` yapıldı (small'a göre +2.6 puan).
+
+### Kaba taneli görev — organ ayrımı
+
+Fındıkta organ etiketi yok; çilek `organ_detection/valid` vekil olarak
+kullanıldı (309 gerçek kutu, %12 payla kırpıldı).
+Taban çizgisi = **0.3883**.
+
+| yöntem | doğruluk | tabana fark |
+|---|---|---|
+| CLIP sıfır-atış (ViT-B/32) | **0.7832** | **+0.395** ✅ |
+
+| sınıf | precision | recall | f1 |
+|---|---|---|---|
+| Flower | 0.9315 | 0.9855 | 0.9577 |
+| Leaf | 0.6611 | 0.9917 | 0.7933 |
+| Fruit | 0.9821 | **0.4583** | 0.6250 |
+
+Aynı model, aynı kod, **13 kat daha fazla** tabana fark. Organ ayırt etmek
+CLIP'in eğitildiği türden bir iştir; hastalık ayırt etmek değildir.
+
+**Sistematik hata:** 120 meyvenin 60'ına "Leaf" dedi. Meyve `precision`
+0.98 ama `recall` 0.46 — bulduğunda doğru, çoğunu bulamıyor. Bu, prompt
+metniyle iyileştirilebilir; ayrıca **insan kontrolünde ucuz** bir hatadır:
+sınıf düzeltmek kutu çizmekten çok daha hızlıdır.
+
+### Karar
+
+| iş | sıfır-atış | ne yapılır |
+|---|---|---|
+| Organ **kutusu** + sınıfı (aday etiket) | ✅ kullanılabilir | `otomatik_etiketle.py`, sonra insan düzeltir |
+| Çotanak **sağlık** sınıfı | ⛔ kullanılamaz | `dinov2_egit.py` ile eğit |
+| Hastalık **adı** | ⛔ hiç denenmedi | teşhisli veri veya uzman gerekir |
+
+> **Ölçülmeyenler:** CLIP ViT-L/14 (yalnızca B/32 ölçüldü) ve fındık organ
+> ayrımı (çilek vekiliyle tahmin edildi). Fındık organ etiketi çıkınca
+> gerçek sayı ölçülmeli.
+
+---
+
 ## 3. Ölçerek belirlenen ayarlar
 
 ### 3.1 `imgsz` — çözünürlük

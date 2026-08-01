@@ -162,6 +162,24 @@ def rapor_bas(ad, olcum, taban_ad, taban_dogruluk, siniflar):
 
 # ─────────────────────────────────────────────────────────────────────────
 
+def _tensor_al(cikti):
+    """transformers sürüm farkını soğurur.
+
+    4.x: get_text_features / get_image_features doğrudan tensör döner.
+    5.x: BaseModelOutputWithPooling döner; yansıtılmış öznitelik
+         `pooler_output` alanındadır.
+
+    DOĞRULANDI (clip-vit-base-patch32): pooler_output ile elle hesaplanan
+    kosinüs × logit_scale, modelin kendi logits_per_image değerini birebir
+    veriyor (30.43 / 17.32). Yani pooler_output ORTAK yansıtılmış uzaydadır.
+    """
+    if hasattr(cikti, 'pooler_output'):
+        return cikti.pooler_output
+    if hasattr(cikti, 'keys') and 'pooler_output' in cikti:
+        return cikti['pooler_output']
+    return cikti
+
+
 def clip_sinifla(yollar, siniflar, promptlar, model_adi, yigin):
     import torch
     from PIL import Image
@@ -179,8 +197,8 @@ def clip_sinifla(yollar, siniflar, promptlar, model_adi, yigin):
         kaliplar = promptlar.get(s) or [s.replace('_', ' ')]
         g = islemci(text=kaliplar, return_tensors='pt', padding=True)
         with torch.no_grad():
-            t = model.get_text_features(**{k: v.to(aygit)
-                                           for k, v in g.items()})
+            t = _tensor_al(model.get_text_features(
+                **{k: v.to(aygit) for k, v in g.items()}))
         t = torch.nn.functional.normalize(t, dim=-1).mean(0)
         metin_proto.append(torch.nn.functional.normalize(t, dim=-1))
     metin_proto = torch.stack(metin_proto)
@@ -190,8 +208,8 @@ def clip_sinifla(yollar, siniflar, promptlar, model_adi, yigin):
         obek = [Image.open(p).convert('RGB') for p in yollar[i:i + yigin]]
         g = islemci(images=obek, return_tensors='pt')
         with torch.no_grad():
-            v = model.get_image_features(**{k: x.to(aygit)
-                                            for k, x in g.items()})
+            v = _tensor_al(model.get_image_features(
+                **{k: x.to(aygit) for k, x in g.items()}))
         v = torch.nn.functional.normalize(v, dim=-1)
         s = (v @ metin_proto.T).cpu().numpy()
         skorlar.append(s)

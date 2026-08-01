@@ -39,7 +39,13 @@ from pathlib import Path
 KOK = Path(__file__).resolve().parents[1]
 GORUNTU_UZANTI = {'.jpg', '.jpeg', '.png', '.bmp', '.webp'}
 
-VARSAYILAN_MODEL = 'facebook/dinov2-small'
+# ÖLÇÜLEREK seçildi (cotanak_saglik, 648 test karesi, taban çizgisi 0.5355).
+# Dondurulmuş öznitelik + doğrusal sınıflandırıcı, 256 etiketli örnek:
+#     dinov2-small   0.7932
+#     dinov2-base    0.8194      ← +2.6 puan
+# Az-atış tavanı da aynı yönde: small k=128 → 0.772, base k=64 → 0.791.
+# 'small' varsayılandı; ölçüm base'i gösterdi, varsayılan değiştirildi.
+VARSAYILAN_MODEL = 'facebook/dinov2-base'
 BOLUMLER = ('train', 'val', 'test')
 
 
