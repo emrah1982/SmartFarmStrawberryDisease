@@ -52,9 +52,10 @@ def db(client):
 
 
 class SahteKutu:
-    def __init__(self, cid, guven):
+    def __init__(self, cid, guven, xywhn=(0.5, 0.5, 0.2, 0.2)):
         self.cls = [cid]
         self.conf = [guven]
+        self.xywhn = [list(xywhn)]
 
 
 class SahteSonuc:
@@ -176,6 +177,34 @@ class TestYedekTani:
         monkeypatch.setattr(servis, 'hazir', lambda urun=None: True)
         b = servis.yedek_tani(np.zeros((10, 10, 3), np.uint8))
         assert len(b['adaylar']) == 2
+
+    def test_kutu_konumu_dondurulur(self, monkeypatch):
+        """Kullanıcı böceğin karenin NERESİNDE olduğunu görmeli."""
+        _model_kur(monkeypatch, [SahteKutu(0, 0.90, (0.4, 0.55, 0.3, 0.2))])
+        monkeypatch.setattr(servis, 'hazir', lambda urun=None: True)
+        b = servis.yedek_tani(np.zeros((10, 10, 3), np.uint8))
+        assert b['kutu']['x'] == pytest.approx(0.4)
+        assert b['kutu']['w'] == pytest.approx(0.3)
+
+
+class TestKutuCizimi:
+    def test_kutu_goruntuye_cizilir(self):
+        f = np.zeros((200, 200, 3), np.uint8)
+        bulgu = {'ad': 'Army Worm', 'guven': 0.9,
+                 'kutu': {'x': 0.5, 'y': 0.5, 'w': 0.4, 'h': 0.4, 'sinif_id': 0}}
+        ciz = servis.kutuyu_ciz(f, bulgu)
+        assert ciz is not None
+        assert ciz.shape == f.shape
+        assert ciz.any(), 'görüntüye hiçbir şey çizilmemiş'
+
+    def test_kutusuz_bulguda_goruntu_degismez(self):
+        f = np.zeros((50, 50, 3), np.uint8)
+        assert servis.kutuyu_ciz(f, {'ad': 'X', 'guven': 0.9, 'kutu': None}) is f
+
+    def test_bos_bulgu_cokmez(self):
+        f = np.zeros((50, 50, 3), np.uint8)
+        assert servis.kutuyu_ciz(f, {}) is f
+        assert servis.kutuyu_ciz(f, None) is f
 
 
 class TestYedekAkis:

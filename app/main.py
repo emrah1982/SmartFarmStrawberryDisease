@@ -192,8 +192,15 @@ def _bocek_yedegi(sonuc, kaynak_tip: str, dosya_yolu: str, urun: str):
         if frame is None:
             return
         bulgu = bocek.yedek_tani(frame, urun)
-        if bulgu:
-            sonuc.iz = {**(getattr(sonuc, 'iz', None) or {}), 'bocek': bulgu}
+        if not bulgu:
+            return
+        sonuc.iz = {**(getattr(sonuc, 'iz', None) or {}), 'bocek': bulgu}
+
+        # Kutuyu SONUÇ görseline çiz: kullanıcı böceğin karenin neresinde
+        # olduğunu görmeli. Bitki tespiti olmadığı için görsel şu an çıplak.
+        if sonuc.sonuc_yolu:
+            cizilmis = bocek.kutuyu_ciz(frame, bulgu, dil.sinif_adi)
+            cv2.imwrite(str(sonuc.sonuc_yolu), cizilmis)
     except Exception as e:
         logger.warning(f'Böcek yedeği çalışmadı: {e}')
 
