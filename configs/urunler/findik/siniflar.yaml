@@ -152,6 +152,39 @@ Sound Nut:
     fındık yok" ancak bu sınıfla ayrılır. Yani sağlık değil VARLIK
     sınıfıdır. ROI boru hattındaki modellere böyle bir sınıf EKLENMEZ.
 
+# ══════════════════════════════════════════════════════════════════════
+# ÇOTANAK SAĞLIK SINIFLARI — VERİSİ VAR (SINIFLANDIRMA, kutu yok)
+#
+# Kaynak: datasets/findik/cotanak_saglik (4.310 görüntü, 500x500,
+# gerçek bahçe koşulu). Kutu etiketi YOKTUR — bu bir görüntü düzeyi
+# sınıflandırma paketidir, `id` alanı bu yüzden yazılmaz: sınıfın
+# kimliği KLASÖR ADIDIR.
+#
+# Hastalık ADI bilerek yok: kaynak veri seti teşhis koymuyor, yalnızca
+# "erken bozulma belirtisi" diyor. Görüntüye bakıp antraknoz/külleme
+# ayrımı yapmak etiket uydurmak olurdu.
+# ══════════════════════════════════════════════════════════════════════
+healthy_cluster:
+  tr: Sağlıklı Çotanak
+  en: Healthy Cluster
+  grup: diger
+  egitimde: false
+  aciklama: >
+    Normal morfolojide, görsel olarak sağlam çotanak. 'Sound Nut' ile
+    aynı gerekçeyle sınıftır: bu ayrı bir sınıflandırma akışıdır, organ
+    modeli çalışmaz, dolayısıyla varlığı bildiren başka bir model yoktur.
+    ROI boru hattındaki uzman modellere böyle bir sınıf EKLENMEZ.
+diseased_cluster:
+  tr: Bozulma Belirtili Çotanak
+  en: Diseased Cluster
+  grup: diger
+  egitimde: false
+  aciklama: >
+    Erken bozulma belirtisi: morfolojik deformasyon, renk değişimi,
+    yapısal düzensizlik. HANGİ hastalık olduğu bilinmiyor — kaynak veri
+    seti teşhis koymuyor. Tedavi metni bu yüzden çiftçiyi incelemeye
+    yönlendirir, ilaç adı vermez.
+
 # ───────────────────────────────── BAHÇE FINDIK/ZURUF BULGULARI (planlanan)
 # Bunların verisi YOK. Bahçede, dalda, zuruflu fındık fotoğrafı gerekir —
 # ayıklama dataset'i bu iş için kullanılamaz.

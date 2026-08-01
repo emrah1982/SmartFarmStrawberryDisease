@@ -264,3 +264,33 @@ Sound Nut:
   onlem:
   - İşlem gerekmez.
   uzman: —
+
+# ─────────────────────────────────────────────────────────────────────────
+# ÇOTANAK SAĞLIK — sınıflandırma akışı (datasets/findik/cotanak_saglik)
+# Hastalık adı YOK, o yüzden ilaç da yok: metin incelemeye yönlendirir.
+# ─────────────────────────────────────────────────────────────────────────
+
+healthy_cluster:
+  ad: Sağlıklı Çotanak
+  etken: —
+  aciliyet: bilgi
+  belirti: Normal morfoloji, sağlam görünüm.
+  onlem:
+  - İşlem gerekmez; rutin kontrole devam edin.
+  uzman: —
+
+diseased_cluster:
+  ad: Bozulma Belirtili Çotanak
+  etken: Belirlenmedi — model yalnızca "bozulma var" der, teşhis koymaz
+  aciliyet: orta
+  belirti: Morfolojik deformasyon, renk değişimi veya yapısal düzensizlik.
+  onlem:
+  - Çotanağı yakından inceleyin; belirtinin TÜRÜNÜ saptayın.
+  - 'Yuvarlak çıkış deliği varsa: fındık kurdu — Weevil Damage kaydına bakın.'
+  - 'Zurufta kahverengi çürüklük varsa: antraknoz olabilir.'
+  - 'İçte çökük koyu leke varsa: kokarca emgisi olabilir.'
+  - Şüpheli çotanakları ayrı toplayın, sağlam ürünle karıştırmayın.
+  uzman: >
+    Bu model hastalık ADI vermez, yalnızca bozulma olduğunu bildirir.
+    Teşhis ve ilaç için ilçe tarım müdürlüğüne veya ziraat mühendisine
+    başvurun.
