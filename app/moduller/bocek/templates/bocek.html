@@ -73,14 +73,19 @@
     {# Tek cevap DEĞİL, aday listesi gösteriliyor: model kapalı kümedir ve
        bilmediği bir böceği de bu 6 türden birine sokar. Güven dağılımını
        görmek kullanıcının kendi kararını vermesini sağlar. #}
+    {% if sonuc.kutular|length > 1 %}
+    <p class="ipucu">Karede <strong>{{ sonuc.kutular|length }} birey</strong> bulundu;
+      hepsi görselde kutu içine alındı.</p>
+    {% endif %}
     <table>
-      <tr><th>Aday tür</th><th>Güven</th><th></th></tr>
+      <tr><th>Aday tür</th><th>Adet</th><th>Güven</th><th></th></tr>
       {% for a in sonuc.adaylar %}
       <tr {% if loop.first and not sonuc.kararsiz %}class="ilk-aday"{% endif %}>
         <td>
           {% if loop.first %}<strong>{{ a.ad|sinif }}</strong>{% else %}{{ a.ad|sinif }}{% endif %}
           <small>({{ a.ad }})</small>
         </td>
+        <td>{{ sonuc.adet(a.ad) }}</td>
         <td>
           <span class="rozet {% if a.guven >= 0.75 %}yuksek{% elif a.guven >= 0.5 %}orta{% else %}dusuk{% endif %}">
             %{{ a.yuzde }}

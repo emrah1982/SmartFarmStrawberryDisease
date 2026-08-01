@@ -62,6 +62,14 @@ class Aday:
 
 @dataclass
 class Sonuc:
+    # TÜM tespitler — karede kaç birey varsa o kadar kutu.
+    #
+    # NEDEN AYRI? Önce yalnızca tür başına en iyi kutu tutuluyordu ("bu ne"
+    # sorusuna cevap yeter diye). Ama 3 tırtıllı bir karede tek kutu
+    # çiziliyordu ve kullanıcı diğerlerini göremiyordu. Zararlıda SAYI da
+    # tarımsal bilgidir: 1 birey ile 20 birey aynı şey değildir.
+    kutular: List[Aday] = field(default_factory=list)
+    # Tür listesi (tablo için): tür başına EN İYİ kutu, güvene göre sıralı.
     adaylar: List[Aday] = field(default_factory=list)
     kararsiz: bool = False
     hata: str = ''
@@ -73,6 +81,16 @@ class Sonuc:
     @property
     def en_iyi(self) -> Optional[Aday]:
         return self.adaylar[0] if self.adaylar else None
+
+    def sayim(self) -> dict:
+        """{tür: kaç birey} — arayüz 'Bozkurt Tırtılı ×3' yazabilsin."""
+        out = {}
+        for k in self.kutular:
+            out[k.ad] = out.get(k.ad, 0) + 1
+        return out
+
+    def adet(self, ad: str) -> int:
+        return self.sayim().get(ad, 0)
 
 
 def _kutu_coz(b):
@@ -126,24 +144,27 @@ def tani(goruntu, urun=None, imgsz: int = 416) -> Sonuc:
         logger.warning(f'Böcek teşhisi başarısız: {e}')
         return Sonuc(hata=f'Görüntü işlenemedi ({type(e).__name__}).')
 
-    # Aynı tür birden çok kutuda çıkabilir (birkaç birey); tür başına EN
-    # YÜKSEK güvenli kutu alınır. Kutu sayısı burada anlam taşımaz — soru
-    # "bu ne", "kaç tane" değil. Ama KONUM saklanır: kullanıcı böceğin
-    # görüntünün neresinde olduğunu görmeli.
-    en_iyi = {}
+    # HER kutu saklanır: karede birden çok birey olabilir ve kullanıcı
+    # hepsini görmeli. Tür listesi bunlardan türetilir.
     adlar = r.names
+    kutular = []
     for b in r.boxes:
         cid = int(b.cls[0])
         ad = adlar.get(cid, str(cid)) if isinstance(adlar, dict) else adlar[cid]
-        g = float(b.conf[0])
-        if g > getattr(en_iyi.get(ad), 'guven', 0.0):
-            en_iyi[ad] = Aday(ad, g, *_kutu_coz(b), sinif_id=cid)
+        kutular.append(Aday(ad, float(b.conf[0]), *_kutu_coz(b), sinif_id=cid))
+    kutular.sort(key=lambda a: -a.guven)
 
+    # Tür listesi: tür başına EN İYİ kutu. Aynı tür üç kez çıktıysa tabloda
+    # üç satır olmamalı — soru "hangi türler var", "kaç kutu var" değil.
+    en_iyi = {}
+    for k in kutular:
+        if k.guven > getattr(en_iyi.get(k.ad), 'guven', 0.0):
+            en_iyi[k.ad] = k
     adaylar = sorted(en_iyi.values(), key=lambda a: -a.guven)[:3]
 
     kararsiz = (len(adaylar) >= 2
                 and adaylar[0].guven - adaylar[1].guven < KARARSIZLIK_FARKI)
-    return Sonuc(adaylar=adaylar, kararsiz=kararsiz)
+    return Sonuc(kutular=kutular, adaylar=adaylar, kararsiz=kararsiz)
 
 
 # Bitki analizi boş dönünce çalışan YEDEK teşhis burada DAHA SIKI bir eşik
@@ -172,32 +193,43 @@ def yedek_tani(goruntu, urun=None) -> dict:
         'ad': en.ad,
         'guven': en.guven,
         'kararsiz': s.kararsiz,
+        'adet': len(s.kutular),
         'kutu': ({'x': en.x, 'y': en.y, 'w': en.w, 'h': en.h,
                   'sinif_id': en.sinif_id} if en.kutu_var else None),
-        'adaylar': [{'ad': a.ad, 'guven': a.guven} for a in s.adaylar],
+        # Bütün kutular: yedek akışta da her birey çizilebilsin
+        'kutular': [{'ad': k.ad, 'guven': k.guven, 'x': k.x, 'y': k.y,
+                     'w': k.w, 'h': k.h, 'sinif_id': k.sinif_id}
+                    for k in s.kutular if k.kutu_var],
+        'adaylar': [{'ad': a.ad, 'guven': a.guven, 'adet': s.adet(a.ad)}
+                    for a in s.adaylar],
     }
 
 
 def adaylari_ciz(frame, sonuc: 'Sonuc', ad_cevir=None):
-    """Teşhis sayfasının görseli: EN İYİ adayın kutusu çizilir.
+    """Teşhis görseli: BULUNAN HER BİREY kutu içine alınır.
 
-    Yalnızca birinci aday çizilir. Üçünü birden çizmek aynı böceğin üstüne
-    üç kutu bindirirdi (hepsi aynı canlıya ait olabilir) ve hangisinin
-    model tarafından seçildiği kaybolurdu. Diğer adaylar tabloda zaten
-    güvenleriyle listeleniyor.
+    Önce yalnızca en iyi aday çiziliyordu; 3 tırtıllı bir karede tek kutu
+    görünüyor, kullanıcı diğerlerini göremiyordu. Zararlıda sayı da bilgidir.
 
     Etiket "?" ile başlar: model KAPALI KÜMEDİR, kutu "burada bir şey var"
     demektir, "bu kesinlikle odur" demek değil.
     """
-    if frame is None or not sonuc or not sonuc.adaylar:
+    if frame is None or not sonuc:
         return frame
-    en = sonuc.adaylar[0]
-    if not en.kutu_var:
+    ciz = [k for k in (sonuc.kutular or []) if k.kutu_var]
+    if not ciz:
         return frame
-    return kutuyu_ciz(frame, {'ad': en.ad, 'guven': en.guven,
-                              'kutu': {'x': en.x, 'y': en.y, 'w': en.w,
-                                       'h': en.h, 'sinif_id': en.sinif_id}},
-                      ad_cevir)
+
+    from app import cizim
+    from app.detector import Kutu
+
+    kutular = [Kutu(sinif_id=k.sinif_id, sinif_adi=k.ad, guven=k.guven,
+                    x=k.x, y=k.y, w=k.w, h=k.h) for k in ciz]
+
+    def _etiket(ad):
+        return '? ' + (ad_cevir(ad) if ad_cevir else ad)
+
+    return cizim.kutulari_ciz(frame, kutular, _etiket)
 
 
 def kutuyu_ciz(frame, bulgu: dict, ad_cevir=None):
@@ -207,21 +239,28 @@ def kutuyu_ciz(frame, bulgu: dict, ad_cevir=None):
     `Tespit` tablosuna yazılsaydı hastalık istatistiklerine karışırdı.
     Etiket "?" ile başlar — bu bir ÖNERİ, kesin teşhis değil.
     """
-    k = (bulgu or {}).get('kutu')
-    if not k:
+    bulgu = bulgu or {}
+    # Yeni biçimde bütün bireyler `kutular` içinde; eski kayıtlarda tek
+    # `kutu` vardı — ikisi de desteklenir ki geçmiş kayıtlar bozulmasın.
+    ham = bulgu.get('kutular') or ([dict(bulgu['kutu'], ad=bulgu.get('ad', ''),
+                                         guven=bulgu.get('guven', 0))]
+                                   if bulgu.get('kutu') else [])
+    if frame is None or not ham:
         return frame
+
     from app import cizim
     from app.detector import Kutu
 
-    kutu = Kutu(sinif_id=int(k.get('sinif_id', 0)), sinif_adi=bulgu['ad'],
-                guven=float(bulgu.get('guven', 0)),
-                x=float(k['x']), y=float(k['y']),
-                w=float(k['w']), h=float(k['h']))
+    kutular = [Kutu(sinif_id=int(k.get('sinif_id', 0)),
+                    sinif_adi=k.get('ad') or bulgu.get('ad', ''),
+                    guven=float(k.get('guven', 0)),
+                    x=float(k['x']), y=float(k['y']),
+                    w=float(k['w']), h=float(k['h'])) for k in ham]
 
     def _etiket(ad):
         return '? ' + (ad_cevir(ad) if ad_cevir else ad)
 
-    return cizim.kutulari_ciz(frame, [kutu], _etiket)
+    return cizim.kutulari_ciz(frame, kutular, _etiket)
 
 
 def oneri(sinif_adi: str, urun=None) -> dict:

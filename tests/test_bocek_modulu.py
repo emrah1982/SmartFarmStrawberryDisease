@@ -214,17 +214,38 @@ class TestKutuCizimi:
         ciz = servis.adaylari_ciz(np.zeros((200, 200, 3), np.uint8), s)
         assert ciz.any(), 'teşhis sayfasında kutu çizilmemiş'
 
-    def test_yalnizca_ilk_aday_cizilir(self, monkeypatch):
-        """Üç adayı birden çizmek aynı böceğin üstüne üç kutu bindirirdi."""
+    def test_HER_birey_cizilir(self, monkeypatch):
+        """GERÇEK HATA: 3 tırtıllı karede tek kutu çiziliyordu.
+
+        Etiket dosyasında 3 kutu, model 2 buluyor, arayüze 1 ulaşıyordu —
+        çünkü tür başına tek kutu tutuluyordu. Zararlıda SAYI da tarımsal
+        bilgidir: 1 birey ile 20 birey aynı şey değildir.
+        """
+        _model_kur(monkeypatch, [SahteKutu(0, 0.9, (0.3, 0.3, 0.2, 0.2)),
+                                 SahteKutu(0, 0.7, (0.7, 0.7, 0.2, 0.2))])
+        s = servis.tani(np.zeros((200, 200, 3), np.uint8))
+        assert len(s.kutular) == 2, 'her birey saklanmalı'
+        assert len(s.adaylar) == 1, 'tür listesi tek satır olmalı (aynı tür)'
+        assert s.adet('Army Worm') == 2
+
+        ciz = servis.adaylari_ciz(np.zeros((200, 200, 3), np.uint8), s)
+        assert ciz[40:80, 40:80].any(), 'birinci birey çizilmemiş'
+        assert ciz[150:190, 150:190].any(), 'ikinci birey çizilmemiş'
+
+    def test_farkli_turler_de_hepsi_cizilir(self, monkeypatch):
         _model_kur(monkeypatch, [SahteKutu(0, 0.9, (0.3, 0.3, 0.2, 0.2)),
                                  SahteKutu(2, 0.7, (0.7, 0.7, 0.2, 0.2))])
         s = servis.tani(np.zeros((200, 200, 3), np.uint8))
-        assert len(s.adaylar) == 2
-        # Yalnızca ilk adayın bölgesi boyanmış olmalı
+        assert len(s.kutular) == 2 and len(s.adaylar) == 2
         ciz = servis.adaylari_ciz(np.zeros((200, 200, 3), np.uint8), s)
-        ust_sol = ciz[40:80, 40:80].any()      # ilk aday (0.3, 0.3)
-        alt_sag = ciz[150:190, 150:190].any()  # ikinci aday (0.7, 0.7)
-        assert ust_sol and not alt_sag
+        assert ciz[40:80, 40:80].any() and ciz[150:190, 150:190].any()
+
+    def test_eski_kayit_tek_kutu_bicimi_calisir(self):
+        """Geçmiş kayıtlarda `kutular` yok, yalnızca `kutu` vardı."""
+        f = np.zeros((200, 200, 3), np.uint8)
+        eski = {'ad': 'Army Worm', 'guven': 0.9,
+                'kutu': {'x': 0.5, 'y': 0.5, 'w': 0.4, 'h': 0.4, 'sinif_id': 0}}
+        assert servis.kutuyu_ciz(f, eski).any()
 
     def test_kutusuz_sonucta_gorsel_degismez(self, monkeypatch):
         _model_kur(monkeypatch, [])

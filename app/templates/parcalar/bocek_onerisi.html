@@ -14,11 +14,12 @@
   </p>
 
   <table>
-    <tr><th>Aday tür</th><th>Benzerlik</th></tr>
+    <tr><th>Aday tür</th><th>Adet</th><th>Benzerlik</th></tr>
     {% for a in bocek.adaylar %}
     <tr {% if loop.first %}class="ilk-aday"{% endif %}>
       <td>{% if loop.first %}<strong>{{ a.ad|sinif }}</strong>{% else %}{{ a.ad|sinif }}{% endif %}
         <small>({{ a.ad }})</small></td>
+      <td>{{ a.adet or 1 }}</td>
       <td>
         <span class="rozet {% if a.guven >= 0.75 %}yuksek{% elif a.guven >= 0.5 %}orta{% else %}dusuk{% endif %}">
           %{{ (a.guven * 100)|round|int }}
