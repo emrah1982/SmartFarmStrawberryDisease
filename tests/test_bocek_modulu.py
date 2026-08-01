@@ -131,6 +131,106 @@ class TestTani:
         assert not s.bulundu and 'RuntimeError' in s.hata
 
 
+class TestYedekTani:
+    """Bitki analizi boş dönünce çalışan tamamlayıcı teşhis.
+
+    NEDEN? Kullanıcı yaprağındaki tırtılın fotoğrafını yükleyip
+    "hastalık veya meyve tespit edilmedi" cevabı aldı. Doğru cevaptı —
+    karede çilek organı yok — ama işe yaramazdı: görüntüde apaçık bir
+    zararlı vardı ve sistem onu tanıyabilecek modele sahipti.
+
+    Ama dikkatli olmak gerek: model KAPALI KÜMEDİR, bulanık bir duvar
+    fotoğrafına da kendinden emin bir cevap verebilir. Kullanıcı bu
+    fotoğrafı böcek sorusuyla YÜKLEMEDİĞİ için çıta daha yüksek olmalı.
+    """
+
+    def test_yuksek_guvende_oneri_doner(self, monkeypatch):
+        _model_kur(monkeypatch, [SahteKutu(0, 0.92)])
+        monkeypatch.setattr(servis, 'hazir', lambda urun=None: True)
+        b = servis.yedek_tani(np.zeros((10, 10, 3), np.uint8))
+        assert b['ad'] == 'Army Worm'
+        assert b['guven'] == pytest.approx(0.92)
+
+    def test_dusuk_guvende_SESSIZ_kalir(self, monkeypatch):
+        """Kullanıcı böcek sormadı; zayıf tahminle onu yanıltmayalım."""
+        _model_kur(monkeypatch, [SahteKutu(0, 0.40)])
+        monkeypatch.setattr(servis, 'hazir', lambda urun=None: True)
+        assert servis.yedek_tani(np.zeros((10, 10, 3), np.uint8)) == {}
+
+    def test_esik_normal_teshisten_YUKSEK(self):
+        """Kendiliğinden çıkan öneri, açıkça sorulan teşhisten sıkı olmalı."""
+        assert servis.YEDEK_EN_DUSUK_GUVEN > servis.EN_DUSUK_GUVEN
+
+    def test_model_yokken_sessiz(self, monkeypatch):
+        monkeypatch.setattr(servis, 'hazir', lambda urun=None: False)
+        assert servis.yedek_tani(np.zeros((10, 10, 3), np.uint8)) == {}
+
+    def test_bocek_yoksa_sessiz(self, monkeypatch):
+        _model_kur(monkeypatch, [])
+        monkeypatch.setattr(servis, 'hazir', lambda urun=None: True)
+        assert servis.yedek_tani(np.zeros((10, 10, 3), np.uint8)) == {}
+
+    def test_adaylar_da_dondurulur(self, monkeypatch):
+        """Arayüz tek cevap değil dağılım gösterir — kapalı küme uyarısı."""
+        _model_kur(monkeypatch, [SahteKutu(0, 0.80), SahteKutu(2, 0.30)])
+        monkeypatch.setattr(servis, 'hazir', lambda urun=None: True)
+        b = servis.yedek_tani(np.zeros((10, 10, 3), np.uint8))
+        assert len(b['adaylar']) == 2
+
+
+class TestYedekAkis:
+    """Uçtan uca: tespit yoksa öneri çıkar, tespit varsa ÇIKMAZ."""
+
+    @staticmethod
+    def _detector(kutular, iz=None):
+        from tests.test_app import SahteDetector
+
+        class D(SahteDetector):
+            def _sonuc(self, cikti_yol, kare=1):
+                s = super()._sonuc(cikti_yol, kare)
+                s.iz = dict(iz or {})
+                return s
+        return D(kutular)
+
+    def test_tespit_yokken_oneri_gosterilir(self, monkeypatch):
+        from app import main
+        monkeypatch.setattr(main, 'detector', self._detector([]))
+        monkeypatch.setattr(servis, 'hazir', lambda urun=None: True)
+        _model_kur(monkeypatch, [SahteKutu(0, 0.92)])
+        with TestClient(main.app) as c:
+            r = c.post('/analiz/dosya',
+                       files={'dosyalar': ('a.jpg', _kucuk_jpeg(), 'image/jpeg')},
+                       follow_redirects=True)
+        assert 'Böcek olabilir mi' in r.text
+        assert 'bilmiyorum' in r.text, 'kapalı küme uyarısı görünmeli'
+
+    def test_tespit_VARKEN_oneri_gosterilmez(self, monkeypatch):
+        """İki cevap birden kullanıcıyı hangisinin asıl olduğu konusunda
+        kararsız bırakır."""
+        from app import main
+        from app.detector import Kutu
+        monkeypatch.setattr(main, 'detector',
+                            self._detector([Kutu(3, 'Gray Mold', 0.9, .5, .5, .2, .2)]))
+        monkeypatch.setattr(servis, 'hazir', lambda urun=None: True)
+        _model_kur(monkeypatch, [SahteKutu(0, 0.99)])
+        with TestClient(main.app) as c:
+            r = c.post('/analiz/dosya',
+                       files={'dosyalar': ('a.jpg', _kucuk_jpeg(), 'image/jpeg')},
+                       follow_redirects=True)
+        assert 'Böcek olabilir mi' not in r.text
+
+    def test_bocek_modeli_yokken_sayfa_bozulmaz(self, monkeypatch):
+        from app import main
+        monkeypatch.setattr(main, 'detector', self._detector([]))
+        monkeypatch.setattr(servis, 'hazir', lambda urun=None: False)
+        with TestClient(main.app) as c:
+            r = c.post('/analiz/dosya',
+                       files={'dosyalar': ('a.jpg', _kucuk_jpeg(), 'image/jpeg')},
+                       follow_redirects=True)
+        assert r.status_code == 200
+        assert 'Böcek olabilir mi' not in r.text
+
+
 class TestKutukleTutarli:
     def test_taniyabildikleri_kutukten_gelir(self):
         t = modeller.tanim('bocek_teshis', 'cilek')

@@ -118,6 +118,36 @@ def tani(goruntu, urun=None, imgsz: int = 416) -> Sonuc:
     return Sonuc(adaylar=adaylar, kararsiz=kararsiz)
 
 
+# Bitki analizi boş dönünce çalışan YEDEK teşhis burada DAHA SIKI bir eşik
+# kullanır. Sebep: kullanıcı bu fotoğrafı böcek sorusuyla yüklemedi. Model
+# kapalı kümedir ve bulanık bir duvar fotoğrafına da "Toprak Larvası %70"
+# diyebilir. Kendiliğinden ortaya çıkan bir öneri, kullanıcının açıkça
+# sorduğu bir teşhisten daha yüksek çıta gerektirir.
+YEDEK_EN_DUSUK_GUVEN = 0.55
+
+
+def yedek_tani(goruntu, urun=None) -> dict:
+    """Bitki analizi hiçbir şey bulamadığında çalışan tamamlayıcı teşhis.
+
+    Boş sözlük döner = gösterilecek bir şey yok. Arayüz bunu ÖNERİ olarak
+    sunar, karar olarak değil.
+    """
+    if not hazir(urun):
+        return {}
+    s = tani(goruntu, urun)
+    if not s.adaylar:
+        return {}
+    en = s.adaylar[0]
+    if en.guven < YEDEK_EN_DUSUK_GUVEN:
+        return {}
+    return {
+        'ad': en.ad,
+        'guven': en.guven,
+        'kararsiz': s.kararsiz,
+        'adaylar': [{'ad': a.ad, 'guven': a.guven} for a in s.adaylar],
+    }
+
+
 def oneri(sinif_adi: str, urun=None) -> dict:
     """Tür için mücadele önerisi.
 

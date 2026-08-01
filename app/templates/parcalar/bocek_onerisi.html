@@ -1,0 +1,45 @@
+{# Bitki analizi boş dönünce böcek modelinin verdiği TAMAMLAYICI öneri.
+
+   ÖNERİ olarak sunulur, karar olarak değil. Sebep: kullanıcı bu fotoğrafı
+   böcek sorusuyla yüklemedi ve model KAPALI KÜMEDİR — bildiği 6 türden
+   birini söylemek zorundadır. Yüksek güven bile "bu kesin odur" demek
+   değildir; yalnızca "bildiklerim arasında en çok buna benziyor" demektir. #}
+{% if bocek %}
+<section class="kart oneri orta">
+  <h3>🐛 Böcek olabilir mi?</h3>
+  <p class="ipucu">
+    Bitki analizi bu karede çilek organı bulamadı. Görüntüyü
+    <strong>böcek teşhis modeline</strong> de sordum — ayrı bir model, bitki
+    hastalıklarıyla ilgisi yok:
+  </p>
+
+  <table>
+    <tr><th>Aday tür</th><th>Benzerlik</th></tr>
+    {% for a in bocek.adaylar %}
+    <tr {% if loop.first %}class="ilk-aday"{% endif %}>
+      <td>{% if loop.first %}<strong>{{ a.ad|sinif }}</strong>{% else %}{{ a.ad|sinif }}{% endif %}
+        <small>({{ a.ad }})</small></td>
+      <td>
+        <span class="rozet {% if a.guven >= 0.75 %}yuksek{% elif a.guven >= 0.5 %}orta{% else %}dusuk{% endif %}">
+          %{{ (a.guven * 100)|round|int }}
+        </span>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  {% if bocek.kararsiz %}
+  <div class="uyari" style="margin-top:.6rem">
+    <strong>⚠️ Model kararsız</strong> — ilk iki aday birbirine çok yakın.
+  </div>
+  {% endif %}
+
+  <p class="ipucu" style="margin-top:.6rem">
+    ⚠️ Bu model yalnızca <strong>6 tür</strong> tanır ve “bilmiyorum” diyemez;
+    listede olmayan bir böcek için de en yakın gördüğünü söyler.
+    Kesin teşhis için böceğin <strong>yakın çekim</strong> fotoğrafıyla
+    <a href="/bocek">Böcek Teşhis</a> sayfasını kullanın — orada doğrulayıp
+    kayda geçirebilirsiniz.
+  </p>
+</section>
+{% endif %}

@@ -167,10 +167,42 @@ def _urun_kapsami(db: Session, sera_id: Optional[int]) -> str:
     return urunler.VARSAYILAN
 
 
+def _bocek_yedegi(sonuc, kaynak_tip: str, dosya_yolu: str, urun: str):
+    """Bitki analizi HİÇBİR ŞEY bulamadıysa böcek modeline sor.
+
+    NEDEN? Kullanıcı yaprağındaki tırtılın fotoğrafını yükleyip "hastalık
+    veya meyve tespit edilmedi" cevabı alıyordu. Doğru cevaptı — karede
+    çilek organı yok — ama işe yaramazdı: görüntüde apaçık bir zararlı vardı
+    ve sistem onu tanıyabilecek modele sahipti.
+
+    YALNIZCA boş sonuçta çalışır. Bitki tespiti varsa karışıklık yaratır:
+    kullanıcı hangi cevabın asıl olduğunu bilemez.
+
+    Sonuç `iz` içine yazılır (ayrı sütun gerekmez) ve arayüzde ÖNERİ olarak
+    sunulur — modelin kapalı küme olduğu orada da yazılıdır.
+    """
+    if sonuc.kutular or kaynak_tip != 'foto':
+        return                      # video/kamera akışında kare seçimi ayrı iş
+    try:
+        from app.moduller.bocek import servis as bocek
+    except ImportError:
+        return                      # modül kapalı
+    try:
+        frame = cv2.imread(str(config.STORAGE_DIR / dosya_yolu))
+        if frame is None:
+            return
+        bulgu = bocek.yedek_tani(frame, urun)
+        if bulgu:
+            sonuc.iz = {**(getattr(sonuc, 'iz', None) or {}), 'bocek': bulgu}
+    except Exception as e:
+        logger.warning(f'Böcek yedeği çalışmadı: {e}')
+
+
 def _kaydet(sonuc, db: Session, kaynak_tip: str, kaynak_ad: str,
             dosya_yolu: str, kamera_id: Optional[int] = None,
             sera_id: Optional[int] = None) -> Analiz:
     """Detector sonucunu veritabanına yazar."""
+    _bocek_yedegi(sonuc, kaynak_tip, dosya_yolu, _urun_kapsami(db, sera_id))
     a = Analiz(
         urun=_urun_kapsami(db, sera_id),
         kaynak_tip=kaynak_tip,
@@ -353,6 +385,8 @@ def kayit(analiz_id: int, request: Request, db: Session = Depends(get_db)):
 
     return templates.TemplateResponse(request, 'kayit.html', {
         'request': request, 'a': a, 'ayni': ayni, 'ozet': ozet,
+        # Bitki analizi boş dönmüşse böcek modelinin tamamlayıcı önerisi
+        'bocek': sonuc_ozeti.izi_coz(a.boru_izi).get('bocek'),
     })
 
 
