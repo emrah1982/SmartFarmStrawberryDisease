@@ -45,10 +45,22 @@ function sonucGeldi(s) {
   const turBilgi = s.benzersiz
     ? ` · 🍓 turda ${s.benzersiz} farklı nesne`
     : '';
+
+  // Çizgi sayımı açıksa geçiş sayısı; SABİT çekimde uyarı.
+  // Çizgi yalnızca kamera ilerlerken anlamlıdır, sabitken hep 0 verir.
+  let cizgiBilgi = '';
+  if (s.cizgi && Object.keys(s.cizgi).length) {
+    const sabit = s.oneri && s.oneri.kamera === 'sabit';
+    cizgiBilgi = ` · 📏 çizgiden geçen: ${s.cizgi.toplam}`;
+    if (sabit && s.cizgi.toplam === 0) {
+      cizgiBilgi += ' (kamera sabit — çizgi sayımı bu çekimde işe yaramaz)';
+    }
+  }
+
   durum.textContent = (s.bulanik
     ? '⚠️ Görüntü bulanık — sabit tutun, bu kare atlandı.'
     : (s.kutular.length ? `${s.kutular.length} tespit (ekranda)` : 'Tespit yok'))
-    + turBilgi + kayitBilgi;
+    + turBilgi + cizgiBilgi + kayitBilgi;
 
   liste.innerHTML = s.kutular.length
     ? s.kutular.map(k => {
@@ -90,6 +102,7 @@ async function basla() {
     await akis.baglan();
     akis.seraSec($('sera') ? $('sera').value : null);
     akis.modSec(modSecim.value);
+    cizgiUygula();                  // çizgi ayarı oturuma taşınsın
     modSecim.disabled = true;       // oturum ortasında mod değişimi kafa karıştırır
     calisiyor = true;
     cizim.baslat();
@@ -124,6 +137,37 @@ $('kaydetBtn').onclick = () => { akis.kaydetIste(); durum.textContent = 'Bu kare
 $('cevirBtn').onclick = () => kamera.cevir();
 if ($('sera')) $('sera').onchange = e => akis.seraSec(e.target.value);
 modSecim.onchange = modNotuYaz;
+
+// ───────────────────────────────────────────── sanal çizgi sayacı
+const cizgiAcik = $('cizgiAcik'), cizgiSecenek = $('cizgiSecenek');
+const cizgiEksen = $('cizgiEksen'), cizgiKonum = $('cizgiKonum');
+const cizgiKonumYazi = $('cizgiKonumYazi');
+
+function cizgiAyari() {
+  if (!cizgiAcik || !cizgiAcik.checked) return null;
+  return {
+    acik: true,
+    eksen: cizgiEksen.value,
+    konum: Number(cizgiKonum.value) / 100,
+  };
+}
+
+function cizgiUygula() {
+  if (!cizgiAcik) return;
+  const ayar = cizgiAyari();
+  if (cizgiSecenek) cizgiSecenek.hidden = !cizgiAcik.checked;
+  if (cizgiKonumYazi) cizgiKonumYazi.textContent = `%${cizgiKonum.value}`;
+  // Tuvalde göster: kullanıcı nesnenin nereyi geçince sayıldığını görmeli
+  cizim.cizgiGuncelle(ayar);
+  akis.cizgiSec(ayar ? { ...ayar } : { acik: false });
+}
+
+if (cizgiAcik) {
+  cizgiAcik.onchange = cizgiUygula;
+  cizgiEksen.onchange = cizgiUygula;
+  cizgiKonum.oninput = cizgiUygula;
+  cizgiUygula();
+}
 
 // Sekme arkaya alınınca kamerayı ve akışı boşuna çalıştırma (pil/veri).
 document.addEventListener('visibilitychange', () => {

@@ -129,6 +129,11 @@ def _isle(veri: bytes, oturum: Optional[servis.OturumKaydi],
         # Turda şu ana kadar kaç FARKLI nesne görüldü
         'benzersiz': oturum.benzersiz if oturum else 0,
         'benzersiz_sinif': oturum.benzersiz_sinif() if oturum else {},
+        # Çizgi sayacı açıksa geçiş sayıları; kapalıysa boş
+        'cizgi': oturum.cizgi_ozet if oturum else {},
+        # SABİT mi HAREKETLİ mi — çizgi sayımının geçerli olup olmadığını
+        # kullanıcıya söylemek için (sabit çekimde çizgi hep 0 verir)
+        'oneri': oturum.sayim_onerisi() if oturum else {},
     }
 
     hedef = None
@@ -173,6 +178,11 @@ async def akis(websocket: WebSocket):
                     sera_id = int(veri['sera_id'])
                 if veri.get('mod'):
                     oturum.mod_ayarla(veri['mod'])
+                if 'cizgi' in veri:
+                    c = veri['cizgi'] or {}
+                    oturum.cizgi_ayarla(bool(c.get('acik')),
+                                        c.get('eksen', 'x'),
+                                        c.get('konum', 0.5))
                 if veri.get('tip') == 'kaydet':
                     kaydet_istegi = True        # sıradaki kare kaydedilsin
                 continue

@@ -16,6 +16,12 @@ export class Cizim {
 
   guncelle(kutular) { this.kutular = kutular || []; }
 
+  /** Sanal çizgiyi göster/gizle. {eksen:'x'|'y', konum:0-1} veya null.
+   *
+   *  Çizgi GÖRÜNÜR olmalı: kullanıcı nesnenin nereyi geçince sayıldığını
+   *  bilmeden kamerayı doğru yönlendiremez. */
+  cizgiGuncelle(cizgi) { this.cizgi = cizgi || null; }
+
   baslat() {
     if (this._surer) return;
     this._surer = true;
@@ -49,6 +55,23 @@ export class Cizim {
     c.lineWidth = Math.max(2, Math.round(g / 320));
     c.font = `${Math.max(12, Math.round(g / 34))}px system-ui, sans-serif`;
     c.textBaseline = 'top';
+
+    // Sanal çizgi — kutuların ALTINA çizilir ki tespitleri örtmesin
+    if (this.cizgi) {
+      const p = this.cizgi.konum;
+      c.save();
+      c.strokeStyle = '#ffb300';
+      c.lineWidth = Math.max(2, Math.round(g / 260));
+      c.setLineDash([10, 8]);
+      c.beginPath();
+      if (this.cizgi.eksen === 'y') {
+        c.moveTo(0, p * y); c.lineTo(g, p * y);
+      } else {
+        c.moveTo(p * g, 0); c.lineTo(p * g, y);
+      }
+      c.stroke();
+      c.restore();
+    }
 
     for (const k of this.kutular) {
       const renk = RENKLER[k.sinif_id % RENKLER.length];

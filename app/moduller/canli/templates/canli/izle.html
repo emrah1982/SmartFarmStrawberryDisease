@@ -34,6 +34,40 @@
   </label>
   <p class="ipucu" id="modNotu"></p>
 
+  {# Sanal çizgi sayacı — YALNIZCA kamera tek yönde ilerlerken anlamlı.
+     Sabit çekimde hiçbir şey çizgiyi geçmez ve sayı 0 kalır; bu yüzden
+     kendiliğinden açılmaz, kullanıcı bilerek açar. Sistem ayrıca hareketi
+     ÖLÇER ve sabit çekimde uyarır (bkz. app/takip.py: sayim_onerisi). #}
+  <details class="cizgi-ayar">
+    <summary>📏 Çizgi sayımı (drone / sıra taraması)</summary>
+    <p class="ipucu">
+      Ekrana sanal bir çizgi konur; nesne çizgiyi geçtiği anda sayılır.
+      <strong>Kamera tek yönde ilerlerken</strong> kullanın — drone transekti
+      veya sıra boyunca yürüyüş. Uzun taramada iz sayımından sağlamdır:
+      iz kopup yeniden kurulsa bile nesne çizgiyi bir kez geçmiştir.
+    </p>
+    <p class="ipucu">
+      ⚠️ <strong>Sabit çekimde işe yaramaz</strong> — kamera durunca hiçbir şey
+      geçmez, sayı 0 kalır. Öyle bir durumda üstteki “turda N farklı nesne”
+      sayısını kullanın.
+    </p>
+    <label class="satir" style="align-items:center;gap:.5rem">
+      <input type="checkbox" id="cizgiAcik"> Çizgi sayımını aç
+    </label>
+    <div class="satir" id="cizgiSecenek" hidden>
+      <label style="flex:1">Yön
+        <select id="cizgiEksen">
+          <option value="x">↔ Dikey çizgi (yatay hareket)</option>
+          <option value="y">↕ Yatay çizgi (dikey hareket)</option>
+        </select>
+      </label>
+      <label style="flex:1">Konum
+        <input type="range" id="cizgiKonum" min="10" max="90" value="50">
+        <span class="ipucu" id="cizgiKonumYazi">%50</span>
+      </label>
+    </div>
+  </details>
+
   <div class="butonlar">
     <button class="btn btn-birincil" id="baslaBtn">▶️ Kamerayı Başlat</button>
     <button class="btn" id="kaydetBtn" hidden>💾 Bu Kareyi Kaydet</button>

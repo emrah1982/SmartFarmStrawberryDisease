@@ -134,6 +134,33 @@ class OturumKaydi:
         self.takipci = takip_modulu.Takipci(fps=1.0)
         self._basla = None
 
+    def cizgi_ayarla(self, acik: bool, eksen: str = 'x', konum: float = 0.5):
+        """Sanal çizgi sayacını aç/kapat.
+
+        Çizgi sayımı YALNIZCA kamera tek yönde ilerlerken anlamlıdır
+        (drone transekti, sıra boyunca yürüyüş). Sabit çekimde hiçbir şey
+        çizgiyi geçmez ve sayı 0 kalır — bu yüzden kullanıcı açıkça açar.
+        Sistem ayrıca hareketi ÖLÇER ve sabit çekimde uyarır.
+
+        Ayar değişince sayaç sıfırlanır: yarı yolda çizgi taşınırsa
+        önceki sayım yeni çizgiye ait değildir.
+        """
+        from app import takip as takip_modulu
+        if not acik:
+            self.takipci.cizgi = None
+            return
+        self.takipci.cizgi = takip_modulu.CizgiSayaci(
+            eksen=eksen if eksen in ('x', 'y') else 'x',
+            konum=min(max(float(konum), 0.05), 0.95))
+
+    @property
+    def cizgi_ozet(self) -> dict:
+        c = self.takipci.cizgi
+        return c.ozet() if c is not None else {}
+
+    def sayim_onerisi(self) -> dict:
+        return self.takipci.sayim_onerisi()
+
     def kareyi_izle(self, kutular, simdi: float):
         """Kareyi takipçiye verir; oturum boyunca benzersiz sayım güncellenir."""
         if self._basla is None:

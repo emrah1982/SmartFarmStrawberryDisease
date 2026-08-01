@@ -55,9 +55,16 @@ export class Akis {
     this._ayarGonder();
   }
 
+  /** Sanal cizgi sayaci ayari. acik=false ise sayac kapatilir. */
+  cizgiSec(ayar) {
+    this.cizgi = ayar || null;
+    this._ayarGonder();
+  }
+
   _ayarGonder() {
     if (!this.restModu && this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ tip: 'ayar', sera_id: this.seraId, mod: this.mod }));
+      this.ws.send(JSON.stringify({ tip: 'ayar', sera_id: this.seraId,
+                                    mod: this.mod, cizgi: this.cizgi }));
     }
   }
 
