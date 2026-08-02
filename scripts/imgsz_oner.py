@@ -70,6 +70,43 @@ def _boyut_oku(yol: Path):
         return None
 
 
+def etiket_satiri(parcalar):
+    """YOLO etiket satırı → (sinif_id, cx, cy, w, h) veya None.
+
+    İKİ BİÇİM VARDIR ve karıştırılırsa ölçüm sessizce çöp üretir:
+
+        kutu     : sinif cx cy w h                      (5 alan)
+        poligon  : sinif x1 y1 x2 y2 x3 y3 ...          (7+ alan, TEK)
+
+    Poligon biçimi Ultralytics'in segmentasyon etiketidir. Tespit
+    eğitiminde Ultralytics onu KUTUYA ÇEVİRİR (segments2boxes), o yüzden
+    eğitim doğru çalışır — ama satırı 5 alan varsayan bir ölçüm, 2.
+    noktanın koordinatlarını genişlik/yükseklik sanır.
+
+    ÖLÇÜLDÜ: datasets/cilek/organ_detection satırlarının %68'i poligon.
+    Bu fonksiyon eklenmeden önce o dataset'in bütün kutu ölçümleri
+    yanlıştı (docs'a yazılan sayılar dahil).
+    """
+    if len(parcalar) < 5:
+        return None
+    try:
+        sinif = int(parcalar[0])
+        sayilar = [float(x) for x in parcalar[1:]]
+    except ValueError:
+        return None
+    if len(sayilar) == 4:
+        cx, cy, w, h = sayilar
+        return (sinif, cx, cy, w, h) if w > 0 and h > 0 else None
+    if len(sayilar) >= 6 and len(sayilar) % 2 == 0:
+        xs, ys = sayilar[0::2], sayilar[1::2]
+        x0, x1 = min(xs), max(xs)
+        y0, y1 = min(ys), max(ys)
+        w, h = x1 - x0, y1 - y0
+        return (sinif, (x0 + x1) / 2, (y0 + y1) / 2, w, h) if w > 0 and h > 0 \
+            else None
+    return None
+
+
 def olc(kok: Path, ornek: int = 300, tohum: int = 0) -> dict:
     """Dataset'i örnekleyerek görüntü ve kutu boyutlarını ölçer."""
     goruntuler = []
@@ -103,15 +140,10 @@ def olc(kok: Path, ornek: int = 300, tohum: int = 0) -> dict:
             continue
         bu_goruntude = 0
         for satir in etiket.read_text(encoding='utf-8', errors='ignore').splitlines():
-            p = satir.split()
-            if len(p) < 5:
+            cozum = etiket_satiri(satir.split())
+            if cozum is None:
                 continue
-            try:
-                cx, cy, w, h = (float(p[1]), float(p[2]), float(p[3]), float(p[4]))
-            except ValueError:
-                continue
-            if w <= 0 or h <= 0:
-                continue
+            _, cx, cy, w, h = cozum
             # Kutunun KISA kenarı belirleyicidir: ince uzun bir lezyon
             # kısa kenarı görünmez olduğunda tespit edilemez.
             kutu_paylari.append(min(w, h))

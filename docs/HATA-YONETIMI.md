@@ -183,14 +183,23 @@ olmayan paket için ⛔ verir. Ayıran iki sinyal, mevcut beş dataset
 
 | dataset | kutuMax | çok kutulu | merkez sapması | alan |
 |---|---|---|---|---|
-| `findik/findik_kalite` | 1 | %0 | 0.035 | **stüdyo** |
-| `cilek/bocek_teshis` | 14 | %13 | 0.093 | **makro** |
-| `cilek/organ_detection` | 8 | %24 | 0.199 | saha |
-| `cilek/leaf_disease` | 11 | %37 | 0.233 | saha |
-| `cilek/fruit_ripeness` | 30 | %59 | 0.223 | saha |
+| `findik/findik_kalite` | 1 | %0 | 0.036 | **stüdyo** |
+| `cilek/bocek_teshis` | 14 | %12 | 0.089 | **makro** |
+| `cilek/organ_detection` | 8 | %24 | 0.119 | saha |
+| `cilek/fruit_disease` | 7 | %29 | 0.171 | saha |
+| `cilek/leaf_disease` | 11 | %37 | 0.229 | saha |
+| `cilek/fruit_ripeness` | 30 | %60 | 0.227 | saha |
 
 Kural: `kutuMax == 1` **veya** (merkez < 0.15 **ve** çok kutulu < %20)
 → ayrı akış.
+
+> **`organ_detection` satırı düzeltildi.** Önce 0.199 yazıyordu; o sayı,
+> poligon etiketleri kutu sanan bir ölçümden geliyordu (§ 2.6b).
+> Düzeltilince 0.119 oldu — **merkez sapması artık eşiğin altında** ve
+> "saha" sınıflandırması yalnızca *çok kutulu %24 > %20* koşuluyla
+> ayakta duruyor. bocek_teshis (0.089) ile arasındaki boşluk ilk
+> ölçümde göründüğünden dardır; sınırdaki bir pakette **görüntülere
+> bakarak** karar verin, tek başına bu tabloya güvenmeyin.
 
 > **Kutu ALANI ayırt etmez.** İlk denemede alan eşiği (>%10 → makro)
 > kullanıldı ve `organ_detection`'ı (%32.7) yanlışlıkla makro saydı.
@@ -200,6 +209,92 @@ Kural: `kutuMax == 1` **veya** (merkez < 0.15 **ve** çok kutulu < %20)
 `tetik: []` yazmak bir tercih değil, **yapısal kilittir**:
 `app/modeller.py: tetiklenen()` yalnızca tetik listesinde organ adı geçen
 modelleri döndürür, o yüzden bu model ROI akışında asla çalıştırılamaz.
+
+### 2.6b Etiket satırı POLİGON, ölçüm onu kutu sanıyor
+
+**Belirti:** Yok. Eğitim doğru çalışır, yalnızca **ölçümler** yanlış çıkar
+ve o yanlış sayılara bakarak karar verilir.
+
+**Sebep:** YOLO etiketinin iki biçimi vardır:
+
+```
+kutu    : sinif cx cy w h                 (5 alan)
+poligon : sinif x1 y1 x2 y2 x3 y3 ...     (7+ alan, TEK sayıda)
+```
+
+Poligon, Ultralytics'in **segmentasyon** etiketidir. Tespit eğitiminde
+Ultralytics onu kutuya çevirir (`segments2boxes`) — bu yüzden eğitim
+sorunsuz çalışır. Ama satırı 5 alan varsayan bir ölçüm betiği,
+**2. noktanın koordinatlarını genişlik/yükseklik sanır.**
+
+> **Ölçülen olay:** `datasets/cilek/organ_detection` satırlarının
+> **%68'i poligon**. `imgsz_oner.py` bunu bilmiyordu; o dataset için
+> ürettiği bütün kutu ölçümleri çöptü ve belgelere öyle yazılmıştı.
+> Düzeltmeden sonra merkez sapması 0.199 → **0.119**, kutu alanı
+> %32.2 → **%26.7** oldu.
+
+**Koruma:** `scripts/imgsz_oner.py: etiket_satiri()` her satırı çözer;
+poligon gelirse köşelerin min/max'ından kutu üretir. Etiket okuyan yeni
+bir betik yazarken **bu fonksiyonu kullanın**, satırı elle parçalamayın.
+
+Paketin biçimini önceden görmek için:
+
+```bash
+python - <<'PY'
+from pathlib import Path; import collections
+c = collections.Counter()
+for e in Path('datasets/<urun>/<ad>').rglob('labels/*.txt'):
+    for s in e.read_text(errors='ignore').splitlines():
+        t = s.split()
+        if t: c['kutu' if len(t) == 5 else 'poligon'] += 1
+print(c)
+PY
+```
+
+### 2.6c Tam-kadraj kutu — "bütün fotoğraf bir organdır"
+
+**Belirti:** Organ modeli ara sıra tüm kareyi kaplayan bir kutu üretir.
+ROI kırpma o kutuyu alınca uzman modele neredeyse fotoğrafın tamamı
+gider ve hiyerarşi işlevsizleşir.
+
+**Sebep:** Kaynak dataset'te `sinif 0.5 0.5 1 1` biçiminde etiketler
+vardır. Bunlar tespit değil, **görüntü düzeyi sınıflandırma etiketinin
+kutuya çevrilmiş hali**dir. Model onları taklit etmeyi öğrenir.
+
+> **Ölçülen olay:** `cilek/organ_detection` görüntülerinin **%32.7'sinde
+> (5341 / 16358) tek etiket tam-kadraj kutu** — 5231'i `Fruit`, 159'u
+> `Leaf`. Aynı kusur `findik/organs/hazelnut_organs_split` ön-etiketlerinde
+> de bulundu: 4310 `hazelnut_cluster` kutusunun **hepsi birebir aynı**
+> (`0.499 0.499 0.8 0.8`).
+
+**⚠️ ALAN EŞİĞİ BU HATAYI YAKALAYAMAZ.** Denendi ve ölçümle çürütüldü:
+21.106 gerçek organ kutusunda `Fruit` p90 = **%90.9**, `Leaf` p90 =
+**%66**, ikisinin de maksimumu **%98.9**. Yakın çekimde tek çilek kareyi
+gerçekten doldurur. %64'ü eleyen bir eşik gerçek kutuların **%17.3'ünü**
+de atardı.
+
+**Koruma:** Eşik değil, **denetim**. Yeni pakette şunu ölçün:
+
+```bash
+# Tam-kadraj kutuların oranı — %1'i geçiyorsa kaynağı inceleyin
+python - <<'PY'
+from pathlib import Path
+import importlib.util
+s = importlib.util.spec_from_file_location('i', 'scripts/imgsz_oner.py')
+m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+tam = toplam = 0
+for e in Path('datasets/<urun>/<ad>').rglob('labels/*.txt'):
+    for satir in e.read_text(errors='ignore').splitlines():
+        c = m.etiket_satiri(satir.split())
+        if not c: continue
+        toplam += 1
+        if c[3] > 0.99 and c[4] > 0.99: tam += 1
+print('tam-kadraj: %d / %d  (%%%.1f)' % (tam, toplam, 100*tam/max(toplam,1)))
+PY
+```
+
+Ayrıca **benzersizlik** denetimi: bir sınıfın bütün kutuları aynı değere
+sahipse o sınıf hiç bilgi taşımıyordur.
 
 ### 2.7 Bitkiler arası sınıf karışması
 

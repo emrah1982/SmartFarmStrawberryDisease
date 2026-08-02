@@ -151,21 +151,28 @@ Taban çizgisi = **0.3883**.
 
 | yöntem | doğruluk | tabana fark |
 |---|---|---|
-| CLIP sıfır-atış (ViT-B/32) | **0.7832** | **+0.395** ✅ |
+| CLIP sıfır-atış (ViT-B/32) | **0.7588** | **+0.373** ✅ |
 
 | sınıf | precision | recall | f1 |
 |---|---|---|---|
-| Flower | 0.9315 | 0.9855 | 0.9577 |
-| Leaf | 0.6611 | 0.9917 | 0.7933 |
-| Fruit | 0.9821 | **0.4583** | 0.6250 |
+| Flower | 0.9483 | 0.7746 | 0.8527 |
+| Leaf | 0.6250 | 1.0000 | 0.7692 |
+| Fruit | 1.0000 | **0.5083** | 0.6740 |
 
-Aynı model, aynı kod, **13 kat daha fazla** tabana fark. Organ ayırt etmek
+Aynı model, aynı kod, **12 kat daha fazla** tabana fark. Organ ayırt etmek
 CLIP'in eğitildiği türden bir iştir; hastalık ayırt etmek değildir.
 
-**Sistematik hata:** 120 meyvenin 60'ına "Leaf" dedi. Meyve `precision`
-0.98 ama `recall` 0.46 — bulduğunda doğru, çoğunu bulamıyor. Bu, prompt
-metniyle iyileştirilebilir; ayrıca **insan kontrolünde ucuz** bir hatadır:
-sınıf düzeltmek kutu çizmekten çok daha hızlıdır.
+**Sistematik hata:** 120 meyvenin 56'sına "Leaf" dedi. Meyve `precision`
+1.00 ama `recall` 0.51 — bulduğunda hep doğru, yarısını bulamıyor. Bu,
+prompt metniyle iyileştirilebilir; ayrıca **insan kontrolünde ucuz** bir
+hatadır: sınıf düzeltmek kutu çizmekten çok daha hızlıdır.
+
+> **Bu sayılar bir kez DÜZELTİLDİ.** İlk ölçümde 0.7832 / +0.395 çıkmıştı;
+> kırpıntılar `organ_detection` etiketlerinden alınıyordu ve o dataset'in
+> satırlarının **%68'i poligon** biçimindeydi. Ölçüm betiği poligonu kutu
+> sanıp 2. noktanın koordinatlarını genişlik/yükseklik okuyordu.
+> `imgsz_oner.py: etiket_satiri()` eklendikten sonra yeniden ölçüldü.
+> Ayrıntı: [HATA-YONETIMI.md](HATA-YONETIMI.md) § 2.6b
 
 ### Karar
 
