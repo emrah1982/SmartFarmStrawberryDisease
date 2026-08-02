@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block baslik %}Etiket İnceleme{% endblock %}
+{% block icerik %}
+
+<section class="kart">
+  <h2>🏷️ Aday Etiket İnceleme</h2>
+  <p class="ipucu">
+    Otomatik ön-etiketleme <strong>aday</strong> kutular üretir. Buradan
+    kontrol edip düzeltirsiniz; onaylananlar <code>labels/</code> altına
+    yazılır ve eğitime ancak o zaman girer.
+  </p>
+  <p class="ipucu">
+    Otomatik etiketi doğrudan eğitime vermek, bu projede tekrar tekrar
+    yakalanan <strong>sessiz hata</strong> desenidir: model hata vermez,
+    yanlışı öğrenir.
+  </p>
+
+  {% if not paketler %}
+  <div class="uyari">
+    <p><strong>İnceleme bekleyen paket yok.</strong></p>
+    <p>Bir paketin burada görünmesi için <code>{{ dataset_kok }}</code>
+       altında şunları içermesi gerekir:</p>
+    <ul>
+      <li><code>images/</code></li>
+      <li><code>labels_aday/</code> <em>veya</em> <code>labels_organ/</code></li>
+    </ul>
+    <p>Aday etiket üretmek için:</p>
+    <pre><code>python scripts/on_etiket_gdino.py &lt;goruntu_klasoru&gt; \
+    --urun findik --ad organ_gdino --hastalik</code></pre>
+  </div>
+  {% else %}
+  <table>
+    <tr>
+      <th>Paket</th><th>Ürün</th><th>Kare</th><th>Kutu</th>
+      <th>İlerleme</th><th></th>
+    </tr>
+    {% for p in paketler %}
+    <tr>
+      <td><strong>{{ p.ad }}</strong>
+        {% if p.hastalik_var %}<span class="rozet tur-hastalik">🦠 hastalık katmanı</span>{% endif %}
+        <br><small>{{ p.siniflar|join(' · ') }}</small></td>
+      <td>{{ p.urun or '—' }}</td>
+      <td>{{ p.goruntu_sayisi }}</td>
+      <td>{{ p.kutu_sayisi }}</td>
+      <td>
+        <div class="ilerleme-cubuk" title="{{ p.onayli_sayisi }} / {{ p.goruntu_sayisi }} onaylandı">
+          <span style="width: {{ p.ilerleme }}%"></span>
+        </div>
+        <small>{{ p.onayli_sayisi }} / {{ p.goruntu_sayisi }} (%{{ p.ilerleme }})</small>
+      </td>
+      <td><a class="btn" href="/etiket/{{ p.urun }}/{{ p.ad }}">İncele</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</section>
+{% endblock %}

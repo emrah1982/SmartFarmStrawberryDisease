@@ -346,3 +346,37 @@ code {
   font-size: .85em; word-break: break-all;
 }
 a { color: var(--ana); }
+
+/* ── Etiket inceleme modulu ───────────────────────────────────────── */
+.etiket-duzenleyici { position: relative; width: 100%; margin: .6rem 0; }
+#tuval {
+  width: 100%; display: block; border-radius: 8px;
+  background: var(--zemin2); cursor: crosshair; touch-action: none;
+}
+.kutu-listesi { list-style: none; padding: 0; margin: .6rem 0; }
+.kutu-listesi li {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .3rem .5rem; border-radius: 6px;
+}
+.kutu-listesi li.secili { background: var(--zemin2); }
+.renk-nokta {
+  width: 14px; height: 14px; border-radius: 3px; flex: 0 0 auto;
+}
+.sinif-dugme.etkin { outline: 2px solid var(--yesil); }
+.ilerleme-cubuk {
+  background: var(--zemin2); border-radius: 999px; height: 8px;
+  overflow: hidden; min-width: 120px;
+}
+.ilerleme-cubuk.buyuk { height: 14px; }
+.ilerleme-cubuk span {
+  display: block; height: 100%; background: var(--yesil);
+  transition: width .25s;
+}
+.kucuk-onizleme {
+  width: 64px; height: 48px; object-fit: cover; border-radius: 4px;
+  display: block;
+}
+tr.onayli-satir { opacity: .55; }
+.ipucu.basarili { color: var(--yesil); }
+.ipucu.hatali { color: var(--ana); }
+a.etkin { font-weight: 700; text-decoration: underline; }

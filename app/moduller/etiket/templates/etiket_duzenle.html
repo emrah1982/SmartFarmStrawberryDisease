@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block baslik %}{{ kare }} — Düzenle{% endblock %}
+{% block icerik %}
+
+<section class="kart">
+  <h2>🏷️ {{ kare }}</h2>
+  <p class="ipucu">
+    <a href="/etiket/{{ paket.urun }}/{{ paket.ad }}?sirala={{ sirala }}">← {{ paket.ad }}</a> ·
+    {{ sira }} / {{ toplam }}
+    {% if onayli %}<span class="rozet yuksek">✅ onaylı</span>
+    {% else %}<span class="rozet orta">bekliyor</span>{% endif %}
+  </p>
+
+  <div id="duzenleyici" class="etiket-duzenleyici">
+    <canvas id="tuval"></canvas>
+  </div>
+
+  <p class="ipucu">
+    Boş alanda <strong>sürükle</strong> → yeni kutu ·
+    kutuya <strong>tıkla</strong> → seç ·
+    köşeden <strong>çek</strong> → boyutlandır ·
+    <kbd>Del</kbd> sil · <kbd>1-9</kbd> sınıf · <kbd>Ctrl+S</kbd> kaydet
+    <br><small>Turuncu kesikli çerçeve: kısa kenarı {{ en_kucuk_kenar }} pikselin
+    altında — YOLO tespit ızgarası 8 piksel adımlıdır, bu boyut öğrenilemez.</small>
+  </p>
+
+  <p>
+    <strong>Etkin sınıf:</strong>
+    {% for s in paket.siniflar %}
+    <button class="btn kucuk sinif-dugme {% if loop.index0 == 0 %}etkin{% endif %}"
+            data-aktif-sinif="{{ loop.index0 }}">{{ loop.index }}. {{ s }}</button>
+    {% endfor %}
+  </p>
+
+  <ul id="kutu-listesi" class="kutu-listesi"></ul>
+
+  <p>
+    <button id="onayla" class="btn btn-birincil">✅ Onayla ve sonrakine geç</button>
+    <button id="kaydet" class="btn">💾 Kaydet</button>
+    <button id="temizle" class="btn kucuk">Kutuları temizle</button>
+  </p>
+  <p id="durum" class="ipucu"></p>
+
+  <p class="ipucu">
+    {% if onceki %}<a class="btn kucuk" href="/etiket/{{ paket.urun }}/{{ paket.ad }}/kare/{{ onceki }}?sirala={{ sirala }}">← Önceki</a>{% endif %}
+    {% if sonraki %}<a class="btn kucuk" href="/etiket/{{ paket.urun }}/{{ paket.ad }}/kare/{{ sonraki }}?sirala={{ sirala }}">Sonraki →</a>{% endif %}
+  </p>
+
+  {% if hastalik_kutulari %}
+  <div class="uyari">
+    <p><strong>🦠 Hastalık katmanı:</strong> bu karede
+       {{ hastalik_kutulari|length }} kutu işaretli.</p>
+    <p>Hastalık katmanı <code>labels_hastalik/</code> altında AYRI durur ve
+       organ modeline verilmez. Organ katmanı sağlık bilmez: sağlıklı yaprak
+       da hastalıklı yaprak da <code>Leaf</code> kutusudur.</p>
+  </div>
+  {% endif %}
+</section>
+
+<script id="etiket-ayar" type="application/json">{{ ayar | tojson }}</script>
+<script src="/moduller/etiket/etiket.js"></script>
+{% endblock %}

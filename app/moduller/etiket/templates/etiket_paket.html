@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block baslik %}{{ paket.ad }} — İnceleme{% endblock %}
+{% block icerik %}
+
+<section class="kart">
+  <h2>🏷️ {{ paket.ad }}</h2>
+  <p class="ipucu">
+    <a href="/etiket">← Paket listesi</a> ·
+    {{ paket.goruntu_sayisi }} kare · {{ paket.kutu_sayisi }} aday kutu ·
+    sınıflar: {{ paket.siniflar|join(' · ') }}
+  </p>
+
+  <div class="ilerleme-cubuk buyuk">
+    <span style="width: {{ paket.ilerleme }}%"></span>
+  </div>
+  <p><strong>{{ paket.onayli_sayisi }} / {{ paket.goruntu_sayisi }}</strong>
+     kare onaylandı (%{{ paket.ilerleme }})</p>
+
+  {% if uyarilar %}
+  <div class="uyari">
+    <p><strong>⚠️ Kalite denetimi</strong></p>
+    <ul>
+      {% for u in uyarilar %}<li>{{ u.mesaj }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <p>
+    {% set ilk = kareler|selectattr('onayli', 'equalto', false)|first %}
+    {% if ilk %}
+    <a class="btn btn-birincil" href="/etiket/{{ paket.urun }}/{{ paket.ad }}/kare/{{ ilk.ad }}?sirala={{ sirala }}">
+      ▶ İncelemeye başla ({{ ilk.ad }})
+    </a>
+    {% else %}
+    <span class="rozet yuksek">✅ Tüm kareler onaylandı</span>
+    {% endif %}
+    <button class="btn" onclick="aktar(true)">📤 Onaylananları labels/ altına aktar</button>
+    <button class="btn kucuk" onclick="aktar(false)">Hepsini aktar</button>
+  </p>
+  <p id="aktar-sonuc" class="ipucu"></p>
+
+  <p class="ipucu">
+    Sıralama:
+    <a href="?sirala=guven" {% if sirala == 'guven' %}class="etkin"{% endif %}>en düşük güven önce</a> ·
+    <a href="?sirala=ad" {% if sirala == 'ad' %}class="etkin"{% endif %}>dosya adı</a>
+    <br><small>Hata en düşük güvenli karelerde birikir; varsayılan sıralama oradan başlatır.</small>
+  </p>
+</section>
+
+<section class="kart">
+  <table>
+    <tr><th></th><th>Kare</th><th>Kutu</th><th>En düşük güven</th><th>Durum</th></tr>
+    {% for k in kareler %}
+    <tr {% if k.onayli %}class="onayli-satir"{% endif %}>
+      <td><a href="/etiket/{{ paket.urun }}/{{ paket.ad }}/kare/{{ k.ad }}?sirala={{ sirala }}">
+        <img class="kucuk-onizleme" loading="lazy"
+             src="/etiket/{{ paket.urun }}/{{ paket.ad }}/goruntu/{{ k.ad }}" alt=""></a></td>
+      <td><a href="/etiket/{{ paket.urun }}/{{ paket.ad }}/kare/{{ k.ad }}?sirala={{ sirala }}">{{ k.ad }}</a></td>
+      <td>{{ k.kutu_sayisi }}{% if k.hastalik_kutusu %} <span class="rozet tur-hastalik">🦠 {{ k.hastalik_kutusu }}</span>{% endif %}</td>
+      <td>{% if k.en_dusuk_guven < 1 %}{{ '%.2f'|format(k.en_dusuk_guven) }}{% else %}—{% endif %}</td>
+      <td>{% if k.onayli %}<span class="rozet yuksek">✅ onaylı</span>
+          {% else %}<span class="rozet orta">bekliyor</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+
+<script>
+async function aktar(yalniz) {
+  const c = document.getElementById('aktar-sonuc');
+  c.textContent = 'Aktarılıyor…';
+  try {
+    const r = await fetch('/etiket/{{ paket.urun }}/{{ paket.ad }}/aktar', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({yalniz_onayli: yalniz})
+    });
+    const d = await r.json();
+    c.textContent = d.mesaj || d.detail || 'Bilinmeyen yanıt';
+    c.className = r.ok ? 'ipucu basarili' : 'ipucu hatali';
+  } catch (e) {
+    c.textContent = 'Aktarma başarısız: ' + e;
+    c.className = 'ipucu hatali';
+  }
+}
+</script>
+{% endblock %}
