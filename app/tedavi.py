@@ -44,17 +44,26 @@ logger = logging.getLogger(__name__)
 EZILEBILIR = ('aciliyet', 'belirti', 'etken', 'onlem', 'uzman')
 
 
-def yukle(urun=None) -> dict:
-    from app import urunler
-    p = urunler.yapilandirma(urun, 'tedavi_onerileri.yaml')
-    if not p.exists():
-        return {}
+def _oku(p) -> dict:
     import yaml
     try:
         return yaml.safe_load(p.read_text(encoding='utf-8')) or {}
     except yaml.YAMLError as e:
         logger.error(f'{p} okunamadı: {e}')
         return {}
+
+
+def yukle(urun=None) -> dict:
+    """Ortak + ürüne özgü tedavi metinleri. Aynı ad varsa ürün ezer."""
+    from app import urunler
+    birlesik = {}
+    ortak = urunler.ortak_yapilandirma('tedavi_onerileri.yaml')
+    if ortak is not None:
+        birlesik.update(_oku(ortak))
+    p = urunler.yapilandirma(urun, 'tedavi_onerileri.yaml')
+    if p.exists():
+        birlesik.update(_oku(p))
+    return birlesik
 
 
 def coz(kutuk: dict, sinif_adi: str, organ: str = '') -> dict:

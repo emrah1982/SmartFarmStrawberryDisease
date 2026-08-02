@@ -37,6 +37,47 @@ datasets/findik/leaf_disease/    "Leaf Spot" → fındık yaprak lekesi
 Dataset'ler asla ortak bir havuzda birleştirilmez; birleştirme girişimi
 yukarıdaki tabloyu geri getirir.
 
+## Ama her şey ürüne bağlı DEĞİL — ortak kapsam
+
+Yukarıdaki kural hastalıklar içindir. **Böcek türü için durum tersidir:**
+
+| varlık | ürüne bağlı mı? | neden |
+|---|---|---|
+| `Leaf Spot` | ✅ evet | çilekte *Mycosphaerella*, fındıkta *Piggotia* |
+| `Mole Cricket` | ❌ hayır | her bitkide *Gryllotalpa* — **aynı tür** |
+
+Böcek teşhis akışı makro fotoğraftan **canlıyı** tanır; bitkiyi hiç görmez.
+Ürün başına kopyalansaydı:
+
+- aynı 20 MB'lık ağırlık her ürün klasörüne tekrar konurdu
+- aynı dataset n kez saklanırdı
+- yeni bitki eklenince böcek kütüğü elle kopyalanır, er geç biri unutulurdu
+
+Bu yüzden ortak varlıklar **kapsamsız kökte** durur:
+
+```
+configs/ortak/     modeller.yaml · siniflar.yaml · tedavi_onerileri.yaml
+models/            bocek_teshis.pt
+datasets/          bocek_teshis/
+```
+
+**Birleşme kuralı:** ortak kütük önce yüklenir, ürününki üstüne yazılır.
+Aynı ad iki yerdeyse **ürününki kazanır** — bir bitki için özelleştirme
+gerekirse mümkün olsun diye. (`Spider Mites` böyle: ortak kütükte var, ama
+çilek kütüğündeki kayıt onu eziyor.)
+
+**Karar ölçütü — bir varlık ne zaman ortaktır?**
+
+> Ancak **aynı gerçek nesneyi** gösteriyorsa.
+> Hastalık *adı* ortak olabilir; **hastalık** ortak değildir.
+
+Organlar, olgunluk ve hastalıklar ürüne özgü kalır. Model kütüğünde
+`ortak: true` yazan tanım, ağırlığını `models/<urun>/` altında değil
+`models/` kökünde arar.
+
+Uygulama: `app/urunler.py` → *ORTAK KAPSAM*.
+Test: `test_urun_kapsami.py`, `test_urunler.py::test_ortak_model_urun_klasorunde_ARANMAZ`
+
 ## İkinci risk: sınıf ID çakışması
 
 Sınıf ID'leri etiket dosyalarında **sayı** olarak saklanır. Tek kütükte

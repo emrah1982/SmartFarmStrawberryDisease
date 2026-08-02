@@ -128,26 +128,9 @@ zararli:
 # çalıştırılmaz; ayrı bir kullanıcı akışından açıkça çağrılır.
 # ─────────────────────────────────────────────────────────────────────────
 
-bocek_teshis:
-  dosya: bocek_teshis.pt
-  rol: tekil
-  tetik: []              # BOŞ BIRAKILMALI — ROI akışına karışmasın
-  # Sıra dataset'ten gelir (datasets/cilek/bocek_teshis/data.yaml).
-  #
-  # `Spider Mites` BİLEREK zararli modeliyle AYNI adı taşır: aynı canlıdır.
-  # Farklı ad verilseydi (Red Spider Mite) aynı böcek arayüzde iki isimle
-  # görünür, iki ayrı tedavi metni gerekir ve geçmiş sorgusu ikiye bölünürdü.
-  # Sınıf ADI paylaşılır; MODEL ayrı kalır, çünkü girdi alanları farklıdır.
-  siniflar: [Army Worm, Black Cutworm, Grub, Mole Cricket, Peach Borer, Spider Mites]
-  esik: 0.35
-  aktif: true
-  aciklama: >
-    Böcek teşhisi: kullanıcının böceğin YAKIN ÇEKİM fotoğrafını çektiği
-    ayrı bir akış. Eğitim verisi 416x416 makro fotoğraflardır (kutu alanı
-    medyanı karenin %15'i); saha görüntüsündeki yaprak kırpıntısına hiç
-    benzemez. Bu yüzden ROI boru hattına BAĞLANMAZ — bağlansaydı yanlış
-    ölçekte çalışıp yanlış tespit üretirdi.
-
+# bocek_teshis TAŞINDI -> configs/ortak/modeller.yaml
+# Böcek türü ürüne bağlı değildir; ağırlık models/bocek_teshis.pt,
+# dataset datasets/bocek_teshis/. Ortak kütük her ürüne eklenir.
 # Uzman modeller hazır olana kadar kullanılan eski 10 sınıflı model.
 # 2026-07-31: organ + yaprak_hastalik + meyve_hastalik + olgunluk eğitilip
 # kuruldu, models/cilek/best.pt kaldırıldı. Geçiş tamamlandı, bu model

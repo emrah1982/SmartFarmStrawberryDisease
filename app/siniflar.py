@@ -69,7 +69,16 @@ def kutuk(urun=None) -> dict:
     from app import urunler
     ad = urunler.slug(urun) if urun else urunler.VARSAYILAN
     if ad not in _urun_kutukleri:
-        _urun_kutukleri[ad] = _yukle(_yol('siniflar.yaml', ad))
+        # Ortak sınıflar (böcek türleri) ÖNCE, ürününkiler SONRA.
+        # Aynı ad iki yerde varsa ÜRÜNÜNKİ kazanır — bir bitki için
+        # özelleştirme gerekirse mümkün olsun.
+        from app import urunler as _u
+        birlesik = {}
+        _ortak = _u.ortak_yapilandirma('siniflar.yaml')
+        if _ortak is not None:
+            birlesik.update(_yukle(_ortak))
+        birlesik.update(_yukle(_yol('siniflar.yaml', ad)))
+        _urun_kutukleri[ad] = birlesik
     return _urun_kutukleri[ad]
 
 

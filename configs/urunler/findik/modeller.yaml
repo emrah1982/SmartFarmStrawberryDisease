@@ -109,15 +109,6 @@ findik_kalite:
     ayırt edilebilir. Yani 'Sound Nut' bir sağlık sınıfı değil, VARLIK
     sınıfıdır — bu akıştaki organ karşılığıdır.
 
-bocek_teshis:
-  dosya: bocek_teshis.pt
-  rol: tekil
-  tetik: []              # BOŞ BIRAKILMALI — ROI akışına karışmasın
-  siniflar: []
-  esik: 0.35
-  aktif: false
-  aciklama: >
-    Böceğin YAKIN ÇEKİM fotoğrafı üzerinde çalışan ayrı akış. Girdi ölçeği
-    saha ROI'sinden tamamen farklıdır (makro fotoğraf); bu yüzden boru
-    hattına bağlanmaz. Çilekteki bocek_teshis modeli fındıkta kullanılamaz:
-    ürün kapsamı ayrıdır. Veri henüz YOK.
+# bocek_teshis burada TANIMLANMAZ -> configs/ortak/modeller.yaml
+# Böcek türü ürüne bağlı değildir: danaburnu çilekte de fındıkta da aynı
+# türdür. Tek model, tek dataset, her ürün için geçerli.

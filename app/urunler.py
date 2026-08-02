@@ -94,6 +94,39 @@ def dataset_dizini(urun: Optional[str] = None) -> Path:
     return ozel if ozel.is_dir() else DATASET_KOK
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# ORTAK KAPSAM — ürüne bağlı OLMAYAN varlıklar
+#
+# Ürün kapsamı hastalıklar için zorunludur: `Leaf Spot` çilekte
+# *Mycosphaerella fragariae*, fındıkta *Piggotia coryli*'dir. Aynı ad,
+# farklı etken, farklı ilaç — birleştirilirse yanlış tedavi önerilir.
+#
+# AMA BÖCEK TÜRÜ İÇİN DURUM TERSİDİR. Danaburnu (*Gryllotalpa*) hangi
+# bitkinin yanında fotoğraflanırsa fotoğraflansın AYNI TÜRDÜR. Böcek
+# teşhis akışı makro fotoğraftan CANLIYI tanır; bitkiyi hiç görmez.
+# Ürün başına kopyalansaydı:
+#   - aynı model her ürün klasörüne tekrar tekrar konurdu (20 MB × n)
+#   - aynı dataset n kez saklanırdı
+#   - yeni bitki eklenince böcek kütüğü elle kopyalanır, biri unutulur
+#
+# Bu yüzden ortak varlıklar KAPSAMSIZ kökte durur:
+#   configs/ortak/   modeller.yaml · siniflar.yaml · tedavi_onerileri.yaml
+#   models/          bocek_teshis.pt
+#   datasets/        bocek_teshis/
+#
+# KURAL: bir varlık ancak "aynı gerçek nesneyi" gösteriyorsa ortaktır.
+# Hastalık adı ortak olabilir ama HASTALIK ortak değildir.
+# ═══════════════════════════════════════════════════════════════════════
+
+ORTAK_KOK = URUN_KOK.parent / 'ortak'
+
+
+def ortak_yapilandirma(dosya: str) -> Optional[Path]:
+    """configs/ortak/<dosya> — yoksa None."""
+    p = ORTAK_KOK / dosya
+    return p if p.exists() else None
+
+
 def seradan(sera) -> str:
     """Sera kaydından ürün kapsamını çıkarır (üretici zaten giriyor)."""
     return slug(getattr(sera, 'urun', None) if sera is not None else None)

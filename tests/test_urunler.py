@@ -68,9 +68,30 @@ def test_cilek_kutugu_beklenen_siniflari_icerir():
 
 
 # ─────────────────────────────────────── model kütüğü ürün başına
-def test_model_yollari_urun_klasorunde():
+def test_urune_ozgu_model_yollari_urun_klasorunde():
+    """Ürüne özgü modeller models/<urun>/ altında olmalı.
+
+    İSTİSNA: `ortak: true` olanlar. Böcek türü ürüne bağlı değildir
+    (danaburnu her bitkide aynı türdür), o yüzden ağırlığı models/
+    kökünde durur ve her ürün aynı dosyayı kullanır.
+    Bkz. app/urunler.py "ORTAK KAPSAM".
+    """
+    ortaklar = {t.ad for t in modeller.tanimlar('cilek').values() if t.ortak}
+    assert ortaklar, 'ortak model kalmadıysa bu testin istisnası da gereksiz'
     for d in modeller.durum():
-        assert f'models{chr(92)}cilek' in d['yol'] or 'models/cilek' in d['yol'], d['yol']
+        if d['ad'] in ortaklar:
+            continue
+        assert f'models{chr(92)}cilek' in d['yol'] or 'models/cilek' in d['yol'], \
+            d['yol']
+
+
+def test_ortak_model_urun_klasorunde_ARANMAZ():
+    """Ortak model ürün klasörüne kopyalanmamalı — tek dosya, n ürün."""
+    for t in modeller.tanimlar('cilek').values():
+        if not t.ortak:
+            continue
+        yol = str(t.yol)
+        assert f'models{chr(92)}cilek' not in yol and 'models/cilek' not in yol, yol
 
 
 def test_miras_modeli_urun_klasorunde_aranir():

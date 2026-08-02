@@ -51,6 +51,10 @@ class ModelTanimi:
     zorunlu: bool = False
     aciklama: str = ''
     urun: str = ''          # hangi ürünün modeli (boş = varsayılan)
+    # ÜRÜNE BAĞLI DEĞİL mi? Böcek türü her bitkide aynı türdür; ürün
+    # başına kopyalanmaz. Ağırlık models/ kökünde, dataset datasets/
+    # kökünde durur. Bkz. app/urunler.py "ORTAK KAPSAM".
+    ortak: bool = False
     # Bu modelin ÇIKARIM çözünürlüğü. None ise config.IMGSZ kullanılır.
     #
     # NEDEN MODEL BAŞINA? Ölçüldü: organ modeli 1024'te bir serada 2 meyve,
@@ -62,6 +66,9 @@ class ModelTanimi:
 
     @property
     def yol(self) -> Path:
+        if self.ortak:
+            from app import urunler
+            return urunler.MODEL_KOK / self.dosya
         return model_dizini(self.urun or None) / self.dosya
 
     @property
@@ -94,9 +101,46 @@ def _kutugu_oku(urun=None) -> Dict[str, ModelTanimi]:
             zorunlu=bool(d.get('zorunlu', False)),
             aciklama=(d.get('aciklama') or '').strip(),
             urun=urun or '',
+            ortak=bool(d.get('ortak', False)),
             imgsz=int(d['imgsz']) if d.get('imgsz') else None,
         )
     return tanimlar
+
+
+def _ortak_kutugu() -> Dict[str, ModelTanimi]:
+    """configs/ortak/modeller.yaml — her ürüne eklenir.
+
+    Buradaki tanımlar ürüne bağlı DEĞİLDİR (böcek türü her bitkide aynı
+    türdür). Ürün kütüğünde aynı adla bir tanım varsa ÜRÜNÜNKİ kazanır:
+    bir bitki için özelleştirme gerekirse mümkün olsun.
+    """
+    from app import urunler
+    yol = urunler.ortak_yapilandirma('modeller.yaml')
+    if yol is None:
+        return {}
+    try:
+        ham = yaml.safe_load(yol.read_text(encoding='utf-8')) or {}
+    except yaml.YAMLError as e:
+        logger.error(f'{yol} okunamadı: {e}')
+        return {}
+    out = {}
+    for ad, d in ham.items():
+        d = d or {}
+        out[ad] = ModelTanimi(
+            ad=ad,
+            dosya=d.get('dosya', f'{ad}.pt'),
+            rol=d.get('rol', ad),
+            siniflar=list(d.get('siniflar') or []),
+            tetik=list(d.get('tetik') or []),
+            esik=float(d.get('esik', config.CONF_THRESHOLD)),
+            aktif=d.get('aktif', True) is not False,
+            zorunlu=bool(d.get('zorunlu', False)),
+            aciklama=(d.get('aciklama') or '').strip(),
+            urun='',
+            ortak=True,
+            imgsz=int(d['imgsz']) if d.get('imgsz') else None,
+        )
+    return out
 
 
 TANIMLAR: Dict[str, ModelTanimi] = _kutugu_oku()
@@ -106,12 +150,20 @@ _urun_tanimlari: Dict[str, Dict[str, ModelTanimi]] = {}
 
 
 def tanimlar(urun=None) -> Dict[str, ModelTanimi]:
+    """Ortak + ürüne özgü model kütüğü.
+
+    `urun` verilmese bile ORTAK kütük eklenir. Bu bir kez atlandı ve
+    böcek teşhis modeli "kurulu değil" göründü: `bocek_teshis` ürün
+    kütüğünden ortak kütüğe taşınmıştı, ama urun=None yolu ortağı
+    okumuyordu. Test yakaladı (test_bocek_modulu.py).
+    """
     from app import urunler
-    if urun is None:
-        return TANIMLAR
-    ad = urunler.slug(urun)
+    ad = urunler.slug(urun) if urun else urunler.VARSAYILAN
     if ad not in _urun_tanimlari:
-        _urun_tanimlari[ad] = _kutugu_oku(ad)
+        # Ortak kütük ÖNCE, ürününki SONRA: aynı ad varsa ürün ezer.
+        birlesik = dict(_ortak_kutugu())
+        birlesik.update(_kutugu_oku(ad))
+        _urun_tanimlari[ad] = birlesik
     return _urun_tanimlari[ad]
 
 # Yüklenmiş modeller (ad → YOLO nesnesi). Süreç ömrü boyunca bellekte kalır.

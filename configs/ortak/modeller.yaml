@@ -1,0 +1,26 @@
+# ORTAK MODEL KÜTÜĞÜ — ürüne bağlı OLMAYAN modeller
+#
+# Buradaki tanımlar HER ürünün kütüğüne eklenir. Ağırlık dosyası
+# models/<urun>/ altında değil, models/ KÖKÜNDE aranır (ortak: true).
+#
+# Ürün kütüğünde aynı adla tanım varsa ÜRÜNÜNKİ kazanır.
+# Ayrıntı: app/urunler.py "ORTAK KAPSAM"
+
+bocek_teshis:
+  dosya: bocek_teshis.pt
+  rol: tekil
+  tetik: []              # BOŞ BIRAKILMALI — ROI akışına karışmasın
+  ortak: true            # models/bocek_teshis.pt · datasets/bocek_teshis/
+  # Sıra dataset'ten gelir (datasets/bocek_teshis/data.yaml).
+  siniflar: [Army Worm, Black Cutworm, Grub, Mole Cricket, Peach Borer, Spider Mites]
+  esik: 0.35
+  aktif: true
+  aciklama: >
+    Böcek teşhisi: kullanıcının böceğin YAKIN ÇEKİM fotoğrafını çektiği
+    ayrı akış. Eğitim verisi 416x416 makro fotoğraflardır (kutu alanı
+    medyanı karenin %15'i); saha görüntüsündeki yaprak kırpıntısına hiç
+    benzemez. Bu yüzden ROI boru hattına BAĞLANMAZ — bağlansaydı yanlış
+    ölçekte çalışıp yanlış tespit üretirdi.
+
+    ÜRÜNE BAĞLI DEĞİLDİR: danaburnu çilekte de fındıkta da aynı türdür.
+    Model bitkiyi hiç görmez, yalnızca canlıyı tanır.

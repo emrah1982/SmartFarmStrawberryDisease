@@ -246,7 +246,7 @@ bulgusuna "Meyveyi hemen toplayın" maddesini eklerdi.
 ### Adım 4 — imgsz'i ölç
 
 ```bash
-python scripts/imgsz_oner.py datasets/cilek/bocek_teshis
+python scripts/imgsz_oner.py datasets/bocek_teshis
 ```
 
 Ölçüt "görüntü kaç piksel" **değil**, "nesneler bu imgsz'de kaç piksel

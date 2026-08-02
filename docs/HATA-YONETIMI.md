@@ -184,7 +184,7 @@ olmayan paket için ⛔ verir. Ayıran iki sinyal, mevcut beş dataset
 | dataset | kutuMax | çok kutulu | merkez sapması | alan |
 |---|---|---|---|---|
 | `findik/findik_kalite` | 1 | %0 | 0.036 | **stüdyo** |
-| `cilek/bocek_teshis` | 14 | %12 | 0.089 | **makro** |
+| `bocek_teshis` | 14 | %12 | 0.089 | **makro** |
 | `cilek/organ_detection` | 8 | %24 | 0.119 | saha |
 | `cilek/fruit_disease` | 7 | %29 | 0.171 | saha |
 | `cilek/leaf_disease` | 11 | %37 | 0.229 | saha |

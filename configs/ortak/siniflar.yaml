@@ -1,0 +1,53 @@
+# ORTAK SINIF KÜTÜĞÜ — ürüne bağlı OLMAYAN sınıflar
+#
+# ═══════════════════════════════════════════════════════════════════════
+# NEDEN ORTAK? Hastalık ürüne bağlıdır, BÖCEK TÜRÜ DEĞİL.
+#
+#   'Leaf Spot'   çilekte Mycosphaerella, fındıkta Piggotia  → AYRI
+#   'Mole Cricket' her bitkide Gryllotalpa                   → ORTAK
+#
+# Böcek teşhis akışı makro fotoğraftan CANLIYI tanır; bitkiyi hiç görmez.
+# Ürün başına kopyalansaydı yeni bitki eklenince bu liste elle
+# kopyalanır ve er geç biri unutulurdu.
+#
+# BURAYA NE KONUR?  Yalnızca "aynı gerçek nesne" olan şeyler.
+# BURAYA NE KONMAZ? Hastalıklar, olgunluk, organlar — hepsi ürüne özgüdür.
+#
+# Ürün kütüğünde aynı ad varsa ÜRÜNÜNKİ kazanır (özelleştirme mümkün).
+# Ayrıntı: app/urunler.py "ORTAK KAPSAM", docs/COK_BITKILI_YAPI.md
+# ═══════════════════════════════════════════════════════════════════════
+#
+# `id` VERİLMEZ: ID alanı ürün içi etiket dosyalarındaki sayıdır; ortak
+# sınıflara ID verilseydi her üründe farklı sayıya denk gelir, çakışırdı.
+# bocek_teshis modeli kendi dataset'inde 0-5 kullanır.
+# Ayrıntı: datasets/bocek_teshis/data.yaml
+
+Army Worm:
+  tr: Bozkurt Tırtılı
+  en: Army Worm
+  grup: zararli
+Black Cutworm:
+  tr: Siyah Kesici Kurt
+  en: Black Cutworm
+  grup: zararli
+Grub:
+  tr: Toprak Larvası
+  en: Grub
+  grup: zararli
+Mole Cricket:
+  tr: Danaburnu
+  en: Mole Cricket
+  grup: zararli
+Peach Borer:
+  tr: Şeftali Gövde Kurdu
+  en: Peach Borer
+  grup: zararli
+Spider Mites:
+  tr: Kırmızı Örümcek
+  en: Spider Mites
+  grup: zararli
+  aciklama: >
+    Hem böcek teşhis modelinin hem saha zararlı modelinin ürettiği ad.
+    AYNI CANLIDIR — ayrı yazılsaydı arayüzde iki "Kırmızı Örümcek"
+    görünür, tedavi metni ikiye bölünür, geçmiş sorgusu ayrılırdı.
+    Ürün kütüğünde de tanımlıysa oradaki kayıt bunu ezer.
